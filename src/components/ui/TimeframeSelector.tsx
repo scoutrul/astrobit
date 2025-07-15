@@ -1,107 +1,105 @@
-import { useState, useEffect } from 'react'
 import { useStore } from '../../store'
 
 interface TimeframeOption {
   value: string
   label: string
-  group: 'minutes' | 'hours' | 'days'
+  description: string
+  astronomical: string
 }
 
+// Simplified timeframes for astronomical correlation
 const timeframeOptions: TimeframeOption[] = [
-  // Minutes
-  { value: '1m', label: '1m', group: 'minutes' },
-  { value: '3m', label: '3m', group: 'minutes' },
-  { value: '5m', label: '5m', group: 'minutes' },
-  { value: '15m', label: '15m', group: 'minutes' },
-  { value: '30m', label: '30m', group: 'minutes' },
-  
-  // Hours
-  { value: '1h', label: '1h', group: 'hours' },
-  { value: '2h', label: '2h', group: 'hours' },
-  { value: '4h', label: '4h', group: 'hours' },
-  { value: '6h', label: '6h', group: 'hours' },
-  { value: '12h', label: '12h', group: 'hours' },
-  
-  // Days
-  { value: '1d', label: '1D', group: 'days' },
-  { value: '3d', label: '3D', group: 'days' },
-  { value: '1w', label: '1W', group: 'days' },
-  { value: '1M', label: '1M', group: 'days' },
+  { 
+    value: '1h', 
+    label: '1H', 
+    description: 'Hourly',
+    astronomical: 'Moon transits & fast lunar aspects'
+  },
+  { 
+    value: '1d', 
+    label: '1D', 
+    description: 'Daily',
+    astronomical: 'Daily lunar & planetary aspects'
+  },
+  { 
+    value: '1w', 
+    label: '1W', 
+    description: 'Weekly',
+    astronomical: 'Moon phases & planetary movements'
+  },
+  { 
+    value: '1M', 
+    label: '1M', 
+    description: 'Monthly',
+    astronomical: 'Complete lunar cycles'
+  },
+  { 
+    value: '1Y', 
+    label: '1Y', 
+    description: 'Yearly',
+    astronomical: 'Solar cycles & annual patterns'
+  },
 ]
 
 function TimeframeSelector() {
   const { timeframe, setTimeframe } = useStore()
-  const [selectedGroup, setSelectedGroup] = useState<'minutes' | 'hours' | 'days'>('hours')
-
-  // Update selected group when timeframe changes
-  useEffect(() => {
-    const option = timeframeOptions.find(opt => opt.value === timeframe)
-    if (option) {
-      setSelectedGroup(option.group)
-    }
-  }, [timeframe])
 
   const handleTimeframeChange = (newTimeframe: string) => {
     setTimeframe(newTimeframe)
   }
 
-  const filteredOptions = timeframeOptions.filter(option => option.group === selectedGroup)
+  const currentOption = timeframeOptions.find(opt => opt.value === timeframe)
 
   return (
-    <div className="bg-[#1a1d29] rounded-lg p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-[#c9ccd3]">Timeframe</h3>
-        <span className="text-xs text-[#8b8f9b]">Current: {timeframe}</span>
-      </div>
-
-      {/* Group Selector */}
-      <div className="flex space-x-1 bg-[#0a0b1e] rounded-lg p-1">
-        {(['minutes', 'hours', 'days'] as const).map((group) => (
-          <button
-            key={group}
-            onClick={() => setSelectedGroup(group)}
-            className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-all duration-200 ${
-              selectedGroup === group
-                ? 'bg-[#f7931a] text-black'
-                : 'text-[#8b8f9b] hover:text-[#c9ccd3] hover:bg-[#1a1d29]'
-            }`}
-          >
-            {group.charAt(0).toUpperCase() + group.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Timeframe Options */}
+    <div className="space-y-4">
+      {/* Timeframe Buttons */}
       <div className="grid grid-cols-5 gap-2">
-        {filteredOptions.map((option) => (
+        {timeframeOptions.map((option) => (
           <button
             key={option.value}
             onClick={() => handleTimeframeChange(option.value)}
-            className={`px-3 py-2 text-xs font-medium rounded-md transition-all duration-200 ${
-              timeframe === option.value
-                ? 'bg-[#f7931a] text-black'
-                : 'bg-[#0a0b1e] text-[#8b8f9b] hover:text-[#c9ccd3] hover:bg-[#262a36] border border-[#262a36]'
-            }`}
+            className={`
+              relative px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200
+              border border-[var(--border-color)]
+              ${timeframe === option.value
+                ? 'bg-[var(--accent-primary)] text-[var(--bg-primary)] border-[var(--accent-primary)] shadow-[var(--shadow-glow)]'
+                : 'bg-[var(--bg-accent)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/50'
+              }
+            `}
           >
-            {option.label}
+            <div className="text-center">
+              <div className="font-semibold">{option.label}</div>
+              <div className="text-xs opacity-75 mt-1">{option.description}</div>
+            </div>
           </button>
         ))}
       </div>
 
-      {/* Performance Info */}
-      <div className="flex items-center justify-between text-xs text-[#8b8f9b]">
-        <span>
-          Data points: {selectedGroup === 'minutes' ? '200' : selectedGroup === 'hours' ? '168' : '90'}
-        </span>
-        <span>
-          Period: {
-            selectedGroup === 'minutes' 
-              ? '~3-5 hours' 
-              : selectedGroup === 'hours' 
-                ? '~1 week' 
-                : '~3 months'
-          }
-        </span>
+      {/* Astronomical Context */}
+      {currentOption && (
+        <div className="bg-[var(--bg-accent)]/50 rounded-lg p-4 border border-[var(--border-color)]">
+          <div className="flex items-center space-x-2 mb-2">
+            <div className="text-lg">🌙</div>
+            <div className="text-sm font-medium text-[var(--text-primary)]">Astronomical Relevance</div>
+          </div>
+          <div className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            {currentOption.astronomical}
+          </div>
+        </div>
+      )}
+
+      {/* Info Panel */}
+      <div className="bg-[var(--bg-secondary)]/50 rounded-lg p-3 border border-[var(--border-color)]">
+        <div className="text-xs text-[var(--text-muted)] space-y-2">
+          <div className="flex items-center space-x-2">
+            <div className="w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full"></div>
+            <span>Timeframes optimized for cosmic pattern analysis</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-1.5 h-1.5 bg-[var(--accent-secondary)] rounded-full"></div>
+            <span>Shorter periods may not reveal meaningful astronomical correlations</span>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -3,3 +3,162 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities; 
+
+/* CSS Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+/* Dark Astronomical Theme Variables */
+:root {
+  --bg-primary: #0a0b1e;      /* Deep space */
+  --bg-secondary: #1a1d29;    /* Dark nebula */
+  --bg-accent: #262a36;       /* Space dust */
+  --text-primary: #e2e8f0;    /* Starlight */
+  --text-secondary: #c9ccd3;  /* Moonlight */
+  --text-muted: #8892b0;      /* Cosmic mist */
+  --accent-primary: #10b981;  /* Aurora green */
+  --accent-secondary: #3b82f6; /* Cosmic blue */
+  --border-color: #374151;    /* Asteroid belt */
+  --shadow-dark: rgba(0, 0, 0, 0.5);
+  --shadow-glow: rgba(16, 185, 129, 0.1);
+}
+
+/* Global Body Styles */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Responsive Typography */
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 640px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* Scrollbar Styling for Dark Theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Selection Colors */
+::selection {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+/* Focus Styles for Accessibility */
+*:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Button Reset */
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Input Reset */
+input, textarea, select {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+}
+
+/* Link Reset */
+a {
+  color: var(--accent-secondary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-primary);
+}
+
+/* Remove default list styles */
+ul, ol {
+  list-style: none;
+}
+
+/* Ensure full height layout */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom utility classes for consistent spacing */
+.container-responsive {
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-responsive {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-responsive {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container-responsive {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .container-responsive {
+    padding-left: 4rem;
+    padding-right: 4rem;
+  }
+} 

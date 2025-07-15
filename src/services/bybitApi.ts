@@ -7,13 +7,7 @@ import {
   BybitKlineData,
   BybitApiConfig,
   BybitTickerData,
-  BybitOrderBookData,
-  BybitSymbolInfo,
-  BybitOrderRequest,
-  BybitOrderResponse,
-  BybitAccountInfo,
-  BybitWalletBalance,
-  BybitPosition
+  BybitSymbolInfo
 } from '../types';
 
 class BybitApiService {
@@ -23,7 +17,7 @@ class BybitApiService {
   
   constructor(config: BybitApiConfig = {}) {
     this.config = {
-      testnet: true, // Default to testnet for development
+      testnet: false, // 🔒 PRODUCTION: Use real API for live data
       recvWindow: 5000,
       ...config
     };
@@ -155,7 +149,7 @@ class BybitApiService {
   async getKlineData(
     symbol: string,
     interval: string,
-    limit: number = 200,
+    limit: number = 1000, // Увеличиваем лимит для большего количества данных
     category: string = 'spot'
   ): Promise<ApiResponse<CryptoData[]>> {
     try {
@@ -173,33 +167,45 @@ class BybitApiService {
       if (!apiResponse.success || !apiResponse.data) {
         return {
           success: false,
-          error: apiResponse.error || 'No data received',
+          error: apiResponse.error || 'Нет данных',
         };
       }
       
-      // Transform Bybit data format to our internal format
-      const cryptoData: CryptoData[] = apiResponse.data.list.map((item) => ({
-        symbol,
-        time: new Date(parseInt(item[0])).toISOString().split('T')[0], // Return YYYY-MM-DD format
-        open: parseFloat(item[1]),
-        high: parseFloat(item[2]),
-        low: parseFloat(item[3]),
-        close: parseFloat(item[4]),
-        volume: parseFloat(item[5]),
-      }));
+      // Преобразуем данные Bybit в наш внутренний формат
+      const cryptoData: CryptoData[] = apiResponse.data.list.map((item) => {
+        const timestamp = parseInt(item[0]);
+        
+        return {
+          symbol,
+          time: Math.floor(timestamp / 1000).toString(), // Unix timestamp в секундах как строка
+          open: parseFloat(item[1]),
+          high: parseFloat(item[2]),
+          low: parseFloat(item[3]),
+          close: parseFloat(item[4]),
+          volume: parseFloat(item[5]),
+        };
+      });
       
-      // Sort by time (oldest first)
-      cryptoData.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+      // Сортировка по времени (от старого к новому)
+      cryptoData.sort((a, b) => parseInt(a.time) - parseInt(b.time));
+      
+      // Удаляем дубликаты по времени
+      const uniqueData = cryptoData.filter((item, index, arr) => 
+        index === 0 || item.time !== arr[index - 1].time
+      );
+      
+      console.log(`[Bybit API] Получено ${uniqueData.length} уникальных свечей для ${symbol} (${interval})`);
+      console.log(`[Bybit API] Временной диапазон: ${new Date(parseInt(uniqueData[0]?.time || '0') * 1000).toLocaleString()} - ${new Date(parseInt(uniqueData[uniqueData.length - 1]?.time || '0') * 1000).toLocaleString()}`);
       
       return {
         success: true,
-        data: cryptoData,
+        data: uniqueData,
       };
     } catch (error) {
-      console.error('[Bybit API] Error fetching kline data:', error);
+      console.error('[Bybit API] Ошибка получения данных свечей:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Network error',
+        error: error instanceof Error ? error.message : 'Сетевая ошибка',
       };
     }
   }
@@ -234,26 +240,7 @@ class BybitApiService {
       };
     }
   }
-  
-  /**
-   * Get order book data
-   */
-  async getOrderBook(symbol: string, category: string = 'spot', limit: number = 25): Promise<ApiResponse<BybitOrderBookData>> {
-    try {
-      const response = await this.client.get('/v5/market/orderbook', {
-        params: { category, symbol, limit },
-      });
-      
-      return this.handleBybitResponse(response);
-    } catch (error) {
-      console.error('[Bybit API] Error fetching order book:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error',
-      };
-    }
-  }
-  
+
   /**
    * Get available symbols
    */
@@ -290,74 +277,8 @@ class BybitApiService {
     }
   }
   
-  /**
-   * Get account information (requires authentication)
-   */
-  async getAccountInfo(): Promise<ApiResponse<BybitAccountInfo>> {
-    try {
-      const response = await this.client.get('/v5/account/info');
-      return this.handleBybitResponse(response);
-    } catch (error) {
-      console.error('[Bybit API] Error fetching account info:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error',
-      };
-    }
-  }
-  
-  /**
-   * Get wallet balance (requires authentication)
-   */
-  async getWalletBalance(accountType: string = 'UNIFIED'): Promise<ApiResponse<BybitWalletBalance>> {
-    try {
-      const response = await this.client.get('/v5/account/wallet-balance', {
-        params: { accountType },
-      });
-      return this.handleBybitResponse(response);
-    } catch (error) {
-      console.error('[Bybit API] Error fetching wallet balance:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error',
-      };
-    }
-  }
-  
-  /**
-   * Create a new order (requires authentication)
-   */
-  async createOrder(orderData: BybitOrderRequest): Promise<ApiResponse<BybitOrderResponse>> {
-    try {
-      const response = await this.client.post('/v5/order/create', orderData);
-      return this.handleBybitResponse(response);
-    } catch (error) {
-      console.error('[Bybit API] Error creating order:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error',
-      };
-    }
-  }
-  
-  /**
-   * Get positions (requires authentication)
-   */
-  async getPositions(category: string, symbol?: string): Promise<ApiResponse<BybitPosition[]>> {
-    try {
-      const params: any = { category };
-      if (symbol) params.symbol = symbol;
-      
-      const response = await this.client.get('/v5/position/list', { params });
-      return this.handleBybitResponse(response);
-    } catch (error) {
-      console.error('[Bybit API] Error fetching positions:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error',
-      };
-    }
-  }
+  // 🔒 SECURITY: All trading methods removed for read-only API access
+  // Previously removed methods: getAccountInfo, getWalletBalance, createOrder, getPositions
   
   /**
    * Map timeframe to Bybit interval format

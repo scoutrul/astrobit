@@ -3,6 +3,7 @@ import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { useCryptoData } from '../../hooks/useCryptoData';
 import { useStore } from '../../store';
 import { CryptoData } from '../../types';
+import SymbolSelector from '../ui/SymbolSelector';
 
 interface ChartProps {
   height?: number;
@@ -12,95 +13,75 @@ interface ChartProps {
 export default function SimpleChart({ height = 400, className = '' }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Area'> | null>(null);
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const [isChartReady, setIsChartReady] = useState(false);
   
-  // Get current symbol and timeframe from store
+  // Получение текущего символа и таймфрейма из хранилища
   const { symbol, timeframe } = useStore();
   
-  // Use enhanced Bybit API
+  // Использование простого API Bybit
   const {
     data: cryptoData,
     loading,
     error,
     lastUpdated,
-    isAuthenticated,
-    apiConfig
+    isAuthenticated
   } = useCryptoData(symbol, timeframe);
 
-  // Initialize chart
+  // Инициализация графика
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    console.log('[Chart] Инициализация графика...');
+
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
-      height,
+      height: height,
       layout: {
-        background: { color: '#0B1426' },
-        textColor: '#E2E8F0',
-        fontSize: 12,
-        fontFamily: 'Inter, system-ui, sans-serif',
+        background: { color: '#0a0b1e' },
+        textColor: '#e2e8f0',
       },
       grid: {
-        vertLines: { color: '#1E293B', style: 1, visible: true },
-        horzLines: { color: '#1E293B', style: 1, visible: true },
+        vertLines: { color: '#1e293b' },
+        horzLines: { color: '#1e293b' },
       },
       crosshair: {
         mode: 1,
-        vertLine: {
-          color: '#475569',
-          width: 1,
-          style: 2,
-          visible: true,
-        },
-        horzLine: {
-          color: '#475569',
-          width: 1,
-          style: 2,
-          visible: true,
-        },
-      },
-      timeScale: {
-        timeVisible: true,
-        secondsVisible: false,
-        borderColor: '#374151',
-        fixLeftEdge: false,
-        fixRightEdge: false,
       },
       rightPriceScale: {
-        borderColor: '#374151',
-        scaleMargins: { top: 0.1, bottom: 0.1 },
+        borderColor: '#334155',
+        visible: true,
+        autoScale: true,
       },
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: true,
-      },
-      handleScale: {
-        axisPressedMouseMove: true,
-        mouseWheel: true,
-        pinch: true,
+      timeScale: {
+        borderColor: '#334155',
+        timeVisible: true,
+        secondsVisible: false,
       },
     });
 
-    // Create area series - using working API
-    const areaSeries = chart.addAreaSeries({
-      topColor: 'rgba(16, 185, 129, 0.3)',
-      bottomColor: 'rgba(16, 185, 129, 0.05)',
-      lineColor: 'rgba(16, 185, 129, 1)',
-      lineWidth: 2,
+    // Создание свечной серии
+    const candlestickSeries = chart.addCandlestickSeries({
+      upColor: '#10b981', // Зелёный для роста
+      downColor: '#ef4444', // Красный для падения
+      borderUpColor: '#10b981',
+      borderDownColor: '#ef4444',
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444',
     });
 
     chartRef.current = chart;
-    seriesRef.current = areaSeries;
+    seriesRef.current = candlestickSeries;
     setIsChartReady(true);
 
-    // Handle resize
+    console.log('[Chart] График инициализирован');
+
+    // Обработчик изменения размера
     const handleResize = () => {
       if (chartContainerRef.current && chart) {
         chart.applyOptions({
           width: chartContainerRef.current.clientWidth,
+          height: height,
         });
       }
     };
@@ -116,80 +97,93 @@ export default function SimpleChart({ height = 400, className = '' }: ChartProps
     };
   }, [height]);
 
-  // Update chart data
+  // Обновление данных графика при изменении криптоданных
   useEffect(() => {
-    if (!isChartReady || !seriesRef.current || !cryptoData.length) return;
+    if (!isChartReady || !seriesRef.current || !cryptoData.length) {
+      console.log('[Chart] График не готов или нет данных');
+      return;
+    }
 
     try {
-      const chartData = cryptoData.map((item: CryptoData) => ({
-        time: item.time,
-        value: item.close,
-      }));
+      console.log(`[Chart] Обновление данных графика: ${cryptoData.length} свечей`);
+      
+      // Преобразуем данные для lightweight-charts
+      const chartData = cryptoData
+        .map((item: CryptoData) => {
+          // Валидация данных OHLC
+          if (item.open <= 0 || item.high <= 0 || item.low <= 0 || item.close <= 0) {
+            console.warn('[Chart] Пропущена свеча с некорректными данными:', item);
+            return null;
+          }
+          
+          if (item.high < Math.max(item.open, item.close) || 
+              item.low > Math.min(item.open, item.close)) {
+            console.warn('[Chart] Пропущена свеча с некорректными high/low:', item);
+            return null;
+          }
 
-      seriesRef.current.setData(chartData);
+          // Преобразуем строковое время в число для lightweight-charts
+          const timeNumber = parseInt(item.time);
 
-      // Fit chart to data
-      if (chartRef.current) {
-        chartRef.current.timeScale().fitContent();
+          return {
+            time: timeNumber,
+            open: item.open,
+            high: item.high,
+            low: item.low,
+            close: item.close,
+          };
+        })
+        .filter(Boolean) // Удаляем null значения
+        .sort((a, b) => a!.time - b!.time); // Сортировка по времени
+
+      console.log(`[Chart] Валидных свечей: ${chartData.length}`);
+      console.log(`[Chart] Временной диапазон: ${new Date((chartData[0]?.time || 0) * 1000).toLocaleString()} - ${new Date((chartData[chartData.length - 1]?.time || 0) * 1000).toLocaleString()}`);
+
+      if (chartData.length > 0) {
+        // Устанавливаем данные
+        seriesRef.current.setData(chartData as any);
+
+        // Подгоняем график под данные
+        if (chartRef.current) {
+          chartRef.current.timeScale().fitContent();
+        }
+
+        console.log(`[Chart] График обновлён: ${chartData.length} свечей`);
+      } else {
+        console.warn('[Chart] Нет валидных данных для отображения');
       }
-
-      console.log(`[Chart] Updated with ${chartData.length} data points`);
     } catch (error) {
-      console.error('[Chart] Error updating chart data:', error);
+      console.error('[Chart] Ошибка обновления данных графика:', error);
     }
   }, [cryptoData, isChartReady]);
 
   return (
-    <div className={`relative ${className}`}>
-      {/* Chart Container */}
-      <div ref={chartContainerRef} className="w-full" style={{ height }} />
+    <div className={`relative ${className}`} style={{ height: `${height}px` }}>
+      {/* График */}
+      <div ref={chartContainerRef} className="w-full h-full" />
       
-      {/* Loading Overlay */}
+      {/* SymbolSelector в верхнем левом углу */}
+      <div className="absolute top-4 left-4 z-10 w-64">
+        <SymbolSelector />
+      </div>
+      
+      {/* Индикатор загрузки */}
       {loading && (
-        <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center">
-          <div className="bg-slate-800 rounded-lg p-4 flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400"></div>
-            <span className="text-slate-300">Loading chart data...</span>
+        <div className="absolute inset-0 bg-[#0a0b1e]/80 flex items-center justify-center">
+          <div className="text-[#e2e8f0]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f7931a] mx-auto mb-4"></div>
+            <div>Загрузка данных...</div>
           </div>
         </div>
       )}
       
-      {/* Error Display */}
+      {/* Ошибка */}
       {error && (
-        <div className="absolute top-4 right-4 bg-red-900/80 border border-red-700 rounded-lg p-3 max-w-sm">
-          <div className="text-red-200 text-sm">
-            <div className="font-medium">Chart Error</div>
-            <div>{error}</div>
-          </div>
-        </div>
-      )}
-      
-      {/* Chart Info Overlay */}
-      <div className="absolute top-4 left-4 bg-slate-800/80 rounded-lg p-3 text-sm">
-        <div className="text-slate-300 space-y-1">
-          <div className="font-medium text-slate-200">{symbol} • {timeframe}</div>
-          <div>Data Points: {cryptoData.length}</div>
-          {lastUpdated && (
-            <div>Updated: {lastUpdated.toLocaleTimeString()}</div>
-          )}
-        </div>
-      </div>
-      
-      {/* API Status */}
-      <div className="absolute bottom-4 right-4 bg-slate-800/80 rounded-lg p-2 text-xs">
-        <div className="text-slate-400 flex items-center space-x-2">
-          <div className={`w-2 h-2 rounded-full ${isAuthenticated ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
-          <span>{isAuthenticated ? 'Authenticated' : 'Public API'}</span>
-        </div>
-      </div>
-      
-      {/* Enhanced API Info */}
-      {apiConfig && (
-        <div className="absolute bottom-4 left-4 bg-slate-800/80 rounded-lg p-2 text-xs">
-          <div className="text-slate-400 space-y-1">
-            <div>API: Bybit Enhanced</div>
-            <div>Testnet: {apiConfig.testnet ? 'Yes' : 'No'}</div>
-            <div>Auth: {apiConfig.secret !== 'not set' ? 'Yes' : 'No'}</div>
+        <div className="absolute inset-0 bg-[#0a0b1e]/80 flex items-center justify-center">
+          <div className="text-center text-[#ef4444]">
+            <div className="text-2xl mb-4">⚠️</div>
+            <div className="font-semibold mb-2">Ошибка загрузки данных</div>
+            <div className="text-sm text-[#8b8f9b]">{error}</div>
           </div>
         </div>
       )}

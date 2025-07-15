@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { bybitApiEnhanced } from '../services/bybitApiEnhanced';
 import { CryptoData } from '../types';
+import { bybitApi } from '../services/bybitApi';
 
 interface UseCryptoDataResult {
   data: CryptoData[];
@@ -8,7 +8,6 @@ interface UseCryptoDataResult {
   error: string | null;
   lastUpdated: Date | null;
   isAuthenticated: boolean;
-  apiConfig: any;
 }
 
 export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataResult {
@@ -30,28 +29,34 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         setLoading(true);
         setError(null);
 
-        console.log(`[useCryptoData] Fetching data for ${symbol} with timeframe ${timeframe}`);
+        console.log(`[useCryptoData] Загрузка данных для ${symbol} с таймфреймом ${timeframe}`);
         
-        const interval = bybitApiEnhanced.mapTimeframeToInterval(timeframe);
-        const response = await bybitApiEnhanced.getKlineData(symbol, interval, 200);
+        const interval = bybitApi.mapTimeframeToInterval(timeframe);
+        const response = await bybitApi.getKlineData(symbol, interval, 200);
 
         if (!isMounted) return;
 
         if (response.success && response.data) {
-          console.log(`[useCryptoData] Successfully fetched ${response.data.length} data points`);
+          console.log(`[useCryptoData] Успешно загружено ${response.data.length} точек данных`);
+          
+          // Проверяем качество данных
+          if (response.data.length < 10) {
+            console.warn(`[useCryptoData] Получено мало данных: ${response.data.length} точек`);
+          }
+          
           setData(response.data);
           setLastUpdated(new Date());
           setError(null);
         } else {
-          console.error('[useCryptoData] API error:', response.error);
-          setError(response.error || 'Failed to fetch crypto data');
+          console.error('[useCryptoData] Ошибка API:', response.error);
+          setError(response.error || 'Не удалось загрузить данные');
           setData([]);
         }
       } catch (err) {
         if (!isMounted) return;
         
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-        console.error('[useCryptoData] Network error:', errorMessage);
+        const errorMessage = err instanceof Error ? err.message : 'Произошла неизвестная ошибка';
+        console.error('[useCryptoData] Сетевая ошибка:', errorMessage);
         setError(errorMessage);
         setData([]);
       } finally {
@@ -63,8 +68,8 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
 
     fetchData();
 
-    // Set up interval for periodic updates
-    const intervalId = setInterval(fetchData, 30000); // Update every 30 seconds
+    // Обновляем данные каждые 30 секунд
+    const intervalId = setInterval(fetchData, 30000);
 
     return () => {
       isMounted = false;
@@ -77,7 +82,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
     loading,
     error,
     lastUpdated,
-    isAuthenticated: bybitApiEnhanced.isAuthenticated(),
-    apiConfig: bybitApiEnhanced.getConfig(),
+    isAuthenticated: bybitApi.isAuthenticated()
   };
 } 
