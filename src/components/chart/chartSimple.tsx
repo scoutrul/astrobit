@@ -4,33 +4,29 @@ import { useCryptoData } from '../../hooks/useCryptoData';
 import { useStore } from '../../store';
 import { CryptoData } from '../../types';
 
-interface ChartComponentProps {
+interface ChartProps {
   height?: number;
   className?: string;
 }
 
-export default function Chart({ height = 400, className = '' }: ChartComponentProps) {
+export default function SimpleChart({ height = 400, className = '' }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const candlestickSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
+  const seriesRef = useRef<ISeriesApi<'Area'> | null>(null);
   const [isChartReady, setIsChartReady] = useState(false);
   
   // Get current symbol and timeframe from store
   const { symbol, timeframe } = useStore();
   
-  // Use hooks with store values
+  // Use enhanced Bybit API
   const {
     data: cryptoData,
-    loading: cryptoLoading,
-    error: cryptoError,
+    loading,
+    error,
     lastUpdated,
-    isAuthenticated
+    isAuthenticated,
+    apiConfig
   } = useCryptoData(symbol, timeframe);
-  
-  // Placeholder for future astronomical data integration
-  const astroEvents: any[] = [];
-  const astroLoading = false;
-  const astroError = null;
 
   // Initialize chart
   useEffect(() => {
@@ -88,16 +84,16 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
       },
     });
 
-    // Create area series
+    // Create area series - using working API
     const areaSeries = chart.addAreaSeries({
-      topColor: 'rgba(16, 185, 129, 0.56)',
-      bottomColor: 'rgba(16, 185, 129, 0.04)',
+      topColor: 'rgba(16, 185, 129, 0.3)',
+      bottomColor: 'rgba(16, 185, 129, 0.05)',
       lineColor: 'rgba(16, 185, 129, 1)',
       lineWidth: 2,
     });
 
     chartRef.current = chart;
-    candlestickSeriesRef.current = areaSeries;
+    seriesRef.current = areaSeries;
     setIsChartReady(true);
 
     // Handle resize
@@ -115,22 +111,22 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
       window.removeEventListener('resize', handleResize);
       chart.remove();
       chartRef.current = null;
-      candlestickSeriesRef.current = null;
+      seriesRef.current = null;
       setIsChartReady(false);
     };
   }, [height]);
 
-  // Update chart data when crypto data changes
+  // Update chart data
   useEffect(() => {
-    if (!isChartReady || !candlestickSeriesRef.current || !cryptoData.length) return;
+    if (!isChartReady || !seriesRef.current || !cryptoData.length) return;
 
     try {
       const chartData = cryptoData.map((item: CryptoData) => ({
-        time: item.time as any,
+        time: item.time,
         value: item.close,
       }));
 
-      candlestickSeriesRef.current.setData(chartData);
+      seriesRef.current.setData(chartData);
 
       // Fit chart to data
       if (chartRef.current) {
@@ -143,18 +139,13 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
     }
   }, [cryptoData, isChartReady]);
 
-  // Placeholder for future astronomical event integration
-
-  const isLoading = cryptoLoading || astroLoading;
-  const hasError = cryptoError || astroError;
-
   return (
     <div className={`relative ${className}`}>
       {/* Chart Container */}
       <div ref={chartContainerRef} className="w-full" style={{ height }} />
       
       {/* Loading Overlay */}
-      {isLoading && (
+      {loading && (
         <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center">
           <div className="bg-slate-800 rounded-lg p-4 flex items-center space-x-3">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400"></div>
@@ -164,12 +155,11 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
       )}
       
       {/* Error Display */}
-      {hasError && (
+      {error && (
         <div className="absolute top-4 right-4 bg-red-900/80 border border-red-700 rounded-lg p-3 max-w-sm">
           <div className="text-red-200 text-sm">
             <div className="font-medium">Chart Error</div>
-            {cryptoError && <div>Crypto: {cryptoError}</div>}
-            {astroError && <div>Astro: {astroError}</div>}
+            <div>{error}</div>
           </div>
         </div>
       )}
@@ -179,7 +169,6 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
         <div className="text-slate-300 space-y-1">
           <div className="font-medium text-slate-200">{symbol} • {timeframe}</div>
           <div>Data Points: {cryptoData.length}</div>
-          <div>Astro Events: {astroEvents.length}</div>
           {lastUpdated && (
             <div>Updated: {lastUpdated.toLocaleTimeString()}</div>
           )}
@@ -194,7 +183,16 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
         </div>
       </div>
       
-      {/* Future: Event Tooltip */}
+      {/* Enhanced API Info */}
+      {apiConfig && (
+        <div className="absolute bottom-4 left-4 bg-slate-800/80 rounded-lg p-2 text-xs">
+          <div className="text-slate-400 space-y-1">
+            <div>API: Bybit Enhanced</div>
+            <div>Testnet: {apiConfig.testnet ? 'Yes' : 'No'}</div>
+            <div>Auth: {apiConfig.secret !== 'not set' ? 'Yes' : 'No'}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

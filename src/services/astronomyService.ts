@@ -1,163 +1,179 @@
-import * as Astronomia from 'astronomia';
 import { AstroEvent } from '../types';
 
 class AstronomyService {
   /**
-   * Calculate lunar phases for a given date range
+   * Calculate lunar phases using a simplified algorithm
+   * This replaces the incorrect Astronomia.moonphase.year() call
    */
-  calculateLunarPhases(startDate: Date, endDate: Date): AstroEvent[] {
+  private calculateLunarPhases(startDate: Date, endDate: Date): AstroEvent[] {
     const events: AstroEvent[] = [];
-    const startYear = startDate.getFullYear();
-    const endYear = endDate.getFullYear();
     
     try {
-      for (let year = startYear; year <= endYear; year++) {
-        // Get lunar phases for the year
-        const phases = Astronomia.moonphase.year(year);
+      // Use a simplified lunar phase calculation
+      // Based on the synodic month of approximately 29.53 days
+      const SYNODIC_MONTH = 29.530588853; // days
+      const KNOWN_NEW_MOON = new Date('2000-01-06T18:14:00Z'); // Known new moon
+      
+      const startTime = startDate.getTime();
+      const knownNewMoonTime = KNOWN_NEW_MOON.getTime();
+      
+      // Calculate the number of synodic months since the known new moon
+      const daysSinceKnownNewMoon = (startTime - knownNewMoonTime) / (1000 * 60 * 60 * 24);
+      const cyclesSinceKnownNewMoon = Math.floor(daysSinceKnownNewMoon / SYNODIC_MONTH);
+      
+      // Find lunar phases in the given date range
+      for (let cycle = cyclesSinceKnownNewMoon - 1; cycle <= cyclesSinceKnownNewMoon + 3; cycle++) {
+        const cycleStartTime = knownNewMoonTime + (cycle * SYNODIC_MONTH * 24 * 60 * 60 * 1000);
         
-        phases.forEach((phase: number, index: number) => {
-          const phaseDate = new Date(phase * 24 * 60 * 60 * 1000); // Convert from Julian days
+        // Calculate phase times within this cycle
+        const phases = [
+          { offset: 0, type: 'New Moon', significance: 'high' as const },
+          { offset: 0.25, type: 'First Quarter', significance: 'medium' as const },
+          { offset: 0.5, type: 'Full Moon', significance: 'high' as const },
+          { offset: 0.75, type: 'Last Quarter', significance: 'medium' as const }
+        ];
+        
+        phases.forEach((phase, index) => {
+          const phaseTime = cycleStartTime + (phase.offset * SYNODIC_MONTH * 24 * 60 * 60 * 1000);
+          const phaseDate = new Date(phaseTime);
           
+          // Only include phases within our date range
           if (phaseDate >= startDate && phaseDate <= endDate) {
-            const phaseType = index % 4;
-            let title = '';
-            let significance: 'low' | 'medium' | 'high' = 'medium';
-            
-            switch (phaseType) {
-              case 0:
-                title = 'New Moon';
-                significance = 'high';
-                break;
-              case 1:
-                title = 'First Quarter';
-                significance = 'medium';
-                break;
-              case 2:
-                title = 'Full Moon';
-                significance = 'high';
-                break;
-              case 3:
-                title = 'Last Quarter';
-                significance = 'medium';
-                break;
-            }
-            
             events.push({
-              id: `lunar_${year}_${index}`,
+              id: `lunar_phase_${cycle}_${index}`,
               type: 'lunar_phase',
-              timestamp: phaseDate.getTime(),
-              title,
-              description: `${title} phase of the moon`,
-              significance,
+              timestamp: phaseTime,
+              title: phase.type,
+              description: `${phase.type} lunar phase`,
+              significance: phase.significance
             });
           }
         });
       }
+      
+      console.log(`[Astronomy Service] Generated ${events.length} lunar phase events`);
     } catch (error) {
       console.error('[Astronomy Service] Error calculating lunar phases:', error);
     }
     
-    return events.sort((a, b) => a.timestamp - b.timestamp);
+    return events;
   }
-  
+
   /**
-   * Calculate solar eclipses for a given date range
-   * Note: This is a simplified implementation
+   * Calculate solar eclipses (simplified implementation)
    */
-  calculateSolarEclipses(startDate: Date, endDate: Date): AstroEvent[] {
+  private calculateSolarEclipses(startDate: Date, endDate: Date): AstroEvent[] {
     const events: AstroEvent[] = [];
     
-           // Simplified eclipse calculation - in production, use more sophisticated algorithms
-       try {
-         // const startYear = startDate.getFullYear();
-         // const endYear = endDate.getFullYear();
-         // These would be used for more sophisticated eclipse calculations
+    try {
+      // Simplified eclipse calculation - eclipses occur roughly every 6 months
+      const startYear = startDate.getFullYear();
+      const endYear = endDate.getFullYear();
       
-      // Known eclipse dates for demonstration (would use proper calculations in production)
-      const knownEclipses = [
-        { date: new Date('2024-04-08'), type: 'Total Solar Eclipse' },
-        { date: new Date('2024-10-02'), type: 'Annular Solar Eclipse' },
-        { date: new Date('2025-03-29'), type: 'Partial Solar Eclipse' },
-        { date: new Date('2025-09-21'), type: 'Partial Solar Eclipse' },
-      ];
+      for (let year = startYear; year <= endYear; year++) {
+        // Approximate eclipse dates (this is a simplified calculation)
+        const eclipseDates = [
+          new Date(`${year}-06-15T12:00:00Z`), // Approximate summer eclipse
+          new Date(`${year}-12-15T12:00:00Z`)  // Approximate winter eclipse
+        ];
+        
+        eclipseDates.forEach((eclipseDate, index) => {
+          if (eclipseDate >= startDate && eclipseDate <= endDate) {
+            events.push({
+              id: `solar_eclipse_${year}_${index}`,
+              type: 'solar_eclipse',
+              timestamp: eclipseDate.getTime(),
+              title: 'Solar Eclipse',
+              description: 'Solar eclipse event',
+              significance: 'high'
+            });
+          }
+        });
+      }
       
-      knownEclipses.forEach((eclipse, index) => {
-        if (eclipse.date >= startDate && eclipse.date <= endDate) {
-          events.push({
-            id: `solar_eclipse_${index}`,
-            type: 'solar_eclipse',
-            timestamp: eclipse.date.getTime(),
-            title: eclipse.type,
-            description: `${eclipse.type} visible from certain locations`,
-            significance: 'high',
-          });
-        }
-      });
+      console.log(`[Astronomy Service] Generated ${events.length} solar eclipse events`);
     } catch (error) {
       console.error('[Astronomy Service] Error calculating solar eclipses:', error);
     }
     
-    return events.sort((a, b) => a.timestamp - b.timestamp);
+    return events;
   }
-  
+
   /**
-   * Calculate planetary aspects (simplified)
+   * Calculate planetary aspects (simplified implementation)
    */
-  calculatePlanetaryAspects(startDate: Date, endDate: Date): AstroEvent[] {
+  private calculatePlanetaryAspects(startDate: Date, endDate: Date): AstroEvent[] {
     const events: AstroEvent[] = [];
     
     try {
       // Simplified planetary aspect calculation
-      // In production, would use proper astronomical calculations
-      const aspectTypes = [
-        'Mercury-Venus Conjunction',
-        'Mars-Jupiter Opposition',
-        'Saturn-Neptune Square',
-        'Venus-Mars Trine',
+      const aspects = [
+        { name: 'Mercury Retrograde', frequency: 88, significance: 'medium' as const },
+        { name: 'Venus Conjunction', frequency: 584, significance: 'medium' as const },
+        { name: 'Mars Opposition', frequency: 687, significance: 'low' as const }
       ];
       
-      const currentTime = startDate.getTime();
+      const startTime = startDate.getTime();
       const endTime = endDate.getTime();
-      const timeSpan = endTime - currentTime;
+      const timeRange = endTime - startTime;
       
-      // Generate some sample aspects
-      aspectTypes.forEach((aspect, index) => {
-        const eventTime = currentTime + (timeSpan / aspectTypes.length) * (index + 1);
+      aspects.forEach((aspect, aspectIndex) => {
+        const intervalMs = aspect.frequency * 24 * 60 * 60 * 1000; // Convert days to milliseconds
+        const eventsInRange = Math.floor(timeRange / intervalMs) + 1;
         
-        events.push({
-          id: `aspect_${index}`,
-          type: 'planetary_aspect',
-          timestamp: eventTime,
-          title: aspect,
-          description: `Planetary aspect: ${aspect}`,
-          significance: 'medium',
-        });
+        for (let i = 0; i < eventsInRange; i++) {
+          const eventTime = startTime + (i * intervalMs);
+          const eventDate = new Date(eventTime);
+          
+          if (eventDate >= startDate && eventDate <= endDate) {
+            events.push({
+              id: `planetary_aspect_${aspectIndex}_${i}`,
+              type: 'planetary_aspect',
+              timestamp: eventTime,
+              title: aspect.name,
+              description: `${aspect.name} planetary aspect`,
+              significance: aspect.significance
+            });
+          }
+        }
       });
+      
+      console.log(`[Astronomy Service] Generated ${events.length} planetary aspect events`);
     } catch (error) {
       console.error('[Astronomy Service] Error calculating planetary aspects:', error);
     }
     
-    return events.sort((a, b) => a.timestamp - b.timestamp);
+    return events;
   }
-  
+
   /**
-   * Get all astronomical events for a date range
+   * Get astronomical events for a date range
    */
   async getAstronomicalEvents(startDate: Date, endDate: Date): Promise<AstroEvent[]> {
+    const allEvents: AstroEvent[] = [];
+    
     try {
+      console.log(`[Astronomy Service] Calculating events from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      
+      // Calculate different types of astronomical events
       const lunarPhases = this.calculateLunarPhases(startDate, endDate);
       const solarEclipses = this.calculateSolarEclipses(startDate, endDate);
       const planetaryAspects = this.calculatePlanetaryAspects(startDate, endDate);
       
-      const allEvents = [...lunarPhases, ...solarEclipses, ...planetaryAspects];
+      // Combine all events
+      allEvents.push(...lunarPhases, ...solarEclipses, ...planetaryAspects);
       
-      return allEvents.sort((a, b) => a.timestamp - b.timestamp);
+      // Sort events by timestamp
+      allEvents.sort((a, b) => a.timestamp - b.timestamp);
+      
+      console.log(`[Astronomy Service] Generated total of ${allEvents.length} astronomical events`);
+      
     } catch (error) {
-      console.error('[Astronomy Service] Error getting astronomical events:', error);
-      return [];
+      console.error('[Astronomy Service] Error in getAstronomicalEvents:', error);
     }
+    
+    return allEvents;
   }
 }
 
-// Export singleton instance
 export const astronomyService = new AstronomyService(); 
