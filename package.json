@@ -1,0 +1,44 @@
+{
+  "name": "astrobit",
+  "version": "1.0.0",
+  "description": "**AstroBit** — это исследовательская веб-платформа для визуального анализа криптовалют с наложением астрономических и астрологических данных: фаз Луны, солнечных циклов, планетарных аспектов и значимых космических событий.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scoutrul/astrobit.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/scoutrul/astrobit/issues"
+  },
+  "homepage": "https://github.com/scoutrul/astrobit#readme",
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "@types/node": "^24.0.14",
+    "@vitejs/plugin-react": "^4.6.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.4"
+  },
+  "dependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "astronomia": "^4.1.1",
+    "axios": "^1.10.0",
+    "lightweight-charts": "^5.0.8",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.6"
+  }
+}
