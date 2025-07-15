@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { useCryptoData } from '../../hooks/useCryptoData';
+import { useAstronomicalEvents } from '../../hooks/useAstronomicalEvents';
 import { useStore } from '../../store';
 import { CryptoData } from '../../types';
 
@@ -27,10 +28,42 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
     isAuthenticated
   } = useCryptoData(symbol, timeframe);
   
-  // Placeholder for future astronomical data integration
-  const astroEvents: any[] = [];
-  const astroLoading = false;
-  const astroError = null;
+  // Calculate date range for astronomical events based on timeframe
+  const getDateRange = () => {
+    const now = new Date();
+    const endDate = new Date(now);
+    let startDate = new Date(now);
+    
+    // Calculate start date based on timeframe
+    switch (timeframe) {
+      case '15m':
+        startDate.setHours(now.getHours() - 24); // 1 day for 15m data
+        break;
+      case '1h':
+        startDate.setDate(now.getDate() - 7); // 1 week for hourly data
+        break;
+      case '4h':
+        startDate.setDate(now.getDate() - 30); // 1 month for 4h data
+        break;
+      case '1d':
+        startDate.setDate(now.getDate() - 90); // 3 months for daily data
+        break;
+      default:
+        startDate.setDate(now.getDate() - 30); // default 1 month
+    }
+    
+    return { startDate, endDate };
+  };
+
+  const { startDate, endDate } = getDateRange();
+  
+  // Get astronomical events for the current timeframe
+  const {
+    events: astroEvents,
+    loading: astroLoading,
+    error: astroError,
+    currentMoonPhase
+  } = useAstronomicalEvents(startDate, endDate);
 
   // Initialize chart
   useEffect(() => {
@@ -180,11 +213,39 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
           <div className="font-medium text-slate-200">{symbol} • {timeframe}</div>
           <div>Data Points: {cryptoData.length}</div>
           <div>Astro Events: {astroEvents.length}</div>
+          <div>Current Moon: {currentMoonPhase}</div>
           {lastUpdated && (
             <div>Updated: {lastUpdated.toLocaleTimeString()}</div>
           )}
         </div>
       </div>
+      
+      {/* Astronomical Events Overlay */}
+      {astroEvents.length > 0 && (
+        <div className="absolute top-4 right-4 bg-slate-800/80 rounded-lg p-3 text-sm max-w-xs">
+          <div className="font-medium text-slate-200 mb-2">🌙 Upcoming Events</div>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {astroEvents.slice(0, 3).map((event, index) => (
+              <div key={index} className="text-xs">
+                <div className={`font-medium ${
+                  event.significance === 'high' ? 'text-yellow-300' :
+                  event.significance === 'medium' ? 'text-blue-300' : 'text-slate-300'
+                }`}>
+                  {event.name}
+                </div>
+                <div className="text-slate-400">
+                  {new Date(event.timestamp).toLocaleDateString('ru-RU')}
+                </div>
+              </div>
+            ))}
+            {astroEvents.length > 3 && (
+              <div className="text-slate-400 text-xs">
+                +{astroEvents.length - 3} more events
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* API Status */}
       <div className="absolute bottom-4 right-4 bg-slate-800/80 rounded-lg p-2 text-xs">

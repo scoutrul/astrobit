@@ -21,6 +21,7 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
 
     const fetchData = async () => {
       if (!symbol || !timeframe) {
+        console.log(`[useCryptoData] Пропуск загрузки: symbol=${symbol}, timeframe=${timeframe}`);
         setLoading(false);
         return;
       }
@@ -29,36 +30,29 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         setLoading(true);
         setError(null);
 
-        console.log(`[useCryptoData] Загрузка данных для ${symbol} с таймфреймом ${timeframe}`);
+        console.log(`[useCryptoData] 🔄 ЗАГРУЗКА ДАННЫХ: ${symbol} с таймфреймом ${timeframe}`);
         
-        const interval = bybitApi.mapTimeframeToInterval(timeframe);
-        const response = await bybitApi.getKlineData(symbol, interval, 200);
+        console.log(`[useCryptoData] Mapped interval: ${timeframe} → ${bybitApi.mapTimeframeToInterval(timeframe)}`);
+        
+        const response = await bybitApi.getKlineData(symbol, timeframe, 1000); // Pass timeframe directly
 
         if (!isMounted) return;
 
         if (response.success && response.data) {
-          console.log(`[useCryptoData] Успешно загружено ${response.data.length} точек данных`);
-          
-          // Проверяем качество данных
-          if (response.data.length < 10) {
-            console.warn(`[useCryptoData] Получено мало данных: ${response.data.length} точек`);
-          }
-          
+          console.log(`[useCryptoData] ✅ Успешно загружено ${response.data.length} точек данных для ${timeframe}`);
           setData(response.data);
           setLastUpdated(new Date());
-          setError(null);
         } else {
-          console.error('[useCryptoData] Ошибка API:', response.error);
-          setError(response.error || 'Не удалось загрузить данные');
-          setData([]);
+          const errorMsg = `Ошибка загрузки данных: ${response.error || 'Неизвестная ошибка'}`;
+          console.error(`[useCryptoData] ❌ ${errorMsg}`);
+          setError(errorMsg);
         }
       } catch (err) {
         if (!isMounted) return;
         
-        const errorMessage = err instanceof Error ? err.message : 'Произошла неизвестная ошибка';
-        console.error('[useCryptoData] Сетевая ошибка:', errorMessage);
-        setError(errorMessage);
-        setData([]);
+        const errorMsg = err instanceof Error ? err.message : 'Ошибка сети';
+        console.error(`[useCryptoData] ❌ Исключение при загрузке:`, err);
+        setError(errorMsg);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -66,6 +60,7 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
       }
     };
 
+    console.log(`[useCryptoData] 🎯 useEffect triggered: symbol=${symbol}, timeframe=${timeframe}`);
     fetchData();
 
     // Обновляем данные каждые 30 секунд

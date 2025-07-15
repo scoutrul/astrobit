@@ -23,9 +23,7 @@ export default function SimpleChart({ height = 400, className = '' }: ChartProps
   const {
     data: cryptoData,
     loading,
-    error,
-    lastUpdated,
-    isAuthenticated
+    error
   } = useCryptoData(symbol, timeframe);
 
   // Инициализация графика

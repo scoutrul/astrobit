@@ -1,51 +1,45 @@
 import { useStore } from '../../store'
 
-interface TimeframeOption {
-  value: string
-  label: string
-  description: string
-  astronomical: string
-}
-
 // Simplified timeframes for astronomical correlation
-const timeframeOptions: TimeframeOption[] = [
-  { 
-    value: '1h', 
-    label: '1H', 
-    description: 'Hourly',
+const timeframeOptions = [
+  {
+    value: '15m',
+    label: '15м',
+    description: '15 минут',
     astronomical: 'Moon transits & fast lunar aspects'
   },
-  { 
-    value: '1d', 
-    label: '1D', 
-    description: 'Daily',
+  {
+    value: '1h', 
+    label: '1ч',
+    description: '1 час',
     astronomical: 'Daily lunar & planetary aspects'
   },
-  { 
-    value: '1w', 
-    label: '1W', 
-    description: 'Weekly',
+  {
+    value: '4h',
+    label: '4ч', 
+    description: '4 часа',
     astronomical: 'Moon phases & planetary movements'
   },
-  { 
-    value: '1M', 
-    label: '1M', 
-    description: 'Monthly',
+  {
+    value: '1d',
+    label: '1д',
+    description: '1 день',
     astronomical: 'Complete lunar cycles'
-  },
-  { 
-    value: '1Y', 
-    label: '1Y', 
-    description: 'Yearly',
-    astronomical: 'Solar cycles & annual patterns'
-  },
+  }
+  // Removed 1w timeframe due to data issues
 ]
 
 function TimeframeSelector() {
   const { timeframe, setTimeframe } = useStore()
 
   const handleTimeframeChange = (newTimeframe: string) => {
+    console.log(`[TimeframeSelector] Изменение таймфрейма: ${timeframe} → ${newTimeframe}`);
     setTimeframe(newTimeframe)
+    
+    // Принудительное обновление для отладки
+    setTimeout(() => {
+      console.log(`[TimeframeSelector] Таймфрейм установлен: ${useStore.getState().timeframe}`);
+    }, 100);
   }
 
   const currentOption = timeframeOptions.find(opt => opt.value === timeframe)
@@ -53,7 +47,7 @@ function TimeframeSelector() {
   return (
     <div className="space-y-4">
       {/* Timeframe Buttons */}
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {timeframeOptions.map((option) => (
           <button
             key={option.value}

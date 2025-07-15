@@ -144,23 +144,27 @@ class BybitApiService {
   }
   
   /**
-   * Get kline/candlestick data for a symbol
+   * Get kline data from Bybit API
    */
   async getKlineData(
     symbol: string,
-    interval: string,
+    timeframe: string, // Renamed from interval to timeframe for clarity
     limit: number = 1000, // Увеличиваем лимит для большего количества данных
     category: string = 'spot'
   ): Promise<ApiResponse<CryptoData[]>> {
     try {
+      console.log(`[BybitApi] 🔄 Запрос данных: symbol=${symbol}, timeframe=${timeframe}, limit=${limit}`);
+      
       const response: AxiosResponse<BybitResponse<BybitKlineData>> = await this.client.get('/v5/market/kline', {
         params: {
           category,
           symbol,
-          interval: this.mapTimeframeToInterval(interval),
+          interval: this.mapTimeframeToInterval(timeframe), // ✅ ИСПРАВЛЕНО: используем timeframe
           limit,
         },
       });
+      
+      console.log(`[BybitApi] 📡 Отправленный interval: ${this.mapTimeframeToInterval(timeframe)}`);
       
       const apiResponse = await this.handleBybitResponse(response);
       
@@ -194,7 +198,7 @@ class BybitApiService {
         index === 0 || item.time !== arr[index - 1].time
       );
       
-      console.log(`[Bybit API] Получено ${uniqueData.length} уникальных свечей для ${symbol} (${interval})`);
+      console.log(`[Bybit API] Получено ${uniqueData.length} уникальных свечей для ${symbol} (${timeframe})`);
       console.log(`[Bybit API] Временной диапазон: ${new Date(parseInt(uniqueData[0]?.time || '0') * 1000).toLocaleString()} - ${new Date(parseInt(uniqueData[uniqueData.length - 1]?.time || '0') * 1000).toLocaleString()}`);
       
       return {
