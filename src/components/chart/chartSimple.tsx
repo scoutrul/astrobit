@@ -505,11 +505,13 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
   return (
     <div className={`relative ${className}`}>
       {/* Панель фильтров событий */}
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
-        <EventFilters 
-          filters={eventFilters} 
-          onChange={setEventFilters} 
-        />
+      <div className="absolute top-2 sm:top-4 left-2 right-2 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-20 flex justify-center">
+        <div className="w-full sm:w-auto max-w-full overflow-hidden">
+          <EventFilters 
+            filters={eventFilters} 
+            onChange={setEventFilters} 
+          />
+        </div>
       </div>
       
       {/* График */}

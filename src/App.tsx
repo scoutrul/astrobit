@@ -23,13 +23,13 @@ function App() {
 
       {/* Compact Controls Panel - Above chart */}
       <div className="bg-gray-800 border-b border-gray-700 flex-shrink-0">
-        <div className="container-responsive py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6" style={{ gap: '1.5rem' }}>
-              <div className="flex items-center gap-2" style={{ gap: '0.5rem' }}>
+        <div className="container-responsive py-2 sm:py-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
+            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6 w-full sm:w-auto">
+              <div className="flex items-center gap-2 justify-center sm:justify-start">
                 <SymbolSelector />
               </div>
-              <div className="flex items-center gap-2" style={{ gap: '0.5rem' }}>
+              <div className="flex items-center gap-2 justify-center sm:justify-start">
                 <TimeframeSelector />
               </div>
             </div>
