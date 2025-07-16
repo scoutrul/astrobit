@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { useCryptoData } from '../../hooks/useCryptoData';
 import { useAstronomicalEvents } from '../../hooks/useAstronomicalEvents';
@@ -10,11 +10,27 @@ interface ChartProps {
   className?: string;
 }
 
+interface TooltipData {
+  x: number;
+  y: number;
+  title: string;
+  description: string;
+  visible: boolean;
+}
+
 export default function SimpleChart({ height, className = '' }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const astronomicalEventsRef = useRef<any[]>([]);
   const [isChartReady, setIsChartReady] = useState(false);
+  const [tooltip, setTooltip] = useState<TooltipData>({
+    x: 0,
+    y: 0,
+    title: '',
+    description: '',
+    visible: false
+  });
   
   // Получение текущего символа и таймфрейма из хранилища
   const { symbol, timeframe } = useStore();
@@ -26,34 +42,38 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
     error
   } = useCryptoData(symbol, timeframe);
 
-  // Расчет диапазона дат для астрономических событий
-  const getDateRange = () => {
+  // Мемоизируем расчет диапазона дат для астрономических событий
+  const { startDate, endDate } = useMemo(() => {
     const now = new Date();
+    // Добавляем прогноз на 3 месяца вперед
     const endDate = new Date(now);
+    endDate.setMonth(now.getMonth() + 3);
+    
     let startDate = new Date(now);
     
-    // Расчет начальной даты на основе таймфрейма
+    // Расчет начальной даты на основе таймфрейма для полного покрытия графика
     switch (timeframe) {
-      case '15m':
-        startDate.setDate(now.getDate() - 7); // 1 неделя
-        break;
       case '1h':
-        startDate.setDate(now.getDate() - 30); // 1 месяц
+        startDate.setMonth(now.getMonth() - 2); // 2 месяца назад
         break;
-      case '4h':
-        startDate.setDate(now.getDate() - 90); // 3 месяца
+      case '8h':
+        startDate.setMonth(now.getMonth() - 6); // 6 месяцев назад
         break;
       case '1d':
-        startDate.setFullYear(now.getFullYear() - 1); // 1 год
+        startDate.setFullYear(now.getFullYear() - 2); // 2 года назад
+        break;
+      case '1w':
+        startDate.setFullYear(now.getFullYear() - 3); // 3 года назад
+        break;
+      case '1M':
+        startDate.setFullYear(now.getFullYear() - 5); // 5 лет назад
         break;
       default:
-        startDate.setDate(now.getDate() - 30); // По умолчанию 1 месяц
+        startDate.setFullYear(now.getFullYear() - 1); // По умолчанию 1 год назад
     }
     
     return { startDate, endDate };
-  };
-
-  const { startDate, endDate } = getDateRange();
+  }, [timeframe]); // Пересчитываем только при изменении таймфрейма
   
   // Получение астрономических событий
   const {
@@ -125,10 +145,67 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
       }
     };
 
+    // Обработчик движения мыши для тултипов маркеров
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!chartContainerRef.current) return;
+      
+      const rect = chartContainerRef.current.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      
+      // Проверяем, находится ли курсор рядом с маркером
+      // Это упрощенная проверка - в реальности нужно более сложная логика
+      const timeScale = chart.timeScale();
+      const mouseTime = timeScale.coordinateToTime(x);
+      
+      // Избегаем лишних обновлений состояния
+      setTooltip(prev => {
+        if (mouseTime && astronomicalEventsRef.current.length > 0) {
+          // Ищем ближайшее событие
+          const nearestEvent = astronomicalEventsRef.current.find(event => {
+            const eventTime = Math.floor(event.timestamp / 1000);
+            const timeDiff = Math.abs((mouseTime as number) - eventTime);
+            return timeDiff < 86400; // В пределах дня
+          });
+          
+          if (nearestEvent && y < 100) { // Проверяем, что курсор в верхней части графика
+            if (prev.visible && prev.title === nearestEvent.name) {
+              // Обновляем только позицию, если тот же event
+              return { ...prev, x: x + 10, y: y - 10 };
+            }
+            return {
+              x: x + 10,
+              y: y - 10,
+              title: nearestEvent.name,
+              description: nearestEvent.description,
+              visible: true
+            };
+          }
+        }
+        
+        // Скрываем тултип, только если он был видим
+        if (prev.visible) {
+          return { ...prev, visible: false };
+        }
+        
+        return prev;
+      });
+    };
+
+    const handleMouseLeave = () => {
+      setTooltip(prev => ({ ...prev, visible: false }));
+    };
+
     window.addEventListener('resize', handleResize);
+    chartContainerRef.current.addEventListener('mousemove', handleMouseMove);
+    chartContainerRef.current.addEventListener('mouseleave', handleMouseLeave);
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (chartContainerRef.current) {
+        chartContainerRef.current.removeEventListener('mousemove', handleMouseMove);
+        chartContainerRef.current.removeEventListener('mouseleave', handleMouseLeave);
+      }
       if (chart) {
         chart.remove();
       }
@@ -136,7 +213,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
       seriesRef.current = null;
       setIsChartReady(false);
     };
-  }, [height]); // Добавляем height в зависимости
+  }, [height]); // Убираем astronomicalEvents из зависимостей - график инициализируется только один раз
 
   // Обновление данных графика при изменении криптоданных
   useEffect(() => {
@@ -200,6 +277,9 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
 
   // Добавление астрономических событий в виде маркеров
   useEffect(() => {
+    // Обновляем ref с астрономическими событиями для использования в обработчиках
+    astronomicalEventsRef.current = astronomicalEvents;
+    
     if (!isChartReady || !seriesRef.current || !astronomicalEvents.length) {
       console.log('[Chart] График не готов или нет астрономических событий');
       return;
@@ -224,28 +304,39 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
               if (event.name.includes('Полнолуние')) {
                 text = '🌕'; // Полнолуние
                 color = '#fbbf24'; // Золотистый
+                shape = 'circle';
               } else if (event.name.includes('Новолуние')) {
                 text = '🌑'; // Новолуние
                 color = '#6b7280'; // Серый
+                shape = 'circle';
               } else if (event.name.includes('Первая четверть')) {
                 text = '🌓'; // Первая четверть
                 color = '#94a3b8'; // Светло-серый
+                shape = 'circle';
               } else if (event.name.includes('Последняя четверть')) {
                 text = '🌗'; // Последняя четверть
                 color = '#64748b'; // Темно-серый
+                shape = 'circle';
               } else {
                 text = '🌙'; // Общая луна
                 color = '#e2e8f0'; // Светло-серый
+                shape = 'circle';
               }
               break;
               
             case 'planet_aspect':
-              if (event.name.includes('Меркурий')) {
+              if (event.name.includes('Меркурий') || event.name.includes('Меркурия')) {
                 text = '☿'; // Символ Меркурия
                 color = '#8b5cf6'; // Фиолетовый
+                shape = 'square';
+              } else if (event.name.includes('Венер')) {
+                text = '♀'; // Символ Венеры
+                color = '#ec4899'; // Розовый
+                shape = 'square';
               } else {
                 text = '✨'; // Звезды для планетарных аспектов
                 color = '#06b6d4'; // Циан
+                shape = 'square';
               }
               break;
               
@@ -253,24 +344,30 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
               if (event.name.includes('затмение')) {
                 text = '🌒'; // Затмение
                 color = '#dc2626'; // Красный
+                shape = 'arrowUp';
               } else if (event.name.includes('солнцестояние')) {
                 text = '☀️'; // Солнце
                 color = '#f59e0b'; // Янтарный
+                shape = 'arrowUp';
               } else if (event.name.includes('равноденствие')) {
                 text = '⚖️'; // Равноденствие
                 color = '#10b981'; // Зеленый
-              } else if (event.name.includes('Геминиды') || event.name.includes('метеорный')) {
+                shape = 'arrowUp';
+              } else if (event.name.includes('Геминиды') || event.name.includes('метеорный') || event.name.includes('Персеиды')) {
                 text = '☄️'; // Метеор
                 color = '#8b5cf6'; // Фиолетовый
+                shape = 'arrowDown';
               } else {
                 text = '☉'; // Символ солнца
                 color = '#eab308'; // Желтый
+                shape = 'arrowUp';
               }
               break;
               
             default:
               text = '⭐'; // Звезда по умолчанию
               color = '#f7931a';
+              shape = 'circle';
           }
 
           return {
@@ -307,6 +404,21 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
       {/* График */}
       <div ref={chartContainerRef} className="w-full h-full" />
     
+      {/* Тултип для астрономических событий */}
+      {tooltip.visible && (
+        <div 
+          className="absolute z-10 bg-[#1e293b] border border-[#334155] rounded-lg px-3 py-2 shadow-lg pointer-events-none"
+          style={{ 
+            left: `${tooltip.x}px`, 
+            top: `${tooltip.y}px`,
+            maxWidth: '300px'
+          }}
+        >
+          <div className="text-[#e2e8f0] font-semibold text-sm mb-1">{tooltip.title}</div>
+          <div className="text-[#8b8f9b] text-xs">{tooltip.description}</div>
+        </div>
+      )}
+
       {/* Текущая фаза луны */}
       {currentMoonPhase && (
         <div className="absolute top-4 right-4 bg-[#0a0b1e]/80 backdrop-blur-sm border border-[#334155] rounded-lg px-3 py-2">
@@ -355,6 +467,22 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
           </div>
         </div>
       )}
+
+      {/* Легенда астрономических событий */}
+      <div className="absolute top-4 left-4 bg-[#0a0b1e]/80 backdrop-blur-sm border border-[#334155] rounded-lg px-3 py-2">
+        <div className="text-[#e2e8f0] text-xs">
+          <div className="font-semibold mb-2">Астрономические события:</div>
+          <div className="grid grid-cols-2 gap-1 text-xs">
+            <div>🌕 Полнолуние</div>
+            <div>🌑 Новолуние</div>
+            <div>☀️ Солнцестояние</div>
+            <div>⚖️ Равноденствие</div>
+            <div>☿ Меркурий ℞</div>
+            <div>♀ Венера ℞</div>
+            <div>☄️ Метеоры</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 } 

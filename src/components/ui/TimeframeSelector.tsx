@@ -1,28 +1,32 @@
 import { useStore } from '../../store'
 
-// Simplified timeframes for astronomical correlation
+// Обновленные таймфреймы для астрономической корреляции
 const timeframeOptions = [
-  {
-    value: '15m',
-    label: '15м',
-    description: '15 минут'
-  },
   {
     value: '1h', 
     label: '1ч',
     description: '1 час'
   },
   {
-    value: '4h',
-    label: '4ч', 
-    description: '4 часа'
+    value: '8h',
+    label: '8ч', 
+    description: '8 часов'
   },
   {
     value: '1d',
     label: '1д',
     description: '1 день'
+  },
+  {
+    value: '1w',
+    label: '1нед',
+    description: '1 неделя'
+  },
+  {
+    value: '1M',
+    label: '1мес',
+    description: '1 месяц'
   }
-  // Removed 1w timeframe due to data issues
 ]
 
 function TimeframeSelector() {
@@ -48,14 +52,13 @@ function TimeframeSelector() {
             px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
             border border-gray-600
             ${timeframe === option.value
-              ? 'bg-emerald-500 text-black border-emerald-500'
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white hover:border-emerald-500/50'
+              ? 'bg-orange-500 text-white border-orange-500 shadow-lg' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-gray-500'
             }
           `}
+          title={option.description}
         >
-          <div className="text-center">
-            <div className="font-semibold">{option.label}</div>
-          </div>
+          {option.label}
         </button>
       ))}
     </div>
