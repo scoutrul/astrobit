@@ -45,72 +45,68 @@ function SymbolSelector() {
 
   return (
     <div className="relative">
-      {/* Selected Symbol Display */}
+      {/* Compact Selected Symbol Display */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-[#1a1d29] rounded-lg p-4 flex items-center justify-between hover:bg-[#262a36] transition-colors"
+        className="bg-gray-800 rounded-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-700 transition-colors text-sm border border-gray-600"
+        style={{ gap: '0.5rem' }}
       >
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-[#f7931a] rounded-full flex items-center justify-center">
-            <span className="text-xs font-bold text-black">
-              {currentSymbolInfo.symbol.slice(0, 2)}
-            </span>
-          </div>
-          <div className="text-left">
-            <div className="text-sm font-medium text-[#c9ccd3]">{currentSymbolInfo.name}</div>
-            <div className="text-xs text-[#8b8f9b]">{currentSymbolInfo.symbol}</div>
-          </div>
+        <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+          <span className="text-xs font-bold text-black">
+            {currentSymbolInfo.symbol.slice(0, 2)}
+          </span>
         </div>
+        <span className="font-medium text-white">{currentSymbolInfo.name}</span>
         <div className={`transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
-          <svg className="w-4 h-4 text-[#8b8f9b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </div>
       </button>
 
-      {/* Dropdown */}
+      {/* Compact Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1d29] rounded-lg border border-[#262a36] shadow-xl z-50">
-          {/* Category Selector */}
-          <div className="p-3 border-b border-[#262a36]">
-            <div className="flex space-x-1 bg-[#0a0b1e] rounded-lg p-1">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 rounded-lg border border-gray-600 shadow-xl z-50 min-w-[200px]">
+          {/* Compact Category Selector */}
+          <div className="p-2 border-b border-gray-600">
+            <div className="flex gap-1 bg-gray-900 rounded-md p-1" style={{ gap: '0.25rem' }}>
               {(['major', 'altcoins', 'defi'] as const).map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-all duration-200 ${
+                  className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
                     selectedCategory === category
-                      ? 'bg-[#f7931a] text-black'
-                      : 'text-[#8b8f9b] hover:text-[#c9ccd3] hover:bg-[#1a1d29]'
+                      ? 'bg-emerald-500 text-black'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700'
                   }`}
                 >
-                  {category === 'major' ? 'Major' : category === 'altcoins' ? 'Altcoins' : 'DeFi'}
+                  {category === 'major' ? 'Major' : category === 'altcoins' ? 'Alt' : 'DeFi'}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Symbol Options */}
-          <div className="max-h-60 overflow-y-auto">
+          {/* Compact Symbol Options */}
+          <div className="max-h-48 overflow-y-auto">
             {filteredOptions.map((option) => (
               <button
                 key={option.symbol}
                 onClick={() => handleSymbolChange(option.symbol)}
-                className={`w-full p-3 text-left flex items-center space-x-3 hover:bg-[#262a36] transition-colors ${
-                  symbol === option.symbol ? 'bg-[#262a36]' : ''
+                className={`w-full p-2 text-left flex items-center gap-2 hover:bg-gray-700 transition-colors text-sm ${
+                  symbol === option.symbol ? 'bg-gray-700' : ''
                 }`}
+                style={{ gap: '0.5rem' }}
               >
-                <div className="w-6 h-6 bg-[#f7931a] rounded-full flex items-center justify-center">
+                <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
                   <span className="text-xs font-bold text-black">
                     {option.symbol.slice(0, 2)}
                   </span>
                 </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-[#c9ccd3]">{option.name}</div>
-                  <div className="text-xs text-[#8b8f9b]">{option.symbol}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-white truncate">{option.name}</div>
                 </div>
                 {symbol === option.symbol && (
-                  <div className="w-2 h-2 bg-[#f7931a] rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
                 )}
               </button>
             ))}

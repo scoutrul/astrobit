@@ -3,7 +3,6 @@ import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { useCryptoData } from '../../hooks/useCryptoData';
 import { useStore } from '../../store';
 import { CryptoData } from '../../types';
-import SymbolSelector from '../ui/SymbolSelector';
 
 interface ChartProps {
   height?: number;
@@ -159,11 +158,7 @@ export default function SimpleChart({ height = 400, className = '' }: ChartProps
     <div className={`relative ${className}`} style={{ height: `${height}px` }}>
       {/* График */}
       <div ref={chartContainerRef} className="w-full h-full" />
-      
-      {/* SymbolSelector в верхнем левом углу */}
-      <div className="absolute top-4 left-4 z-10 w-64">
-        <SymbolSelector />
-      </div>
+    
       
       {/* Индикатор загрузки */}
       {loading && (
