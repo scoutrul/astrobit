@@ -9,7 +9,7 @@ interface ChartProps {
   className?: string;
 }
 
-export default function SimpleChart({ height = 400, className = '' }: ChartProps) {
+export default function SimpleChart({ height, className = '' }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -31,9 +31,12 @@ export default function SimpleChart({ height = 400, className = '' }: ChartProps
 
     console.log('[Chart] Инициализация графика...');
 
+    // Автоматическое определение высоты контейнера
+    const containerHeight = height || chartContainerRef.current.clientHeight || 400;
+
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
-      height: height,
+      height: containerHeight,
       layout: {
         background: { color: '#0a0b1e' },
         textColor: '#e2e8f0',
@@ -76,9 +79,10 @@ export default function SimpleChart({ height = 400, className = '' }: ChartProps
     // Обработчик изменения размера
     const handleResize = () => {
       if (chartContainerRef.current && chart) {
+        const newHeight = height || chartContainerRef.current.clientHeight || 400;
         chart.applyOptions({
           width: chartContainerRef.current.clientWidth,
-          height: height,
+          height: newHeight,
         });
       }
     };
@@ -87,12 +91,14 @@ export default function SimpleChart({ height = 400, className = '' }: ChartProps
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      chart.remove();
+      if (chart) {
+        chart.remove();
+      }
       chartRef.current = null;
       seriesRef.current = null;
       setIsChartReady(false);
     };
-  }, [height]);
+  }, [height]); // Добавляем height в зависимости
 
   // Обновление данных графика при изменении криптоданных
   useEffect(() => {
@@ -155,7 +161,7 @@ export default function SimpleChart({ height = 400, className = '' }: ChartProps
   }, [cryptoData, isChartReady]);
 
   return (
-    <div className={`relative ${className}`} style={{ height: `${height}px` }}>
+    <div className={`relative ${className}`}>
       {/* График */}
       <div ref={chartContainerRef} className="w-full h-full" />
     
