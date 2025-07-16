@@ -18,12 +18,6 @@ function App() {
               <span>Cryptocurrency + Astronomical Analytics</span>
             </div>
           </div>
-          <div className="flex items-center gap-4" style={{ gap: '1rem' }}>
-            <div className="flex items-center gap-2" style={{ gap: '0.5rem' }}>
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-gray-400">Live Data</span>
-            </div>
-          </div>
         </div>
       </header>
 

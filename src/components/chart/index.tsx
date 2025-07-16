@@ -24,7 +24,6 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
     data: cryptoData,
     loading: cryptoLoading,
     error: cryptoError,
-    lastUpdated,
     isAuthenticated
   } = useCryptoData(symbol, timeframe);
   
@@ -165,9 +164,31 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
 
       candlestickSeriesRef.current.setData(chartData);
 
-      // Fit chart to data
-      if (chartRef.current) {
-        chartRef.current.timeScale().fitContent();
+      // Показываем последние 50 свечей со сдвигом на четверть от правого края
+      if (chartRef.current && chartData.length > 0) {
+        const lastIndex = chartData.length - 1;
+        const visibleCandles = 50;
+        const offsetCandles = Math.floor(visibleCandles * 0.25); // Сдвиг на четверть (12-13 свечей)
+        
+        const firstVisibleIndex = Math.max(0, lastIndex - visibleCandles + offsetCandles + 1);
+        const lastVisibleIndex = lastIndex + offsetCandles;
+        
+        try {
+          // Сброс вертикального масштаба при смене данных
+          if (candlestickSeriesRef.current) {
+            candlestickSeriesRef.current.priceScale().applyOptions({
+              autoScale: true
+            });
+          }
+          
+          chartRef.current.timeScale().setVisibleLogicalRange({
+            from: firstVisibleIndex,
+            to: lastVisibleIndex
+          });
+        } catch (error) {
+          console.log('[Chart] Не удалось установить видимый диапазон, используем fitContent:', error);
+          chartRef.current.timeScale().fitContent();
+        }
       }
 
       console.log(`[Chart] Updated with ${chartData.length} data points`);
@@ -214,9 +235,6 @@ export default function Chart({ height = 400, className = '' }: ChartComponentPr
           <div>Data Points: {cryptoData.length}</div>
           <div>Astro Events: {astroEvents.length}</div>
           <div>Current Moon: {currentMoonPhase}</div>
-          {lastUpdated && (
-            <div>Updated: {lastUpdated.toLocaleTimeString()}</div>
-          )}
         </div>
       </div>
       

@@ -34,7 +34,7 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         
         console.log(`[useCryptoData] Mapped interval: ${timeframe} → ${bybitApi.mapTimeframeToInterval(timeframe)}`);
         
-        const response = await bybitApi.getKlineData(symbol, timeframe, 1000); // Pass timeframe directly
+        const response = await bybitApi.getKlineData(symbol, timeframe, 3000); // Pass timeframe directly
 
         if (!isMounted) return;
 
@@ -63,12 +63,8 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
     console.log(`[useCryptoData] 🎯 useEffect triggered: symbol=${symbol}, timeframe=${timeframe}`);
     fetchData();
 
-    // Обновляем данные каждые 30 секунд
-    const intervalId = setInterval(fetchData, 30000);
-
     return () => {
       isMounted = false;
-      clearInterval(intervalId);
     };
   }, [symbol, timeframe]);
 

@@ -4,6 +4,7 @@ import { useCryptoData } from '../../hooks/useCryptoData';
 import { useAstronomicalEvents } from '../../hooks/useAstronomicalEvents';
 import { useStore } from '../../store';
 import { CryptoData } from '../../types';
+import EventFilters, { EventFiltersState } from '../ui/EventFilters';
 
 interface ChartProps {
   height?: number;
@@ -30,6 +31,14 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
     title: '',
     description: '',
     visible: false
+  });
+  
+  // Состояние фильтров астрономических событий
+  const [eventFilters, setEventFilters] = useState<EventFiltersState>({
+    lunar: true,      // Лунные события включены по умолчанию
+    solar: true,      // Солнечные события включены по умолчанию  
+    planetary: false, // Планетарные события отключены по умолчанию (чтобы не перегружать)
+    meteor: false     // Метеорные потоки отключены по умолчанию
   });
   
   // Получение текущего символа и таймфрейма из хранилища
@@ -77,11 +86,50 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
   
   // Получение астрономических событий
   const {
-    events: astronomicalEvents,
+    events: allAstronomicalEvents,
     loading: astroLoading,
     error: astroError,
     currentMoonPhase
   } = useAstronomicalEvents(startDate, endDate);
+
+  // Фильтрация событий по активным фильтрам
+  const astronomicalEvents = useMemo(() => {
+    // Сначала дедуплицируем события по timestamp + name
+    const uniqueEvents = allAstronomicalEvents.filter((event, index, array) => {
+      return array.findIndex(e => 
+        e.timestamp === event.timestamp && 
+        e.name === event.name
+      ) === index;
+    });
+    
+    // Проверяем что хотя бы один фильтр активен
+    const anyFilterActive = eventFilters.lunar || eventFilters.solar || eventFilters.planetary || eventFilters.meteor;
+    if (!anyFilterActive) {
+      console.log('[EventFilters] Все фильтры отключены - скрываем все события');
+      return []; // Если все фильтры отключены, не показываем ничего
+    }
+    
+    // Фильтруем по типам событий
+    const filtered = uniqueEvents.filter(event => {
+      switch (event.type) {
+        case 'moon_phase':
+          return eventFilters.lunar;
+        case 'solar_event':
+          // Проверяем метеоры - они должны быть в отдельном фильтре
+          if (event.name.includes('Геминиды') || event.name.includes('Персеиды') || event.name.includes('метеорный')) {
+            return eventFilters.meteor; // Теперь показываем метеоры через отдельный фильтр
+          }
+          return eventFilters.solar;
+        case 'planet_aspect':
+          return eventFilters.planetary;
+        default:
+          return false; // Неизвестные типы не показываем
+      }
+    });
+    
+    console.log(`[EventFilters] Отфильтровано событий: ${filtered.length} из ${uniqueEvents.length} (дедуплицировано из ${allAstronomicalEvents.length})`);
+    return filtered;
+  }, [allAstronomicalEvents, eventFilters]);
 
   // Инициализация графика
   useEffect(() => {
@@ -150,36 +198,54 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
       if (!chartContainerRef.current) return;
       
       const rect = chartContainerRef.current.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
       
-      // Проверяем, находится ли курсор рядом с маркером
-      // Это упрощенная проверка - в реальности нужно более сложная логика
       const timeScale = chart.timeScale();
-      const mouseTime = timeScale.coordinateToTime(x);
+      const mouseTime = timeScale.coordinateToTime(mouseX);
       
       // Избегаем лишних обновлений состояния
       setTooltip(prev => {
         if (mouseTime && astronomicalEventsRef.current.length > 0) {
-          // Ищем ближайшее событие
+          // Ищем ближайшее событие в пределах разумного расстояния
           const nearestEvent = astronomicalEventsRef.current.find(event => {
             const eventTime = Math.floor(event.timestamp / 1000);
             const timeDiff = Math.abs((mouseTime as number) - eventTime);
-            return timeDiff < 86400; // В пределах дня
+            console.log(`[Tooltip] Checking event: ${event.name}, timeDiff: ${timeDiff} seconds (${Math.round(timeDiff/86400)} days)`);
+            return timeDiff < 604800; // 7 дней в секундах
           });
           
-          if (nearestEvent && y < 100) { // Проверяем, что курсор в верхней части графика
-            if (prev.visible && prev.title === nearestEvent.name) {
-              // Обновляем только позицию, если тот же event
-              return { ...prev, x: x + 10, y: y - 10 };
+          if (nearestEvent) {
+            // Получаем x-координату маркера события на графике
+            const eventTime = Math.floor(nearestEvent.timestamp / 1000);
+            const eventX = timeScale.timeToCoordinate(eventTime as any);
+            
+            // Проверяем, находится ли курсор рядом с маркером по x и в верхней области по y
+            const xDistance = Math.abs(mouseX - (eventX || 0));
+            const inEventArea = xDistance < 50 && mouseY < 150; // 50px по x, 150px по y от верха
+            
+            if (inEventArea && eventX !== null) {
+              console.log(`[Tooltip] Showing tooltip for: ${nearestEvent.name} at event position x=${eventX}`);
+              
+              if (prev.visible && prev.title === nearestEvent.name) {
+                // Обновляем только позицию, если тот же event
+                return { 
+                  ...prev, 
+                  x: eventX + 10, 
+                  y: 60 // Фиксированная позиция в верхней части графика
+                };
+              }
+              
+              return {
+                x: eventX + 10,
+                y: 60, // Фиксированная позиция в верхней части графика
+                title: nearestEvent.name,
+                description: nearestEvent.description,
+                visible: true
+              };
+            } else {
+              console.log(`[Tooltip] Event found but cursor not in area: ${nearestEvent.name}, xDist=${xDistance}, y=${mouseY}`);
             }
-            return {
-              x: x + 10,
-              y: y - 10,
-              title: nearestEvent.name,
-              description: nearestEvent.description,
-              visible: true
-            };
           }
         }
         
@@ -261,9 +327,31 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
         // Устанавливаем данные
         seriesRef.current.setData(chartData as any);
 
-        // Подгоняем график под данные
-        if (chartRef.current) {
-          chartRef.current.timeScale().fitContent();
+        // Показываем последние 50 свечей со сдвигом на четверть от правого края
+        if (chartRef.current && chartData.length > 0) {
+          const lastIndex = chartData.length - 1;
+          const visibleCandles = 50;
+          const offsetCandles = Math.floor(visibleCandles * 0.25); // Сдвиг на четверть (12-13 свечей)
+          
+          const firstVisibleIndex = Math.max(0, lastIndex - visibleCandles + offsetCandles + 1);
+          const lastVisibleIndex = lastIndex + offsetCandles;
+          
+          try {
+            // Сброс вертикального масштаба при смене данных
+            if (seriesRef.current) {
+              seriesRef.current.priceScale().applyOptions({
+                autoScale: true
+              });
+            }
+            
+            chartRef.current.timeScale().setVisibleLogicalRange({
+              from: firstVisibleIndex,
+              to: lastVisibleIndex
+            });
+          } catch (error) {
+            console.log('[Chart] Не удалось установить видимый диапазон, используем fitContent:', error);
+            chartRef.current.timeScale().fitContent();
+          }
         }
 
         console.log(`[Chart] График обновлён: ${chartData.length} свечей`);
@@ -280,13 +368,31 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
     // Обновляем ref с астрономическими событиями для использования в обработчиках
     astronomicalEventsRef.current = astronomicalEvents;
     
-    if (!isChartReady || !seriesRef.current || !astronomicalEvents.length) {
-      console.log('[Chart] График не готов или нет астрономических событий');
+    if (!isChartReady || !seriesRef.current) {
+      console.log('[Chart] График не готов');
+      return;
+    }
+    
+    // Если нет событий, очищаем маркеры но НЕ сбрасываем масштаб
+    if (!astronomicalEvents.length) {
+      console.log('[Chart] Нет астрономических событий - очищаем маркеры');
+      seriesRef.current.setMarkers([]);
       return;
     }
 
     try {
       console.log(`[Chart] 🌙 Добавление ${astronomicalEvents.length} астрономических событий на график`);
+      
+      // Сохраняем текущий масштаб/позицию графика перед обновлением маркеров
+      let savedRange = null;
+      try {
+        if (chartRef.current) {
+          savedRange = chartRef.current.timeScale().getVisibleRange();
+          console.log('[Chart] 💾 Сохранен текущий масштаб графика');
+        }
+      } catch (error) {
+        console.log('[Chart] Не удалось сохранить масштаб:', error);
+      }
       
       // Преобразуем астрономические события в маркеры для lightweight-charts
       const markers = astronomicalEvents
@@ -295,7 +401,6 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
           const timeInSeconds = Math.floor(event.timestamp / 1000);
           
           // Выбираем иконку и цвет в зависимости от типа события
-          let shape: 'circle' | 'square' | 'arrowUp' | 'arrowDown' = 'circle';
           let color = '#f7931a'; // Биткоин оранжевый по умолчанию
           let text = '';
           
@@ -304,23 +409,18 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
               if (event.name.includes('Полнолуние')) {
                 text = '🌕'; // Полнолуние
                 color = '#fbbf24'; // Золотистый
-                shape = 'circle';
               } else if (event.name.includes('Новолуние')) {
                 text = '🌑'; // Новолуние
                 color = '#6b7280'; // Серый
-                shape = 'circle';
               } else if (event.name.includes('Первая четверть')) {
                 text = '🌓'; // Первая четверть
                 color = '#94a3b8'; // Светло-серый
-                shape = 'circle';
               } else if (event.name.includes('Последняя четверть')) {
                 text = '🌗'; // Последняя четверть
                 color = '#64748b'; // Темно-серый
-                shape = 'circle';
               } else {
                 text = '🌙'; // Общая луна
                 color = '#e2e8f0'; // Светло-серый
-                shape = 'circle';
               }
               break;
               
@@ -328,15 +428,12 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
               if (event.name.includes('Меркурий') || event.name.includes('Меркурия')) {
                 text = '☿'; // Символ Меркурия
                 color = '#8b5cf6'; // Фиолетовый
-                shape = 'square';
               } else if (event.name.includes('Венер')) {
                 text = '♀'; // Символ Венеры
                 color = '#ec4899'; // Розовый
-                shape = 'square';
               } else {
                 text = '✨'; // Звезды для планетарных аспектов
                 color = '#06b6d4'; // Циан
-                shape = 'square';
               }
               break;
               
@@ -344,37 +441,30 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
               if (event.name.includes('затмение')) {
                 text = '🌒'; // Затмение
                 color = '#dc2626'; // Красный
-                shape = 'arrowUp';
               } else if (event.name.includes('солнцестояние')) {
                 text = '☀️'; // Солнце
                 color = '#f59e0b'; // Янтарный
-                shape = 'arrowUp';
               } else if (event.name.includes('равноденствие')) {
                 text = '⚖️'; // Равноденствие
                 color = '#10b981'; // Зеленый
-                shape = 'arrowUp';
               } else if (event.name.includes('Геминиды') || event.name.includes('метеорный') || event.name.includes('Персеиды')) {
                 text = '☄️'; // Метеор
                 color = '#8b5cf6'; // Фиолетовый
-                shape = 'arrowDown';
               } else {
                 text = '☉'; // Символ солнца
                 color = '#eab308'; // Желтый
-                shape = 'arrowUp';
               }
               break;
               
             default:
               text = '⭐'; // Звезда по умолчанию
               color = '#f7931a';
-              shape = 'circle';
           }
 
           return {
             time: timeInSeconds as any, // Приведение типа для совместимости с lightweight-charts
             position: 'aboveBar' as const,
             color: color,
-            shape: shape,
             text: text,
             size: 2 // Увеличенный размер для лучшей видимости
           };
@@ -390,6 +480,19 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
         markers.forEach(marker => {
           console.log(`  ${marker.text} ${new Date(marker.time * 1000).toLocaleDateString()} (${marker.color})`);
         });
+
+        // Восстанавливаем сохраненный масштаб (приоритет над расширением оси)
+        if (savedRange && chartRef.current) {
+          try {
+            chartRef.current.timeScale().setVisibleRange(savedRange);
+            console.log('[Chart] 🔄 Восстановлен сохраненный масштаб графика');
+          } catch (error) {
+            console.log('[Chart] Не удалось восстановить масштаб:', error);
+          }
+        } else {
+          console.log('[Chart] 🔒 Масштаб не найден - сохраняем текущий пользовательский масштаб');
+          // НЕ изменяем масштаб при обновлении фильтров - пользователь может иметь свой масштаб
+        }
       } else {
         console.warn('[Chart] 🌙 Нет валидных астрономических событий для отображения');
       }
@@ -401,6 +504,14 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
 
   return (
     <div className={`relative ${className}`}>
+      {/* Панель фильтров событий */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
+        <EventFilters 
+          filters={eventFilters} 
+          onChange={setEventFilters} 
+        />
+      </div>
+      
       {/* График */}
       <div ref={chartContainerRef} className="w-full h-full" />
     
@@ -421,7 +532,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
 
       {/* Текущая фаза луны */}
       {currentMoonPhase && (
-        <div className="absolute top-4 right-4 bg-[#0a0b1e]/80 backdrop-blur-sm border border-[#334155] rounded-lg px-3 py-2">
+        <div className="absolute top-20 right-4 bg-[#0a0b1e]/80 backdrop-blur-sm border border-[#334155] rounded-lg px-3 py-2">
           <div className="flex items-center gap-2 text-[#e2e8f0]">
             <span className="text-lg">{currentMoonPhase}</span>
             <span className="text-sm text-[#8b8f9b]">Текущая фаза</span>
@@ -469,7 +580,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
       )}
 
       {/* Легенда астрономических событий */}
-      <div className="absolute top-4 left-4 bg-[#0a0b1e]/80 backdrop-blur-sm border border-[#334155] rounded-lg px-3 py-2">
+      <div className="absolute top-20 left-4 bg-[#0a0b1e]/80 backdrop-blur-sm border border-[#334155] rounded-lg px-3 py-2">
         <div className="text-[#e2e8f0] text-xs">
           <div className="font-semibold mb-2">Астрономические события:</div>
           <div className="grid grid-cols-2 gap-1 text-xs">

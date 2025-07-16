@@ -149,7 +149,7 @@ class BybitApiService {
   async getKlineData(
     symbol: string,
     timeframe: string, // Renamed from interval to timeframe for clarity
-    limit: number = 1000, // Увеличиваем лимит для большего количества данных
+    limit: number = 3000, // Увеличиваем лимит для большего количества данных
     category: string = 'spot'
   ): Promise<ApiResponse<CryptoData[]>> {
     try {
