@@ -220,31 +220,35 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
             const eventTime = Math.floor(nearestEvent.timestamp / 1000);
             const eventX = timeScale.timeToCoordinate(eventTime as any);
             
-            // Проверяем, находится ли курсор рядом с маркером по x и в верхней области по y
+            // Проверяем, находится ли курсор рядом с маркером по x (убираем ограничение по y)
             const xDistance = Math.abs(mouseX - (eventX || 0));
-            const inEventArea = xDistance < 50 && mouseY < 150; // 50px по x, 150px по y от верха
+            const inEventArea = xDistance < 50; // Только проверка по x, тултип работает в любой части экрана
             
             if (inEventArea && eventX !== null) {
-              console.log(`[Tooltip] Showing tooltip for: ${nearestEvent.name} at event position x=${eventX}`);
+              console.log(`[Tooltip] Showing tooltip for: ${nearestEvent.name} at cursor position x=${mouseX}, y=${mouseY}`);
+              
+              // Тултип следует за курсором с небольшим смещением
+              const tooltipX = mouseX + 15; // Смещение вправо от курсора
+              const tooltipY = mouseY - 10; // Смещение вверх от курсора
               
               if (prev.visible && prev.title === nearestEvent.name) {
                 // Обновляем только позицию, если тот же event
                 return { 
                   ...prev, 
-                  x: eventX + 10, 
-                  y: 60 // Фиксированная позиция в верхней части графика
+                  x: tooltipX, 
+                  y: tooltipY
                 };
               }
               
               return {
-                x: eventX + 10,
-                y: 60, // Фиксированная позиция в верхней части графика
+                x: tooltipX,
+                y: tooltipY,
                 title: nearestEvent.name,
                 description: nearestEvent.description,
                 visible: true
               };
             } else {
-              console.log(`[Tooltip] Event found but cursor not in area: ${nearestEvent.name}, xDist=${xDistance}, y=${mouseY}`);
+              console.log(`[Tooltip] Event found but cursor not in area: ${nearestEvent.name}, xDist=${xDistance} (need <50px)`);
             }
           }
         }
