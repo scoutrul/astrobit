@@ -47,8 +47,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
   // Использование простого API Bybit
   const {
     data: cryptoData,
-    loading,
-    error
+    loading
   } = useCryptoData(symbol, timeframe);
 
   // Мемоизируем расчет диапазона дат для астрономических событий
@@ -87,9 +86,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
   // Получение астрономических событий
   const {
     events: allAstronomicalEvents,
-    loading: astroLoading,
-    error: astroError,
-    currentMoonPhase
+    loading: astroLoading
   } = useAstronomicalEvents(startDate, endDate);
 
   // Фильтрация событий по активным фильтрам
@@ -114,14 +111,22 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
       switch (event.type) {
         case 'moon_phase':
           return eventFilters.lunar;
+        case 'lunar_eclipse':
+          return eventFilters.lunar; // Лунные затмения в лунном фильтре
         case 'solar_event':
           // Проверяем метеоры - они должны быть в отдельном фильтре
           if (event.name.includes('Геминиды') || event.name.includes('Персеиды') || event.name.includes('метеорный')) {
             return eventFilters.meteor; // Теперь показываем метеоры через отдельный фильтр
           }
           return eventFilters.solar;
+        case 'solar_eclipse':
+          return eventFilters.solar; // Солнечные затмения в солнечном фильтре
         case 'planet_aspect':
           return eventFilters.planetary;
+        case 'comet_event':
+          return eventFilters.meteor; // Кометы в фильтре метеоров (космические объекты)
+        case 'meteor_shower':
+          return eventFilters.meteor; // Метеорные потоки в фильтре метеоров
         default:
           return false; // Неизвестные типы не показываем
       }
@@ -349,7 +354,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
       // Сохраняем количество реальных свечей ДО добавления пустых
       const realCandlesCount = chartData.length;
 
-      // 🚀 СОЗДАНИЕ ПУСТЫХ СВЕЧЕЙ ДЛЯ БУДУЩИХ СОБЫТИЙ
+      // 🚀 СОЗДАНИЕ ПУСТЫХ СВЕЧЕЙ ДЛЯ БУДУЩИХ СОБЫТИЙ (если есть события)
       if (chartData.length > 0 && astronomicalEvents.length > 0) {
         const lastCandle = chartData[chartData.length - 1];
         const lastCandleTime = lastCandle!.time;
@@ -387,21 +392,54 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
           chartData = [...chartData, ...emptyCandles];
         }
       }
+
+      // 🎯 ДОПОЛНИТЕЛЬНЫЙ БУФЕР: Всегда добавляем пустые свечи справа для корректного масштабирования
+      if (chartData.length > 0) {
+        const lastCandle = chartData[chartData.length - 1];
+        const lastCandleTime = lastCandle!.time;
+        const lastCandlePrice = lastCandle!.close;
+        
+        const intervalMs = getTimeframeInterval(timeframe);
+        const intervalSeconds = intervalMs / 1000;
+        
+        // Добавляем 15 пустых свечей справа для правильного сдвига
+        const bufferCandles = [];
+        let currentTime = lastCandleTime + intervalSeconds;
+        
+        for (let i = 0; i < 15; i++) {
+          bufferCandles.push({
+            time: currentTime,
+            open: lastCandlePrice,
+            high: lastCandlePrice,
+            low: lastCandlePrice,
+            close: lastCandlePrice
+          });
+          currentTime += intervalSeconds;
+        }
+        
+        console.log(`[Chart] 🎯 Добавлен буфер из ${bufferCandles.length} свечей для корректного масштабирования`);
+        chartData = [...chartData, ...bufferCandles];
+      }
       console.log(`[Chart] Временной диапазон: ${new Date((chartData[0]?.time || 0) * 1000).toLocaleString()} - ${new Date((chartData[chartData.length - 1]?.time || 0) * 1000).toLocaleString()}`);
 
       if (chartData.length > 0) {
         // Устанавливаем данные
         seriesRef.current.setData(chartData as any);
 
-        // 🎯 ВАЖНО: Масштабирование основывается только на реальных свечах, НЕ на пустых
+        // 🎯 МАСШТАБИРОВАНИЕ: Всегда показываем 50 свечей с сдвигом на четверть влево
         if (chartRef.current && realCandlesCount > 0) {
-          const lastRealIndex = realCandlesCount - 1; // Индекс последней реальной свечи
           const visibleCandles = 50;
-          const offsetCandles = Math.floor(visibleCandles * 0.25); // Сдвиг на четверть (12-13 свечей)
+          const quarterOffset = Math.floor(visibleCandles * 0.25); // Сдвиг на четверть (12-13 свечей)
           
-          // Базируем расчет на реальных свечах, БЕЗ расширения на пустые
-          const firstVisibleIndex = Math.max(0, lastRealIndex - visibleCandles + 1);
-          const lastVisibleIndex = lastRealIndex; // Заканчиваем точно на последней реальной свече
+          // Сдвиг на четверть влево от последней реальной свечи
+          // Это означает, что последние реальные свечи будут смещены влево, оставляя место справа
+          const lastRealIndex = realCandlesCount - 1;
+          const centerIndex = lastRealIndex - quarterOffset;
+          
+          // Рассчитываем диапазон в 50 свечей вокруг центральной точки
+          const halfVisible = Math.floor(visibleCandles / 2);
+          const firstVisibleIndex = Math.max(0, centerIndex - halfVisible);
+          const lastVisibleIndex = Math.min(chartData.length - 1, firstVisibleIndex + visibleCandles - 1);
           
           try {
             // Сброс вертикального масштаба при смене данных
@@ -416,7 +454,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
               to: lastVisibleIndex
             });
             
-            console.log(`[Chart] 📏 Масштабирование на основе реальных свечей: ${firstVisibleIndex}-${lastVisibleIndex} (из ${realCandlesCount} реальных)`);
+            console.log(`[Chart] 📏 Масштабирование: ${visibleCandles} свечей, сдвиг на четверть влево (${firstVisibleIndex}-${lastVisibleIndex}, центр: ${centerIndex}, последняя реальная: ${lastRealIndex})`);
           } catch (error) {
             console.log('[Chart] Не удалось установить видимый диапазон, используем fitContent:', error);
             chartRef.current.timeScale().fitContent();
@@ -494,14 +532,45 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
               break;
               
             case 'planet_aspect':
-              if (event.name.includes('Меркурий') || event.name.includes('Меркурия')) {
+              if (event.name.includes('Парад') || event.name.includes('парад')) {
+                if (event.name.includes('Большой парад') || event.name.includes('7 планет')) {
+                  text = '🪐'; // Большой парад планет (Сатурн как символ)
+                  color = '#7c3aed'; // Фиолетовый
+                } else if (event.name.includes('6 планет')) {
+                  text = '🌌'; // Парад 6 планет
+                  color = '#3b82f6'; // Синий
+                } else if (event.name.includes('5 планет')) {
+                  text = '⭐'; // Парад 5 планет
+                  color = '#f59e0b'; // Янтарный
+                } else {
+                  text = '✨'; // Мини-парад планет
+                  color = '#10b981'; // Зеленый
+                }
+              } else if (event.name.includes('Соединение')) {
+                if (event.name.includes('Великое соединение') || event.name.includes('Юпитера и Сатурна')) {
+                  text = '🔗'; // Великое соединение
+                  color = '#dc2626'; // Красный
+                } else if (event.name.includes('Юпитер')) {
+                  text = '♃'; // Символ Юпитера
+                  color = '#f59e0b'; // Оранжевый
+                } else if (event.name.includes('Венер')) {
+                  text = '♀'; // Символ Венеры
+                  color = '#ec4899'; // Розовый
+                } else if (event.name.includes('Марс')) {
+                  text = '♂'; // Символ Марса
+                  color = '#ef4444'; // Красный
+                } else {
+                  text = '🔗'; // Обычное соединение
+                  color = '#6b7280'; // Серый
+                }
+              } else if (event.name.includes('Меркурий') || event.name.includes('Меркурия')) {
                 text = '☿'; // Символ Меркурия
                 color = '#8b5cf6'; // Фиолетовый
               } else if (event.name.includes('Венер')) {
                 text = '♀'; // Символ Венеры
                 color = '#ec4899'; // Розовый
               } else {
-                text = '✨'; // Звезды для планетарных аспектов
+                text = '✨'; // Звезды для других планетарных аспектов
                 color = '#06b6d4'; // Циан
               }
               break;
@@ -522,6 +591,90 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
               } else {
                 text = '☉'; // Символ солнца
                 color = '#eab308'; // Желтый
+              }
+              break;
+              
+            case 'lunar_eclipse':
+              if (event.name.includes('Полное')) {
+                text = '🌚'; // Полное лунное затмение (темная луна)
+                color = '#dc2626'; // Красный
+              } else if (event.name.includes('Частичное')) {
+                text = '🌘'; // Частичное лунное затмение
+                color = '#f59e0b'; // Оранжевый
+              } else {
+                text = '🌙'; // Полутеневое затмение
+                color = '#fbbf24'; // Желтый
+              }
+              break;
+              
+            case 'solar_eclipse':
+              if (event.name.includes('Полное')) {
+                text = '🌑'; // Полное солнечное затмение
+                color = '#000000'; // Черный
+              } else if (event.name.includes('Кольцевое')) {
+                text = '⭕'; // Кольцевое затмение
+                color = '#dc2626'; // Красный
+              } else if (event.name.includes('Гибридное')) {
+                text = '🔄'; // Гибридное затмение
+                color = '#7c3aed'; // Фиолетовый
+              } else {
+                text = '🌗'; // Частичное затмение
+                color = '#f59e0b'; // Оранжевый
+              }
+              break;
+              
+            case 'comet_event':
+              if (event.name.includes('Комета')) {
+                if (event.name.includes('Leonard') || event.name.includes('ZTF') || event.name.includes('Цучинских')) {
+                  text = '☄️'; // Яркие известные кометы
+                  color = '#f59e0b'; // Оранжевый
+                } else {
+                  text = '🌟'; // Обычные кометы
+                  color = '#06b6d4'; // Циан
+                }
+              } else if (event.name.includes('Астероид')) {
+                text = '🪨'; // Астероиды
+                color = '#6b7280'; // Серый
+              } else {
+                text = '✨'; // Космические объекты
+                color = '#8b5cf6'; // Фиолетовый
+              }
+              break;
+              
+            case 'meteor_shower':
+              if (event.name.includes('Квадрантиды')) {
+                text = '⭐'; // Квадрантиды - один из лучших потоков
+                color = '#fbbf24'; // Золотистый
+              } else if (event.name.includes('Персеиды')) {
+                text = '☄️'; // Персеиды - самый известный поток
+                color = '#f59e0b'; // Оранжевый
+              } else if (event.name.includes('Геминиды')) {
+                text = '💎'; // Геминиды - лучший поток года
+                color = '#06b6d4'; // Циан
+              } else if (event.name.includes('Дракониды') && event.description.includes('400')) {
+                text = '🐉'; // Дракониды с всплеском активности
+                color = '#dc2626'; // Красный для исключительного события
+              } else if (event.name.includes('Лириды')) {
+                text = '🎵'; // Лириды (от созвездия Лиры)
+                color = '#a855f7'; // Фиолетовый
+              } else if (event.name.includes('Леониды')) {
+                text = '🦁'; // Леониды (от созвездия Льва)
+                color = '#f59e0b'; // Янтарный
+              } else if (event.name.includes('Ориониды')) {
+                text = '🏹'; // Ориониды (от созвездия Ориона-охотника)
+                color = '#10b981'; // Зеленый
+              } else if (event.name.includes('Аквариды')) {
+                text = '🌊'; // Аквариды (от созвездия Водолея)
+                color = '#3b82f6'; // Синий
+              } else if (event.name.includes('Каприкорниды')) {
+                text = '🐐'; // Каприкорниды (от созвездия Козерога)
+                color = '#6b7280'; // Серый
+              } else if (event.name.includes('Урсиды')) {
+                text = '🐻'; // Урсиды (от созвездия Малой Медведицы)
+                color = '#8b5cf6'; // Фиолетовый
+              } else {
+                text = '☄️'; // Общий метеор
+                color = '#8b5cf6'; // Фиолетовый
               }
               break;
               
