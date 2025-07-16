@@ -573,6 +573,19 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
 
   return (
     <div className={`relative ${className}`}>
+      {/* Индикатор загрузки - размещаем ВЫШЕ всех элементов */}
+      {(loading || astroLoading) && (
+        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-30 bg-[#0a0b1e]/90 backdrop-blur-sm border border-[#334155] rounded-lg px-4 py-3 shadow-lg">
+          <div className="text-[#e2e8f0] text-center flex items-center gap-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#f7931a]"></div>
+            <div className="text-sm">
+              {loading && 'Загрузка данных криптовалют...'}
+              {astroLoading && 'Расчет астрономических событий...'}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Панель фильтров событий */}
       <div className="absolute top-2 sm:top-4 left-2 right-2 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-20 flex justify-center">
         <div className="w-full sm:w-auto max-w-full overflow-hidden">
@@ -600,22 +613,6 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
           <div className="text-[#8b8f9b] text-xs">{tooltip.description}</div>
         </div>
       )}
-
-      
-      {/* Индикатор загрузки */}
-      {(loading || astroLoading) && (
-        <div className="absolute inset-0 bg-[#0a0b1e]/80 flex items-center justify-center">
-          <div className="text-[#e2e8f0] text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f7931a] mx-auto mb-4"></div>
-            <div>
-              {loading && 'Загрузка данных криптовалют...'}
-              {astroLoading && 'Расчет астрономических событий...'}
-            </div>
-          </div>
-        </div>
-      )}
-      
-    
     </div>
   );
 } 
