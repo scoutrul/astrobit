@@ -231,7 +231,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
               const tooltipX = mouseX + 15; // Смещение вправо от курсора
               const tooltipY = mouseY - 10; // Смещение вверх от курсора
               
-              if (prev.visible && prev.title === nearestEvent.name) {
+              if (prev.visible && prev.title.includes(nearestEvent.name)) {
                 // Обновляем только позицию, если тот же event
                 return { 
                   ...prev, 
@@ -240,10 +240,18 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
                 };
               }
               
+              // Форматируем дату события
+              const eventDate = new Date(nearestEvent.timestamp);
+              const formattedDate = eventDate.toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+              });
+              
               return {
                 x: tooltipX,
                 y: tooltipY,
-                title: nearestEvent.name,
+                title: `${nearestEvent.name} • ${formattedDate}`,
                 description: nearestEvent.description,
                 visible: true
               };
@@ -285,6 +293,18 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
     };
   }, [height]); // Убираем astronomicalEvents из зависимостей - график инициализируется только один раз
 
+  // Функция для конвертации таймфрейма в миллисекунды
+  const getTimeframeInterval = (timeframe: string): number => {
+    const intervals: Record<string, number> = {
+      '1h': 60 * 60 * 1000,           // 1 час
+      '8h': 8 * 60 * 60 * 1000,       // 8 часов
+      '1d': 24 * 60 * 60 * 1000,      // 1 день
+      '1w': 7 * 24 * 60 * 60 * 1000,  // 1 неделя
+      '1M': 30 * 24 * 60 * 60 * 1000  // 1 месяц (приблизительно)
+    };
+    return intervals[timeframe] || intervals['1d']; // По умолчанию 1 день
+  };
+
   // Обновление данных графика при изменении криптоданных
   useEffect(() => {
     if (!isChartReady || !seriesRef.current || !cryptoData.length) {
@@ -296,7 +316,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
       console.log(`[Chart] Обновление данных графика: ${cryptoData.length} свечей`);
       
       // Преобразуем данные для lightweight-charts
-      const chartData = cryptoData
+      let chartData = cryptoData
         .map((item: CryptoData) => {
           // Валидация данных OHLC
           if (item.open <= 0 || item.high <= 0 || item.low <= 0 || item.close <= 0) {
@@ -325,20 +345,63 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
         .sort((a, b) => a!.time - b!.time); // Сортировка по времени
 
       console.log(`[Chart] Валидных свечей: ${chartData.length}`);
+
+      // Сохраняем количество реальных свечей ДО добавления пустых
+      const realCandlesCount = chartData.length;
+
+      // 🚀 СОЗДАНИЕ ПУСТЫХ СВЕЧЕЙ ДЛЯ БУДУЩИХ СОБЫТИЙ
+      if (chartData.length > 0 && astronomicalEvents.length > 0) {
+        const lastCandle = chartData[chartData.length - 1];
+        const lastCandleTime = lastCandle!.time;
+        const lastCandlePrice = lastCandle!.close;
+        
+        // Находим максимальную дату среди астрономических событий
+        const maxEventTime = Math.max(...astronomicalEvents.map(event => Math.floor(event.timestamp / 1000)));
+        
+        if (maxEventTime > lastCandleTime) {
+          console.log(`[Chart] 🎯 Создание пустых свечей для будущих событий до ${new Date(maxEventTime * 1000).toLocaleString()}`);
+          
+          const intervalMs = getTimeframeInterval(timeframe);
+          const intervalSeconds = intervalMs / 1000;
+          
+          // Добавляем буфер 20% от общего диапазона будущих событий
+          const futureRange = maxEventTime - lastCandleTime;
+          const bufferTime = Math.floor(futureRange * 0.2);
+          const targetTime = maxEventTime + bufferTime;
+          
+          const emptyCandles = [];
+          let currentTime = lastCandleTime + intervalSeconds;
+          
+          while (currentTime <= targetTime) {
+            emptyCandles.push({
+              time: currentTime,
+              open: lastCandlePrice,
+              high: lastCandlePrice,
+              low: lastCandlePrice,
+              close: lastCandlePrice
+            });
+            currentTime += intervalSeconds;
+          }
+          
+          console.log(`[Chart] ✨ Добавлено ${emptyCandles.length} пустых свечей для будущих событий`);
+          chartData = [...chartData, ...emptyCandles];
+        }
+      }
       console.log(`[Chart] Временной диапазон: ${new Date((chartData[0]?.time || 0) * 1000).toLocaleString()} - ${new Date((chartData[chartData.length - 1]?.time || 0) * 1000).toLocaleString()}`);
 
       if (chartData.length > 0) {
         // Устанавливаем данные
         seriesRef.current.setData(chartData as any);
 
-        // Показываем последние 50 свечей со сдвигом на четверть от правого края
-        if (chartRef.current && chartData.length > 0) {
-          const lastIndex = chartData.length - 1;
+        // 🎯 ВАЖНО: Масштабирование основывается только на реальных свечах, НЕ на пустых
+        if (chartRef.current && realCandlesCount > 0) {
+          const lastRealIndex = realCandlesCount - 1; // Индекс последней реальной свечи
           const visibleCandles = 50;
           const offsetCandles = Math.floor(visibleCandles * 0.25); // Сдвиг на четверть (12-13 свечей)
           
-          const firstVisibleIndex = Math.max(0, lastIndex - visibleCandles + offsetCandles + 1);
-          const lastVisibleIndex = lastIndex + offsetCandles;
+          // Базируем расчет на реальных свечах, БЕЗ расширения на пустые
+          const firstVisibleIndex = Math.max(0, lastRealIndex - visibleCandles + 1);
+          const lastVisibleIndex = lastRealIndex; // Заканчиваем точно на последней реальной свече
           
           try {
             // Сброс вертикального масштаба при смене данных
@@ -352,28 +415,30 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
               from: firstVisibleIndex,
               to: lastVisibleIndex
             });
+            
+            console.log(`[Chart] 📏 Масштабирование на основе реальных свечей: ${firstVisibleIndex}-${lastVisibleIndex} (из ${realCandlesCount} реальных)`);
           } catch (error) {
             console.log('[Chart] Не удалось установить видимый диапазон, используем fitContent:', error);
             chartRef.current.timeScale().fitContent();
           }
         }
 
-        console.log(`[Chart] График обновлён: ${chartData.length} свечей`);
+        console.log(`[Chart] График обновлён: ${chartData.length} свечей (включая пустые)`);
       } else {
         console.warn('[Chart] Нет валидных данных для отображения');
       }
     } catch (error) {
       console.error('[Chart] Ошибка обновления данных графика:', error);
     }
-  }, [cryptoData, isChartReady]);
+  }, [cryptoData, isChartReady, astronomicalEvents, timeframe]);
 
   // Добавление астрономических событий в виде маркеров
   useEffect(() => {
     // Обновляем ref с астрономическими событиями для использования в обработчиках
     astronomicalEventsRef.current = astronomicalEvents;
     
-    if (!isChartReady || !seriesRef.current) {
-      console.log('[Chart] График не готов');
+    if (!isChartReady || !seriesRef.current || !cryptoData?.length) {
+      console.log('[Chart] График не готов или нет данных криптовалют');
       return;
     }
     
@@ -504,7 +569,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
     } catch (error) {
       console.error('[Chart] ❌ Ошибка добавления астрономических событий:', error);
     }
-  }, [astronomicalEvents, isChartReady]);
+  }, [astronomicalEvents, isChartReady, cryptoData]);
 
   return (
     <div className={`relative ${className}`}>
@@ -536,15 +601,6 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
         </div>
       )}
 
-      {/* Текущая фаза луны */}
-      {currentMoonPhase && (
-        <div className="absolute top-20 right-4 bg-[#0a0b1e]/80 backdrop-blur-sm border border-[#334155] rounded-lg px-3 py-2">
-          <div className="flex items-center gap-2 text-[#e2e8f0]">
-            <span className="text-lg">{currentMoonPhase}</span>
-            <span className="text-sm text-[#8b8f9b]">Текущая фаза</span>
-          </div>
-        </div>
-      )}
       
       {/* Индикатор загрузки */}
       {(loading || astroLoading) && (
@@ -559,47 +615,7 @@ export default function SimpleChart({ height, className = '' }: ChartProps) {
         </div>
       )}
       
-      {/* Ошибка */}
-      {(error || astroError) && (
-        <div className="absolute inset-0 bg-[#0a0b1e]/80 flex items-center justify-center">
-          <div className="text-center text-[#ef4444]">
-            <div className="text-2xl mb-4">⚠️</div>
-            <div className="font-semibold mb-2">Ошибка загрузки данных</div>
-            <div className="text-sm text-[#8b8f9b]">
-              {error && <div>Криптоданные: {error}</div>}
-              {astroError && <div>Астрономические данные: {astroError}</div>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Информация о количестве астрономических событий */}
-      {astronomicalEvents.length > 0 && (
-        <div className="absolute bottom-4 left-4 bg-[#0a0b1e]/80 backdrop-blur-sm border border-[#334155] rounded-lg px-3 py-2">
-          <div className="flex items-center gap-2 text-[#e2e8f0]">
-            <span className="text-lg">🌟</span>
-            <span className="text-sm text-[#8b8f9b]">
-              {astronomicalEvents.length} астрономических событий
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Легенда астрономических событий */}
-      <div className="absolute top-20 left-4 bg-[#0a0b1e]/80 backdrop-blur-sm border border-[#334155] rounded-lg px-3 py-2">
-        <div className="text-[#e2e8f0] text-xs">
-          <div className="font-semibold mb-2">Астрономические события:</div>
-          <div className="grid grid-cols-2 gap-1 text-xs">
-            <div>🌕 Полнолуние</div>
-            <div>🌑 Новолуние</div>
-            <div>☀️ Солнцестояние</div>
-            <div>⚖️ Равноденствие</div>
-            <div>☿ Меркурий ℞</div>
-            <div>♀ Венера ℞</div>
-            <div>☄️ Метеоры</div>
-          </div>
-        </div>
-      </div>
+    
     </div>
   );
 } 
