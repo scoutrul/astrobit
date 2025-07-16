@@ -20,6 +20,9 @@ export class AstronomicalEventsService {
     // Добавляем планетарные аспекты (упрощенная версия)
     events.push(...this.getPlanetaryEvents(startDate, endDate));
     
+    // Добавляем солнечные события
+    events.push(...this.getSolarEvents(startDate, endDate));
+    
     return events.sort((a, b) => a.timestamp - b.timestamp);
   }
 
@@ -32,18 +35,27 @@ export class AstronomicalEventsService {
     try {
       // Известные фазы луны на 2024-2025 (в качестве примера)
       const knownMoonPhases = [
+        // Декабрь 2024
+        { date: new Date('2024-12-01'), phase: 'Новолуние', significance: 'high' as const },
+        { date: new Date('2024-12-08'), phase: 'Первая четверть', significance: 'medium' as const },
         { date: new Date('2024-12-15'), phase: 'Полнолуние', significance: 'high' as const },
+        { date: new Date('2024-12-22'), phase: 'Последняя четверть', significance: 'medium' as const },
         { date: new Date('2024-12-30'), phase: 'Новолуние', significance: 'high' as const },
+        // Январь 2025
+        { date: new Date('2025-01-06'), phase: 'Первая четверть', significance: 'medium' as const },
         { date: new Date('2025-01-13'), phase: 'Полнолуние', significance: 'high' as const },
+        { date: new Date('2025-01-21'), phase: 'Последняя четверть', significance: 'medium' as const },
         { date: new Date('2025-01-29'), phase: 'Новолуние', significance: 'high' as const },
+        // Февраль 2025
+        { date: new Date('2025-02-05'), phase: 'Первая четверть', significance: 'medium' as const },
         { date: new Date('2025-02-12'), phase: 'Полнолуние', significance: 'high' as const },
+        { date: new Date('2025-02-20'), phase: 'Последняя четверть', significance: 'medium' as const },
         { date: new Date('2025-02-28'), phase: 'Новолуние', significance: 'high' as const },
+        // Март 2025
+        { date: new Date('2025-03-06'), phase: 'Первая четверть', significance: 'medium' as const },
         { date: new Date('2025-03-14'), phase: 'Полнолуние', significance: 'high' as const },
+        { date: new Date('2025-03-22'), phase: 'Последняя четверть', significance: 'medium' as const },
         { date: new Date('2025-03-29'), phase: 'Новолуние', significance: 'high' as const },
-        { date: new Date('2025-04-13'), phase: 'Полнолуние', significance: 'high' as const },
-        { date: new Date('2025-04-27'), phase: 'Новолуние', significance: 'high' as const },
-        { date: new Date('2025-05-12'), phase: 'Полнолуние', significance: 'high' as const },
-        { date: new Date('2025-05-27'), phase: 'Новолуние', significance: 'high' as const },
       ];
 
       knownMoonPhases.forEach(moonPhase => {
@@ -106,6 +118,61 @@ export class AstronomicalEventsService {
         events.push({
           timestamp: event.date.getTime(),
           type: 'planet_aspect',
+          name: event.name,
+          description: event.description,
+          significance: event.significance
+        });
+      }
+    });
+
+    return events;
+  }
+
+  /**
+   * Получить солнечные события (солнцестояния, равноденствия, затмения)
+   */
+  private getSolarEvents(startDate: Date, endDate: Date): AstronomicalEvent[] {
+    const events: AstronomicalEvent[] = [];
+    
+    // Известные солнечные события на 2024-2025
+    const solarEvents = [
+      { 
+        date: new Date('2024-12-21'), 
+        name: 'Зимнее солнцестояние', 
+        description: 'Самый короткий день в году. Начало зимы.',
+        significance: 'high' as const
+      },
+      { 
+        date: new Date('2025-03-20'), 
+        name: 'Весеннее равноденствие', 
+        description: 'День равен ночи. Начало весны.',
+        significance: 'high' as const
+      },
+      { 
+        date: new Date('2025-06-21'), 
+        name: 'Летнее солнцестояние', 
+        description: 'Самый длинный день в году. Начало лета.',
+        significance: 'high' as const
+      },
+      { 
+        date: new Date('2025-09-23'), 
+        name: 'Осеннее равноденствие', 
+        description: 'День равен ночи. Начало осени.',
+        significance: 'high' as const
+      },
+      { 
+        date: new Date('2024-12-14'), 
+        name: 'Геминиды (метеорный поток)', 
+        description: 'Пик метеорного потока Геминиды - до 120 метеоров в час.',
+        significance: 'medium' as const
+      },
+    ];
+
+    solarEvents.forEach(event => {
+      if (event.date >= startDate && event.date <= endDate) {
+        events.push({
+          timestamp: event.date.getTime(),
+          type: 'solar_event',
           name: event.name,
           description: event.description,
           significance: event.significance
