@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { AstronomicalEvent, astronomicalEventsService } from '../services/astronomicalEvents';
 
 interface UseAstronomicalEventsResult {
@@ -16,10 +16,6 @@ export function useAstronomicalEvents(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentMoonPhase, setCurrentMoonPhase] = useState<string>('🌙');
-
-  // Стабилизируем зависимости с помощью useMemo
-  const startTime = useMemo(() => startDate.getTime(), [startDate]);
-  const endTime = useMemo(() => endDate.getTime(), [endDate]);
 
   useEffect(() => {
     const calculateEvents = async () => {
@@ -53,7 +49,7 @@ export function useAstronomicalEvents(
     if (startDate && endDate) {
       calculateEvents();
     }
-  }, [startTime, endTime]); // Используем стабилизированные значения
+  }, [startDate, endDate]); // Используем сами объекты Date, они теперь стабилизированы
 
   return {
     events,

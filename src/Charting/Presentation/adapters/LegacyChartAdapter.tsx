@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { useCryptoData } from '../../../hooks/useCryptoData';
 import { useAstronomicalEvents } from '../../../hooks/useAstronomicalEvents';
+import { useRealTimeCryptoData } from '../../../hooks/useRealTimeCryptoData';
 import { useStore } from '../../../store';
 import { ChartComponent } from '../components/ChartComponent';
 import { AstronomicalEvent as NewAstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
@@ -40,7 +41,7 @@ function convertAstronomicalEvents(oldEvents: OldAstronomicalEvent[]): NewAstron
 }
 
 export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
-  height = 400,
+  height = 500, // Увеличена высота с 400 до 500
   className = '',
   cryptoData: propCryptoData,
   astronomicalEvents: propAstronomicalEvents,
@@ -55,16 +56,37 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   const symbol = propSymbol || storeSymbol;
   const timeframe = propTimeframe || storeTimeframe;
 
+  // Real-time данные
+  const { 
+    isConnected, 
+    currentSubscription, 
+    lastUpdate, 
+    subscribe, 
+    unsubscribe 
+  } = useRealTimeCryptoData();
+
+  // Ref для отслеживания изменений symbol/timeframe
+  const prevSubscription = useRef<{ symbol: string; timeframe: string } | null>(null);
+
+  // Стабилизируем даты для useAstronomicalEvents
+  const dateRange = useMemo(() => {
+    const now = Date.now();
+    return {
+      startDate: new Date(now - 365 * 24 * 60 * 60 * 1000), // 1 год назад
+      endDate: new Date(now + 90 * 24 * 60 * 60 * 1000)    // 3 месяца вперед
+    };
+  }, []); // Пустой массив зависимостей - даты не должны меняться
+
   // Получаем криптоданные через хук
   const { data: hookCryptoData, loading: cryptoLoading, error: cryptoError } = useCryptoData(symbol, timeframe);
   
   // Используем данные из пропсов или из хука
   const cryptoData = propCryptoData || hookCryptoData || [];
 
-  // Получаем астрономические события
+  // Получаем астрономические события с стабилизированными датами
   const { events: hookAstronomicalEvents, loading: astroLoading } = useAstronomicalEvents(
-    new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 год назад
-    new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)   // 3 месяца вперед
+    dateRange.startDate,
+    dateRange.endDate
   );
 
   // Конвертируем старые события в новый формат
@@ -73,30 +95,57 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   // Используем события из пропсов или из хука
   const astronomicalEvents = propAstronomicalEvents || convertedHookEvents || [];
 
-  console.log('[LegacyChartAdapter] 🔍 Astronomical events details:', {
-    hookEventsLength: hookAstronomicalEvents?.length || 0,
-    convertedHookEventsLength: convertedHookEvents.length,
-    propEventsLength: propAstronomicalEvents?.length || 0,
-    finalEventsLength: astronomicalEvents.length,
-    firstEvent: astronomicalEvents[0],
-    lastEvent: astronomicalEvents[astronomicalEvents.length - 1],
-    astroLoading
-  });
+  // Управление WebSocket подпиской
+  useEffect(() => {
+    const currentSub = { symbol, timeframe };
+    
+    // Проверяем, изменились ли параметры подписки
+    if (
+      !prevSubscription.current ||
+      prevSubscription.current.symbol !== symbol ||
+      prevSubscription.current.timeframe !== timeframe
+    ) {
+      console.log('[LegacyChartAdapter] 🔄 Смена подписки:', {
+        from: prevSubscription.current,
+        to: currentSub
+      });
 
-  console.log('[LegacyChartAdapter] Rendering with:', {
-    symbol,
-    timeframe,
-    cryptoDataLength: cryptoData.length,
-    astronomicalEventsLength: astronomicalEvents.length,
-    cryptoLoading,
-    astroLoading,
-    cryptoError,
-    hookCryptoDataLength: hookCryptoData?.length || 0,
-    propCryptoDataLength: propCryptoData?.length || 0
-  });
+      // Отписываемся от предыдущей подписки
+      if (prevSubscription.current) {
+        unsubscribe();
+      }
+
+      // Подписываемся на новую подписку
+      if (symbol && timeframe) {
+        subscribe(symbol, timeframe);
+      }
+
+      prevSubscription.current = currentSub;
+    }
+  }, [symbol, timeframe, subscribe, unsubscribe]);
+
+  // Логирование real-time обновлений
+  useEffect(() => {
+    if (lastUpdate) {
+      console.log('[LegacyChartAdapter] 📡 Real-time обновление:', {
+        symbol: lastUpdate.symbol,
+        interval: lastUpdate.interval,
+        timestamp: new Date(lastUpdate.timestamp).toISOString(),
+        close: lastUpdate.close,
+        isClosed: lastUpdate.isClosed
+      });
+    }
+  }, [lastUpdate]);
+
+  // Комбинированный loading статус
+  const isDataLoading = cryptoLoading || astroLoading;
+
+  // Ключ для принудительного пересоздания ChartComponent
+  const chartKey = `${symbol}-${timeframe}`;
 
   return (
     <ChartComponent
+      key={chartKey} // Принудительное пересоздание при смене параметров
       symbol={symbol}
       timeframe={timeframe}
       height={height}
@@ -104,6 +153,8 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       cryptoData={cryptoData}
       astronomicalEvents={astronomicalEvents}
       eventFilters={eventFilters}
+      isLoading={isDataLoading}
+      realTimeData={lastUpdate}
     />
   );
 }; 

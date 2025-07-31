@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { TimeframeUtils } from '../../Infrastructure/utils/TimeframeUtils';
 import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
+import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
 
 interface ChartComponentProps {
   symbol: string;
@@ -24,6 +25,8 @@ interface ChartComponentProps {
     planetary?: boolean;
     meteor?: boolean;
   };
+  isLoading?: boolean;
+  realTimeData?: BinanceKlineWebSocketData | null;
 }
 
 interface TooltipData {
@@ -41,11 +44,14 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   className = '',
   cryptoData = [],
   astronomicalEvents = [],
-  eventFilters = { lunar: true, solar: true, planetary: true, meteor: true }
+  eventFilters = { lunar: true, solar: true, planetary: true, meteor: true },
+  isLoading = false,
+  realTimeData = null
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartInstance, setChartInstance] = useState<IChartApi | null>(null);
-  const [seriesInstance, setSeriesInstance] = useState<ISeriesApi<'Candlestick'> | null>(null);
+  const [seriesInstance, setSeriesInstance] = useState<ISeriesApi<"Candlestick"> | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipData>({
     x: 0,
     y: 0,
@@ -53,58 +59,33 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     description: '',
     visible: false
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [localEventFilters, setLocalEventFilters] = useState(eventFilters);
 
-  // Используем локальные фильтры, если не переданы извне
-  const activeEventFilters = eventFilters || localEventFilters;
+  // Ключ для принудительного пересоздания компонента при смене symbol/timeframe
+  const chartKey = `${symbol}-${timeframe}`;
 
-  // Логирование входных данных
-  console.log('[ChartComponent] Props received:', {
-    symbol,
-    timeframe,
-    cryptoDataLength: cryptoData.length,
-    astronomicalEventsLength: astronomicalEvents.length,
-    eventFilters,
-    height,
-    className
-  });
+  // Активные фильтры событий
+  const activeEventFilters = {
+    lunar: localEventFilters.lunar ?? true,
+    solar: localEventFilters.solar ?? true,
+    planetary: localEventFilters.planetary ?? true,
+    meteor: localEventFilters.meteor ?? true
+  };
 
-  // Подробное логирование данных
-  console.log('[ChartComponent] CryptoData details:', {
-    firstData: cryptoData[0],
-    lastData: cryptoData[cryptoData.length - 1],
-    sampleData: cryptoData.slice(0, 3),
-    allData: cryptoData
-  });
-
-  console.log('[ChartComponent] AstronomicalEvents details:', {
-    firstEvent: astronomicalEvents[0],
-    lastEvent: astronomicalEvents[astronomicalEvents.length - 1],
-    sampleEvents: astronomicalEvents.slice(0, 3),
-    allEvents: astronomicalEvents
-  });
-
-  // Логирование при изменении данных
+  // Синхронизируем локальные фильтры с пропсами
   useEffect(() => {
-    console.log('[ChartComponent] Data changed:', {
-      cryptoDataLength: cryptoData.length,
-      astronomicalEventsLength: astronomicalEvents.length,
-      firstCryptoData: cryptoData[0],
-      lastCryptoData: cryptoData[cryptoData.length - 1]
-    });
-  }, [cryptoData, astronomicalEvents]);
+    setLocalEventFilters(eventFilters);
+  }, [eventFilters]);
 
   // Обработчик клика по маркеру
   const handleMarkerClick = (param: any) => {
-    if (param.seriesData) {
-      const data = param.seriesData as any;
+    if (param.seriesData && param.seriesData.marker) {
+      const marker = param.seriesData.marker;
       setTooltip({
-        x: param.point?.x || 0,
-        y: param.point?.y || 0,
-        title: data.title || 'Событие',
-        description: data.description || '',
+        x: param.point.x,
+        y: param.point.y,
+        title: marker.title || 'Астрономическое событие',
+        description: marker.description || 'Описание события',
         visible: true
       });
     }
@@ -113,83 +94,81 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   // Инициализация графика
   useEffect(() => {
     console.log('[ChartComponent] 🔄 Initializing chart...', {
-      chartContainerRef: !!chartContainerRef.current,
-      containerWidth: chartContainerRef.current?.clientWidth,
-      height,
+      chartKey,
       symbol,
       timeframe,
-      cryptoDataLength: cryptoData.length,
-      astronomicalEventsLength: astronomicalEvents.length,
+      height,
+      containerWidth: chartContainerRef.current?.clientWidth,
       hasChartInstance: !!chartInstance
     });
 
-    // Если график уже существует, не пересоздаем его
-    if (chartInstance && seriesInstance) {
-      console.log('[ChartComponent] ✅ Chart already exists, skipping initialization');
-      return;
-    }
-
     if (!chartContainerRef.current) {
-      console.log('[ChartComponent] ❌ Chart container ref is null');
+      console.log('[ChartComponent] ❌ Chart container not available');
       return;
     }
 
-    if (!chartContainerRef.current.clientWidth) {
-      console.log('[ChartComponent] ⚠️ Chart container has no width, waiting...');
-      // Ждем немного и пробуем снова
-      setTimeout(() => {
-        if (chartContainerRef.current && chartContainerRef.current.clientWidth) {
-          console.log('[ChartComponent] ✅ Container now has width, re-triggering initialization');
-          // Принудительно пересоздаем график
+    // Очищаем старый график если он существует
+    if (chartInstance) {
+      console.log('[ChartComponent] 🧹 Cleaning up existing chart...');
+      try {
+        chartInstance.remove();
+      } catch (err) {
+        console.log('[ChartComponent] ℹ️ Chart was already disposed during cleanup');
+      }
+      setChartInstance(null);
+      setSeriesInstance(null);
+    }
+
+    // Проверяем ширину контейнера
+    if (chartContainerRef.current.clientWidth === 0) {
+      console.log('[ChartComponent] ⚠️ Container width is 0, waiting...');
+      const timer = setTimeout(() => {
+        if (chartContainerRef.current) {
+          console.log('[ChartComponent] 🔄 Retrying initialization after delay...');
           setChartInstance(null);
           setSeriesInstance(null);
         }
       }, 100);
-      return;
+      return () => clearTimeout(timer);
     }
 
+    // setIsLoading(true); // Удалено локальное состояние isLoading
+    setError(null);
+
     try {
-      setIsLoading(true);
-      setError(null);
+      console.log('[ChartComponent] 🎨 Creating chart instance...');
 
-      console.log('[ChartComponent] 📊 Creating chart instance...');
-
-      // Создаем экземпляр графика
+      // Создаем новый график
       const chart = createChart(chartContainerRef.current, {
         width: chartContainerRef.current.clientWidth,
         height: height,
         layout: {
-          background: { color: '#1a1a1a' },
-          textColor: '#d1d5db'
+          background: { color: '#0a0b1e' },
+          textColor: '#e2e8f0'
         },
         grid: {
-          vertLines: { color: '#2d2d2d' },
-          horzLines: { color: '#2d2d2d' }
+          vertLines: { color: '#1e293b' },
+          horzLines: { color: '#1e293b' }
         },
         crosshair: {
           mode: 1,
           vertLine: {
             color: '#f7931a',
             width: 1,
-            style: 3,
-            labelBackgroundColor: '#f7931a'
+            style: 2
           },
           horzLine: {
             color: '#f7931a',
             width: 1,
-            style: 3,
-            labelBackgroundColor: '#f7931a'
+            style: 2
           }
         },
         rightPriceScale: {
-          borderColor: '#2d2d2d',
-          scaleMargins: {
-            top: 0.1,
-            bottom: 0.1
-          }
+          borderColor: '#334155',
+          textColor: '#8b8f9b'
         },
         timeScale: {
-          borderColor: '#2d2d2d',
+          borderColor: '#334155',
           timeVisible: true,
           secondsVisible: false
         }
@@ -214,7 +193,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
       // Обработчик изменения размера
       const handleResize = () => {
-        if (chartContainerRef.current) {
+        if (chartContainerRef.current && chart) {
           chart.applyOptions({
             width: chartContainerRef.current.clientWidth
           });
@@ -223,43 +202,40 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
       window.addEventListener('resize', handleResize);
 
-      setIsLoading(false);
+      // setIsLoading(false); // Удалено локальное состояние isLoading
       console.log('[ChartComponent] ✅ Chart initialization completed');
 
       return () => {
         console.log('[ChartComponent] 🧹 Cleaning up chart...');
         window.removeEventListener('resize', handleResize);
-        chart.remove();
+        if (chart) {
+          try {
+            chart.remove();
+          } catch (err) {
+            console.log('[ChartComponent] ℹ️ Chart was already disposed during cleanup');
+          }
+        }
       };
     } catch (err) {
       console.error('[ChartComponent] ❌ Chart initialization error:', err);
       setError(err instanceof Error ? err.message : 'Ошибка инициализации графика');
-      setIsLoading(false);
+      // setIsLoading(false); // Удалено локальное состояние isLoading
     }
-  }, [height, symbol, timeframe]); // Убрали cryptoData и astronomicalEvents из зависимостей
+  }, [chartKey, height]); // Зависим только от ключа и высоты
 
   // Обновление данных криптовалют
   useEffect(() => {
-    console.log('[ChartComponent] 🔄 Updating crypto data...', {
-      hasSeriesInstance: !!seriesInstance,
+    if (!seriesInstance || !cryptoData.length) {
+      return;
+    }
+
+    console.log('[ChartComponent] 📊 Updating crypto data...', {
       cryptoDataLength: cryptoData.length,
       firstData: cryptoData[0],
       lastData: cryptoData[cryptoData.length - 1]
     });
 
-    if (!seriesInstance) {
-      console.log('[ChartComponent] ❌ No series instance available');
-      return;
-    }
-
-    if (!cryptoData.length) {
-      console.log('[ChartComponent] ⚠️ No crypto data available');
-      return;
-    }
-
     try {
-      console.log('[ChartComponent] 📊 Converting data to chart format...');
-
       // Конвертируем данные в формат Lightweight Charts
       const chartData = cryptoData.map(item => {
         const timeInSeconds = TimeframeUtils.convertTimestampToSeconds(item.time);
@@ -272,119 +248,111 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         };
       });
 
-      console.log('[ChartComponent] 📊 Chart data converted:', {
-        originalLength: cryptoData.length,
-        convertedLength: chartData.length,
-        firstConverted: chartData[0],
-        lastConverted: chartData[chartData.length - 1],
-        sampleTimes: chartData.slice(0, 5).map(d => d.time)
-      });
-
       // Фильтруем и сортируем данные
       const processedData = TimeframeUtils.processChartData(chartData);
       
-      console.log('[ChartComponent] 📊 Data processed:', {
-        processedLength: processedData.length,
-        firstProcessed: processedData[0],
-        lastProcessed: processedData[processedData.length - 1]
-      });
-
       if (processedData.length > 0) {
         console.log('[ChartComponent] 📊 Setting data to chart...');
-        // Проверяем, что seriesInstance все еще валиден
-        if (seriesInstance && typeof seriesInstance.setData === 'function') {
-          seriesInstance.setData(processedData as any);
-          console.log('[ChartComponent] ✅ Data set successfully');
-        } else {
-          console.log('[ChartComponent] ⚠️ Series instance is no longer valid');
+        seriesInstance.setData(processedData as any);
+        console.log('[ChartComponent] ✅ Data set successfully');
+
+        // Зум на последние 50 свечей
+        if (chartInstance && processedData.length > 0) {
+          const visibleCount = Math.min(50, processedData.length);
+          const lastTime = processedData[processedData.length - 1].time;
+          const firstTime = processedData[Math.max(0, processedData.length - visibleCount)].time;
+          
+          console.log('[ChartComponent] 🔍 Setting zoom to last 50 candles:', {
+            visibleCount,
+            firstTime,
+            lastTime,
+            totalDataPoints: processedData.length
+          });
+          
+          chartInstance.timeScale().setVisibleRange({
+            from: firstTime,
+            to: lastTime
+          });
         }
-      } else {
-        console.log('[ChartComponent] ⚠️ No processed data to set');
       }
     } catch (err) {
       console.error('[ChartComponent] ❌ Error updating crypto data:', err);
-      // Если ошибка связана с disposed объектом, не показываем ошибку пользователю
-      if (err instanceof Error && err.message.includes('disposed')) {
-        console.log('[ChartComponent] ℹ️ Chart was disposed, skipping update');
-      }
     }
-  }, [seriesInstance, cryptoData]);
+  }, [seriesInstance, cryptoData, chartInstance]);
 
   // Обновление астрономических событий
   useEffect(() => {
+    if (!seriesInstance || !astronomicalEvents.length) {
+      return;
+    }
+
     console.log('[ChartComponent] 🌙 Updating astronomical events...', {
-      hasSeriesInstance: !!seriesInstance,
       astronomicalEventsLength: astronomicalEvents.length,
-      eventFilters,
-      firstEvent: astronomicalEvents[0],
-      lastEvent: astronomicalEvents[astronomicalEvents.length - 1]
+      eventFilters: activeEventFilters
     });
 
-    if (!seriesInstance) {
-      console.log('[ChartComponent] ❌ No series instance available for events');
-      return;
-    }
-
-    if (!astronomicalEvents.length) {
-      console.log('[ChartComponent] ⚠️ No astronomical events available');
-      return;
-    }
-
     try {
-      console.log('[ChartComponent] 🌙 Filtering events...');
-
       // Фильтруем события по активным фильтрам
       const filteredEvents = AstronomicalEventUtils.filterEventsByType(
         astronomicalEvents,
         activeEventFilters
       );
 
-      console.log('[ChartComponent] 🌙 Events filtered:', {
-        originalCount: astronomicalEvents.length,
-        filteredCount: filteredEvents.length,
-        firstFiltered: filteredEvents[0],
-        lastFiltered: filteredEvents[filteredEvents.length - 1]
-      });
-
       // Конвертируем события в маркеры
       const markers = AstronomicalEventUtils.convertEventsToMarkers(filteredEvents);
 
-      console.log('[ChartComponent] 🌙 Events converted to markers:', {
-        markersCount: markers.length,
-        firstMarker: markers[0],
-        lastMarker: markers[markers.length - 1]
-      });
-
-      // Добавляем маркеры на график
       if (markers.length > 0) {
         console.log('[ChartComponent] 🌙 Setting markers to chart...');
-        // Проверяем, что seriesInstance все еще валиден
-        if (seriesInstance && typeof seriesInstance.setMarkers === 'function') {
-          markers.forEach(marker => {
-            seriesInstance.setMarkers([marker as any]);
-          });
-          console.log('[ChartComponent] ✅ Markers set successfully');
-        } else {
-          console.log('[ChartComponent] ⚠️ Series instance is no longer valid for markers');
-        }
-      } else {
-        console.log('[ChartComponent] ⚠️ No markers to set');
+        seriesInstance.setMarkers(markers as any);
+        console.log('[ChartComponent] ✅ Markers set successfully');
       }
     } catch (err) {
       console.error('[ChartComponent] ❌ Error updating astronomical events:', err);
-      // Если ошибка связана с disposed объектом, не показываем ошибку пользователю
-      if (err instanceof Error && err.message.includes('disposed')) {
-        console.log('[ChartComponent] ℹ️ Chart was disposed, skipping event update');
-      }
     }
   }, [seriesInstance, astronomicalEvents, activeEventFilters]);
+
+  // Обработка real-time данных
+  useEffect(() => {
+    if (!seriesInstance || !realTimeData || !realTimeData.isClosed) {
+      return;
+    }
+
+    console.log('[ChartComponent] 📡 Обновление real-time данных:', {
+      symbol: realTimeData.symbol,
+      interval: realTimeData.interval,
+      timestamp: new Date(realTimeData.timestamp).toISOString(),
+      close: realTimeData.close,
+      volume: realTimeData.volume
+    });
+
+    try {
+      // Конвертируем timestamp в секунды
+      const timeInSeconds = TimeframeUtils.convertTimestampToSeconds(realTimeData.timestamp);
+      
+      // Создаем новую свечу
+      const newCandle = {
+        time: timeInSeconds as any,
+        open: realTimeData.open,
+        high: realTimeData.high,
+        low: realTimeData.low,
+        close: realTimeData.close
+      };
+
+      // Обновляем последнюю свечу на графике
+      seriesInstance.update(newCandle);
+      
+      console.log('[ChartComponent] ✅ Real-time данные обновлены на графике');
+    } catch (err) {
+      console.error('[ChartComponent] ❌ Ошибка обновления real-time данных:', err);
+    }
+  }, [seriesInstance, realTimeData]);
 
   // Обработчик клика по графику
   useEffect(() => {
     if (!chartInstance) return;
 
     const handleClick = (param: any) => {
-      if (param.seriesData) {
+      if (param.seriesData && param.seriesData.marker) {
         handleMarkerClick(param);
       } else {
         setTooltip(prev => ({ ...prev, visible: false }));
@@ -478,7 +446,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       {/* Контейнер графика */}
       <div
         ref={chartContainerRef}
-        style={{ height: `${height}px` }}
+        style={{ height: `${height}px`, marginTop: '60px' }} // Добавлен отступ сверху для фильтров
         className="w-full"
       />
 

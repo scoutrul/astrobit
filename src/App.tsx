@@ -7,6 +7,7 @@ import { CryptoDataDependencyConfig } from './CryptoData/Infrastructure/config/D
 import { ChartingDependencyConfig } from './Charting/Infrastructure/config/DependencyConfig';
 import { AstronomicalDependencyConfig } from './Astronomical/Infrastructure/config/DependencyConfig';
 import { UserInterfaceDependencyConfig } from './UserInterface/Infrastructure/config/DependencyConfig';
+import { useLoadingStatus } from './hooks/useLoadingStatus';
 
 function App() {
   // Инициализация DI контейнера и регистрация зависимостей
@@ -15,6 +16,9 @@ function App() {
   ChartingDependencyConfig.configure(container);
   AstronomicalDependencyConfig.configure(container);
   UserInterfaceDependencyConfig.configure(container);
+
+  // Получаем глобальный loading статус
+  const { isLoading } = useLoadingStatus();
 
   return (
     <div className="h-screen bg-slate-900 text-white flex flex-col">
@@ -42,7 +46,7 @@ function App() {
                 <LegacySymbolSelectorAdapter />
               </div>
               <div className="flex items-center gap-2 justify-center sm:justify-start">
-                <LegacyTimeframeSelectorAdapter />
+                <LegacyTimeframeSelectorAdapter isLoading={isLoading} />
               </div>
             </div>
           </div>

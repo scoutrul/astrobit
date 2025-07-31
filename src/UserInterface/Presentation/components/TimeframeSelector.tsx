@@ -10,6 +10,7 @@ interface TimeframeSelectorProps {
   timeframe: string;
   onTimeframeChange: (timeframe: string) => void;
   className?: string;
+  isLoading?: boolean;
 }
 
 const timeframeOptions: TimeframeOption[] = [
@@ -43,7 +44,8 @@ const timeframeOptions: TimeframeOption[] = [
 export const TimeframeSelector: React.FC<TimeframeSelectorProps> = ({
   timeframe,
   onTimeframeChange,
-  className = ''
+  className = '',
+  isLoading = false
 }) => {
   const handleTimeframeChange = (newTimeframe: string) => {
     console.log(`[TimeframeSelector] Изменение таймфрейма: ${timeframe} → ${newTimeframe}`);
@@ -64,8 +66,10 @@ export const TimeframeSelector: React.FC<TimeframeSelectorProps> = ({
               ? 'bg-orange-500 text-white border-orange-500 shadow-lg' 
               : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-gray-500'
             }
+            ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
           `}
           title={option.description}
+          disabled={isLoading}
         >
           {option.label}
         </button>
