@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChartComponent Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background: #2a2a2a;
+        }
+        .result {
+            background: #333;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .error { background: #4a1a1a; color: #ff6b6b; }
+        .success { background: #1a4a1a; color: #6bff6b; }
+        .loading { background: #1a1a4a; color: #6b6bff; }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #1976d2; }
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #555;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 ChartComponent Debug Tool</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: React and ChartComponent Import</h3>
+        <button onclick="testImports()">Test Imports</button>
+        <div id="imports-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: ChartComponent Props</h3>
+        <button onclick="testProps()">Test Props</button>
+        <div id="props-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: ChartComponent Rendering</h3>
+        <button onclick="testRendering()">Test Rendering</button>
+        <div id="rendering-result" class="result"></div>
+        <div id="react-root"></div>
+    </div>
+
+    <script type="module">
+        window.testImports = async function() {
+            const resultDiv = document.getElementById('imports-result');
+            resultDiv.textContent = 'Testing imports...';
+            resultDiv.className = 'result loading';
+
+            try {
+                // Проверяем React
+                const React = await import('https://esm.sh/react@18');
+                const ReactDOM = await import('https://esm.sh/react-dom@18/client');
+                
+                resultDiv.textContent = '✅ React imports successful:\n' +
+                    'React: ' + (React ? 'loaded' : 'failed') + '\n' +
+                    'ReactDOM: ' + (ReactDOM ? 'loaded' : 'failed');
+                resultDiv.className = 'result success';
+                
+                // Сохраняем для следующих тестов
+                window.React = React;
+                window.ReactDOM = ReactDOM;
+            } catch (error) {
+                resultDiv.textContent = '❌ Error importing React: ' + error.message;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        window.testProps = function() {
+            const resultDiv = document.getElementById('props-result');
+            resultDiv.textContent = 'Testing ChartComponent props...';
+            resultDiv.className = 'result loading';
+
+            try {
+                // Создаем тестовые данные
+                const mockCryptoData = [];
+                const now = Date.now();
+                
+                for (let i = 0; i < 50; i++) {
+                    const time = now - (50 - i) * 24 * 60 * 60 * 1000;
+                    const basePrice = 50000 + Math.random() * 10000;
+                    
+                    mockCryptoData.push({
+                        symbol: 'BTCUSDT',
+                        time: new Date(time).toISOString(),
+                        open: basePrice * (1 + (Math.random() - 0.5) * 0.02),
+                        high: basePrice * (1 + Math.random() * 0.02),
+                        low: basePrice * (1 - Math.random() * 0.02),
+                        close: basePrice * (1 + (Math.random() - 0.5) * 0.02),
+                        volume: Math.random() * 1000
+                    });
+                }
+
+                const mockAstronomicalEvents = [
+                    {
+                        timestamp: now - 30 * 24 * 60 * 60 * 1000,
+                        name: 'Полнолуние',
+                        description: 'Полная луна',
+                        type: 'moon_phase'
+                    },
+                    {
+                        timestamp: now - 15 * 24 * 60 * 60 * 1000,
+                        name: 'Новолуние',
+                        description: 'Новая луна',
+                        type: 'moon_phase'
+                    }
+                ];
+
+                const props = {
+                    symbol: 'BTCUSDT',
+                    timeframe: '1d',
+                    height: 400,
+                    className: 'w-full h-full',
+                    cryptoData: mockCryptoData,
+                    astronomicalEvents: mockAstronomicalEvents,
+                    eventFilters: { lunar: true, solar: true, planetary: true, meteor: true }
+                };
+
+                resultDiv.textContent = '✅ Props created successfully:\n' +
+                    'Symbol: ' + props.symbol + '\n' +
+                    'Timeframe: ' + props.timeframe + '\n' +
+                    'Crypto data points: ' + props.cryptoData.length + '\n' +
+                    'Astronomical events: ' + props.astronomicalEvents.length + '\n' +
+                    'First crypto data: ' + JSON.stringify(props.cryptoData[0], null, 2) + '\n' +
+                    'First astronomical event: ' + JSON.stringify(props.astronomicalEvents[0], null, 2);
+                resultDiv.className = 'result success';
+                
+                // Сохраняем для следующего теста
+                window.testProps = props;
+            } catch (error) {
+                resultDiv.textContent = '❌ Error creating props: ' + error.message;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        window.testRendering = async function() {
+            const resultDiv = document.getElementById('rendering-result');
+            resultDiv.textContent = 'Testing ChartComponent rendering...';
+            resultDiv.className = 'result loading';
+
+            try {
+                if (!window.React || !window.ReactDOM || !window.testProps) {
+                    resultDiv.textContent = '❌ React or props not available. Run previous tests first.';
+                    resultDiv.className = 'result error';
+                    return;
+                }
+
+                // Создаем React элемент
+                const { createElement } = window.React.default;
+                const { createRoot } = window.ReactDOM.default;
+
+                // Простой компонент для тестирования
+                const TestChartComponent = (props) => {
+                    const { symbol, timeframe, height, className, cryptoData, astronomicalEvents, eventFilters } = props;
+                    
+                    console.log('[TestChartComponent] Rendering with props:', props);
+                    
+                    return createElement('div', {
+                        className: `relative ${className}`,
+                        style: { height: `${height}px` }
+                    }, [
+                        createElement('div', {
+                            key: 'info',
+                            style: {
+                                position: 'absolute',
+                                top: '10px',
+                                left: '10px',
+                                zIndex: 10,
+                                background: 'rgba(0,0,0,0.8)',
+                                padding: '10px',
+                                borderRadius: '5px'
+                            }
+                        }, [
+                            createElement('div', { key: 'symbol' }, `Symbol: ${symbol}`),
+                            createElement('div', { key: 'timeframe' }, `Timeframe: ${timeframe}`),
+                            createElement('div', { key: 'crypto' }, `Crypto data: ${cryptoData.length} points`),
+                            createElement('div', { key: 'astro' }, `Astro events: ${astronomicalEvents.length} events`)
+                        ]),
+                        createElement('div', {
+                            key: 'chart',
+                            style: {
+                                width: '100%',
+                                height: '100%',
+                                background: '#1a1a1a',
+                                border: '1px solid #333'
+                            }
+                        }, 'Chart placeholder - check console for props')
+                    ]);
+                };
+
+                // Рендерим компонент
+                const root = createRoot(document.getElementById('react-root'));
+                root.render(createElement(TestChartComponent, window.testProps));
+
+                resultDiv.textContent = '✅ ChartComponent rendered successfully\n' +
+                    'Check the chart container above and console for details\n' +
+                    'If you see the info panel, React rendering is working';
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = '❌ Error rendering ChartComponent: ' + error.message + '\n' + error.stack;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        // Автоматически запускаем первый тест при загрузке
+        window.onload = function() {
+            setTimeout(() => {
+                testImports();
+            }, 100);
+        };
+    </script>
+</body>
+</html> 

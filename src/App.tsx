@@ -3,10 +3,18 @@ import { DependencyContainer } from './Shared/infrastructure';
 import { LegacyChartAdapter } from './Charting/Presentation/adapters/LegacyChartAdapter';
 import { LegacySymbolSelectorAdapter } from './UserInterface/Presentation/adapters/LegacySymbolSelectorAdapter';
 import { LegacyTimeframeSelectorAdapter } from './UserInterface/Presentation/adapters/LegacyTimeframeSelectorAdapter';
+import { CryptoDataDependencyConfig } from './CryptoData/Infrastructure/config/DependencyConfig';
+import { ChartingDependencyConfig } from './Charting/Infrastructure/config/DependencyConfig';
+import { AstronomicalDependencyConfig } from './Astronomical/Infrastructure/config/DependencyConfig';
+import { UserInterfaceDependencyConfig } from './UserInterface/Infrastructure/config/DependencyConfig';
 
 function App() {
-  // Получение DI контейнера (инициализация)
-  DependencyContainer.getInstance();
+  // Инициализация DI контейнера и регистрация зависимостей
+  const container = DependencyContainer.getInstance();
+  CryptoDataDependencyConfig.configure(container);
+  ChartingDependencyConfig.configure(container);
+  AstronomicalDependencyConfig.configure(container);
+  UserInterfaceDependencyConfig.configure(container);
 
   return (
     <div className="h-screen bg-slate-900 text-white flex flex-col">

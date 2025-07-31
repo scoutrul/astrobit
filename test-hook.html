@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>useCryptoData Hook Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background: #2a2a2a;
+        }
+        .result {
+            background: #333;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .error {
+            background: #4a1a1a;
+            color: #ff6b6b;
+        }
+        .success {
+            background: #1a4a1a;
+            color: #6bff6b;
+        }
+        .loading {
+            background: #1a1a4a;
+            color: #6b6bff;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .data-preview {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #555;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔗 useCryptoData Hook Test</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Direct API Call</h3>
+        <button onclick="testDirectAPI()">Test Direct API Call</button>
+        <div id="direct-api-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Use Case Execution</h3>
+        <button onclick="testUseCase()">Test Use Case Execution</button>
+        <div id="usecase-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Repository Call</h3>
+        <button onclick="testRepository()">Test Repository Call</button>
+        <div id="repository-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 4: Data Conversion</h3>
+        <button onclick="testDataConversion()">Test Data Conversion</button>
+        <div id="conversion-result" class="result"></div>
+    </div>
+
+    <script type="module">
+        // Импортируем модули
+        import { DependencyContainer } from './src/Shared/infrastructure/DependencyContainer.js';
+        import { GetCryptoDataUseCase } from './src/CryptoData/Application/use-cases/GetCryptoDataUseCase.js';
+        import { BinanceApiService } from './src/CryptoData/Infrastructure/external-services/BinanceApiService.js';
+
+        window.testDirectAPI = async function() {
+            const resultDiv = document.getElementById('direct-api-result');
+            resultDiv.textContent = 'Testing Direct API Call...';
+            resultDiv.className = 'result loading';
+
+            try {
+                const binanceService = new BinanceApiService();
+                
+                // Ждем инициализации
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const result = await binanceService.getKlineData('BTCUSDT', '1d', 5);
+                
+                if (result.isSuccess) {
+                    const data = result.value;
+                    resultDiv.innerHTML = `
+                        ✅ Direct API call successful
+                        Data points: ${data.length}
+                        <div class="data-preview">
+                            ${JSON.stringify(data, null, 2)}
+                        </div>
+                    `;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ Direct API call failed: ${result.error}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Direct API call error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        window.testUseCase = async function() {
+            const resultDiv = document.getElementById('usecase-result');
+            resultDiv.textContent = 'Testing Use Case Execution...';
+            resultDiv.className = 'result loading';
+
+            try {
+                const container = DependencyContainer.getInstance();
+                const useCase = container.resolve('GetCryptoDataUseCase');
+                
+                const result = await useCase.execute({
+                    symbol: 'BTCUSDT',
+                    timeframe: '1d',
+                    limit: 5
+                });
+
+                if (result.isSuccess) {
+                    const data = result.value;
+                    resultDiv.innerHTML = `
+                        ✅ Use Case execution successful
+                        Symbol: ${data.symbol}
+                        Timeframe: ${data.timeframe}
+                        Total Count: ${data.totalCount}
+                        Data Points: ${data.data.length}
+                        <div class="data-preview">
+                            First data point: ${JSON.stringify(data.data[0], null, 2)}
+                        </div>
+                    `;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ Use Case execution failed: ${result.error}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Use Case execution error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        window.testRepository = async function() {
+            const resultDiv = document.getElementById('repository-result');
+            resultDiv.textContent = 'Testing Repository Call...';
+            resultDiv.className = 'result loading';
+
+            try {
+                const container = DependencyContainer.getInstance();
+                const repository = container.resolve('ICryptoDataRepository');
+                
+                // Создаем доменные объекты
+                const { Symbol } = await import('./src/CryptoData/Domain/value-objects/Symbol.js');
+                const { Timeframe } = await import('./src/CryptoData/Domain/value-objects/Timeframe.js');
+                
+                const symbol = new Symbol('BTCUSDT');
+                const timeframe = new Timeframe('1d');
+                
+                const result = await repository.getKlineData(symbol, timeframe, 5);
+
+                if (result.isSuccess) {
+                    const data = result.value;
+                    resultDiv.innerHTML = `
+                        ✅ Repository call successful
+                        Data points: ${data.length}
+                        <div class="data-preview">
+                            First data point: ${JSON.stringify(data[0], null, 2)}
+                        </div>
+                    `;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ Repository call failed: ${result.error}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Repository call error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        window.testDataConversion = async function() {
+            const resultDiv = document.getElementById('conversion-result');
+            resultDiv.textContent = 'Testing Data Conversion...';
+            resultDiv.className = 'result loading';
+
+            try {
+                const container = DependencyContainer.getInstance();
+                const useCase = container.resolve('GetCryptoDataUseCase');
+                
+                const result = await useCase.execute({
+                    symbol: 'BTCUSDT',
+                    timeframe: '1d',
+                    limit: 3
+                });
+
+                if (result.isSuccess) {
+                    const domainData = result.value.data;
+                    
+                    // Конвертируем в старый формат (как в хуке)
+                    const legacyData = domainData.map(cryptoData => ({
+                        symbol: cryptoData.symbol.toString(),
+                        time: cryptoData.timestamp.toISOString(),
+                        open: cryptoData.open,
+                        high: cryptoData.high,
+                        low: cryptoData.low,
+                        close: cryptoData.close,
+                        volume: cryptoData.volume
+                    }));
+                    
+                    resultDiv.innerHTML = `
+                        ✅ Data conversion successful
+                        Domain data points: ${domainData.length}
+                        Legacy data points: ${legacyData.length}
+                        <div class="data-preview">
+                            <strong>Domain Data:</strong>
+                            ${JSON.stringify(domainData[0], null, 2)}
+                            
+                            <strong>Legacy Data:</strong>
+                            ${JSON.stringify(legacyData[0], null, 2)}
+                        </div>
+                    `;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ Data conversion failed: ${result.error}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Data conversion error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        // Автоматически запускаем первый тест при загрузке
+        window.onload = function() {
+            testDirectAPI();
+        };
+    </script>
+</body>
+</html> 

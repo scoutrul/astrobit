@@ -1,25 +1,25 @@
 import { DependencyContainer } from '../../../Shared/infrastructure/DependencyContainer';
 import { ICryptoDataRepository } from '../../Domain/repositories/ICryptoDataRepository';
-import { CcvxService } from '../external-services/CcvxService';
-import { CcvxCryptoDataRepository } from '../repositories/CcvxCryptoDataRepository';
+import { BinanceApiService } from '../external-services/BinanceApiService';
+import { BinanceCryptoDataRepository } from '../repositories/BinanceCryptoDataRepository';
 import { GetCryptoDataUseCase } from '../../Application/use-cases/GetCryptoDataUseCase';
 import { GetSymbolsUseCase } from '../../Application/use-cases/GetSymbolsUseCase';
 
 export class CryptoDataDependencyConfig {
   static configure(container: DependencyContainer): void {
-    // Регистрация внешнего сервиса
-    container.register<CcvxService>('CcvxService', () => new CcvxService());
-
-    // Регистрация репозитория
-    container.register<ICryptoDataRepository>('ICryptoDataRepository', () => 
-      new CcvxCryptoDataRepository(container.resolve<CcvxService>('CcvxService'))
+    // Регистрируем Binance API сервис как синглтон
+    container.register<BinanceApiService>('BinanceApiService', () => BinanceApiService.getInstance());
+    
+    // Регистрируем репозиторий с Binance API сервисом
+    container.register<ICryptoDataRepository>('ICryptoDataRepository', () =>
+      new BinanceCryptoDataRepository(container.resolve<BinanceApiService>('BinanceApiService'))
     );
-
-    // Регистрация use cases
+    
+    // Регистрируем use cases
     container.register<GetCryptoDataUseCase>('GetCryptoDataUseCase', () =>
       new GetCryptoDataUseCase(container.resolve<ICryptoDataRepository>('ICryptoDataRepository'))
     );
-
+    
     container.register<GetSymbolsUseCase>('GetSymbolsUseCase', () =>
       new GetSymbolsUseCase(container.resolve<ICryptoDataRepository>('ICryptoDataRepository'))
     );

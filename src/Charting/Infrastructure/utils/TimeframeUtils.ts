@@ -187,12 +187,44 @@ export class TimeframeUtils {
   }
 
   /**
-   * Фильтрует и сортирует данные по времени
+   * Фильтрует и сортирует данные по времени, удаляет дубликаты
    */
   static processChartData<T extends { time: number }>(data: T[]): T[] {
-    return data
-      .filter(item => item.time > 0)
-      .sort((a, b) => a.time - b.time);
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Фильтруем данные с валидным временем
+    const validData = data.filter(item => item.time > 0);
+    
+    if (validData.length === 0) {
+      return [];
+    }
+
+    // Сортируем по времени
+    const sortedData = validData.sort((a, b) => a.time - b.time);
+    
+    // Удаляем дублирующиеся записи по времени
+    const uniqueData: T[] = [];
+    const seenTimes = new Set<number>();
+    
+    for (const item of sortedData) {
+      if (!seenTimes.has(item.time)) {
+        seenTimes.add(item.time);
+        uniqueData.push(item);
+      }
+    }
+
+    console.log('[TimeframeUtils] Data processing:', {
+      originalLength: data.length,
+      validLength: validData.length,
+      sortedLength: sortedData.length,
+      uniqueLength: uniqueData.length,
+      firstTime: uniqueData[0]?.time,
+      lastTime: uniqueData[uniqueData.length - 1]?.time
+    });
+
+    return uniqueData;
   }
 
   /**
@@ -200,9 +232,16 @@ export class TimeframeUtils {
    */
   static convertTimestampToSeconds(timestamp: number | string): number {
     if (typeof timestamp === 'string') {
-      return parseInt(timestamp);
+      // Если это ISO строка, конвертируем в timestamp
+      const date = new Date(timestamp);
+      return Math.floor(date.getTime() / 1000);
     }
-    return Math.floor(timestamp / 1000);
+    // Если это уже timestamp в миллисекундах, конвертируем в секунды
+    if (timestamp > 1000000000000) { // Если timestamp больше 2001 года
+      return Math.floor(timestamp / 1000);
+    }
+    // Если это уже timestamp в секундах, возвращаем как есть
+    return timestamp;
   }
 
   /**

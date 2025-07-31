@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binance API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Binance API Test</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Ping API</h3>
+        <button onclick="testPing()">Test Ping</button>
+        <div id="ping-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Get BTC/USDT Kline Data</h3>
+        <button onclick="testKlineData()">Get Kline Data</button>
+        <div id="kline-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Get Symbols</h3>
+        <button onclick="testSymbols()">Get Symbols</button>
+        <div id="symbols-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 4: Get BTC/USDT Ticker</h3>
+        <button onclick="testTicker()">Get Ticker</button>
+        <div id="ticker-result" class="result"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'https://api.binance.com/api/v3';
+
+        async function testPing() {
+            const resultDiv = document.getElementById('ping-result');
+            resultDiv.textContent = 'Testing...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${BASE_URL}/ping`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = `✅ Ping successful: ${JSON.stringify(data, null, 2)}`;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ Ping failed: ${response.status} ${response.statusText}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testKlineData() {
+            const resultDiv = document.getElementById('kline-result');
+            resultDiv.textContent = 'Fetching kline data...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${BASE_URL}/klines?symbol=BTCUSDT&interval=1h&limit=5`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const formattedData = data.map(item => ({
+                        timestamp: new Date(item[0]).toISOString(),
+                        open: parseFloat(item[1]),
+                        high: parseFloat(item[2]),
+                        low: parseFloat(item[3]),
+                        close: parseFloat(item[4]),
+                        volume: parseFloat(item[5])
+                    }));
+                    
+                    resultDiv.textContent = `✅ Kline data (BTC/USDT 1h, last 5 candles):\n${JSON.stringify(formattedData, null, 2)}`;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ Failed to get kline data: ${response.status} ${response.statusText}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testSymbols() {
+            const resultDiv = document.getElementById('symbols-result');
+            resultDiv.textContent = 'Fetching symbols...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${BASE_URL}/exchangeInfo`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const spotSymbols = data.symbols
+                        .filter(symbol => symbol.status === 'TRADING' && symbol.isSpotTradingAllowed)
+                        .slice(0, 10) // Показываем только первые 10
+                        .map(symbol => ({
+                            symbol: symbol.symbol,
+                            baseAsset: symbol.baseAsset,
+                            quoteAsset: symbol.quoteAsset,
+                            status: symbol.status
+                        }));
+                    
+                    resultDiv.textContent = `✅ Symbols (first 10 spot trading pairs):\n${JSON.stringify(spotSymbols, null, 2)}`;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ Failed to get symbols: ${response.status} ${response.statusText}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testTicker() {
+            const resultDiv = document.getElementById('ticker-result');
+            resultDiv.textContent = 'Fetching ticker...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${BASE_URL}/ticker/24hr?symbol=BTCUSDT`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const tickerInfo = {
+                        symbol: data.symbol,
+                        lastPrice: parseFloat(data.lastPrice),
+                        priceChange: parseFloat(data.priceChange),
+                        priceChangePercent: parseFloat(data.priceChangePercent),
+                        highPrice: parseFloat(data.highPrice),
+                        lowPrice: parseFloat(data.lowPrice),
+                        volume: parseFloat(data.volume),
+                        quoteVolume: parseFloat(data.quoteVolume)
+                    };
+                    
+                    resultDiv.textContent = `✅ BTC/USDT Ticker:\n${JSON.stringify(tickerInfo, null, 2)}`;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ Failed to get ticker: ${response.status} ${response.statusText}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        // Автоматически запускаем тест ping при загрузке страницы
+        window.onload = function() {
+            testPing();
+        };
+    </script>
+</body>
+</html> 

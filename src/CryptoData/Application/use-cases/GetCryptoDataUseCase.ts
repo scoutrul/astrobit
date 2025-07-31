@@ -31,23 +31,42 @@ export class GetCryptoDataUseCase extends UseCase<GetCryptoDataRequest, GetCrypt
 
   async execute(request: GetCryptoDataRequest): Promise<Result<GetCryptoDataResponse>> {
     try {
+      console.log('[GetCryptoDataUseCase] 🔄 Executing use case:', request);
+
       // Validate request
       const validationResult = this.validateRequest(request);
       if (validationResult.isFailure) {
+        console.log('[GetCryptoDataUseCase] ❌ Validation failed:', validationResult.error);
         return Result.fail(validationResult.error);
       }
+
+      console.log('[GetCryptoDataUseCase] ✅ Validation passed');
 
       // Create domain objects
       const symbol = new Symbol(request.symbol);
       const timeframe = new Timeframe(request.timeframe as any);
       const limit = request.limit || timeframe.getRecommendedDataLimit();
 
+      console.log('[GetCryptoDataUseCase] 📊 Domain objects created:', {
+        symbol: symbol.value,
+        timeframe: timeframe.value,
+        limit
+      });
+
       // Get data from repository
+      console.log('[GetCryptoDataUseCase] 📊 Calling repository...');
       const dataResult = await this.cryptoDataRepository.getKlineData(symbol, timeframe, limit);
       
       if (dataResult.isFailure) {
+        console.log('[GetCryptoDataUseCase] ❌ Repository failed:', dataResult.error);
         return Result.fail(`Failed to get crypto data: ${dataResult.error}`);
       }
+
+      console.log('[GetCryptoDataUseCase] ✅ Repository returned data:', {
+        count: dataResult.value.length,
+        first: dataResult.value[0],
+        last: dataResult.value[dataResult.value.length - 1]
+      });
 
       const response: GetCryptoDataResponse = {
         data: dataResult.value,
@@ -57,8 +76,10 @@ export class GetCryptoDataUseCase extends UseCase<GetCryptoDataRequest, GetCrypt
         lastUpdated: new Date()
       };
 
+      console.log('[GetCryptoDataUseCase] ✅ Use case completed successfully');
       return Result.ok(response);
     } catch (error) {
+      console.error('[GetCryptoDataUseCase] ❌ Unexpected error:', error);
       return this.handleError(error);
     }
   }

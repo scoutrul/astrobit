@@ -1,9 +1,9 @@
 // External Services
-export { CcvxService } from './external-services/CcvxService';
-export type { CcvxKlineData, CcvxSymbolInfo } from './external-services/CcvxService';
+export { BinanceApiService } from './external-services/BinanceApiService';
+export type { BinanceKlineData, BinanceSymbolInfo, BinanceTickerData } from './external-services/BinanceApiService';
 
 // Repositories
-export { CcvxCryptoDataRepository } from './repositories/CcvxCryptoDataRepository';
+export { BinanceCryptoDataRepository } from './repositories/BinanceCryptoDataRepository';
 
 // Utils
 export { TimeframeMapper } from './utils/TimeframeMapper';
