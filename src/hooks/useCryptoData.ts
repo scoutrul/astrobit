@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { CryptoData } from '../types';
 import { DependencyContainer } from '../Shared/infrastructure/DependencyContainer';
 import { GetCryptoDataUseCase } from '../CryptoData/Application/use-cases/GetCryptoDataUseCase';
-import { combineHistoricalAndFutureCandles } from '../utils/futureCandlesGenerator';
 
 interface UseCryptoDataResult {
   data: CryptoData[];
@@ -92,16 +91,7 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
             last: legacyData[legacyData.length - 1]
           });
 
-          // Добавляем будущие свечи для отображения предстоящих событий
-          const combinedData = combineHistoricalAndFutureCandles(legacyData, timeframe);
-          
-          console.log(`[useCryptoData] 🔮 Добавлены будущие свечи:`, {
-            historical: legacyData.length,
-            future: combinedData.length - legacyData.length,
-            total: combinedData.length
-          });
-
-          setData(combinedData);
+          setData(legacyData);
           setLastUpdated(new Date());
           setRetryCount(0); // Сбрасываем счетчик попыток при успехе
         } else {

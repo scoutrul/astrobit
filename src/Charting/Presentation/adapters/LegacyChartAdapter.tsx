@@ -6,6 +6,7 @@ import { useStore } from '../../../store';
 import { ChartComponent } from '../components/ChartComponent';
 import { AstronomicalEvent as NewAstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { AstronomicalEvent as OldAstronomicalEvent } from '../../../services/astronomicalEvents';
+import { combineHistoricalAndFutureCandles } from '../../../utils/futureCandlesGenerator';
 
 interface LegacyChartAdapterProps {
   height?: number;
@@ -80,9 +81,6 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   // Получаем криптоданные через хук
   const { data: hookCryptoData, loading: cryptoLoading, error: cryptoError } = useCryptoData(symbol, timeframe);
   
-  // Используем данные из пропсов или из хука
-  const cryptoData = propCryptoData || hookCryptoData || [];
-
   // Получаем астрономические события с стабилизированными датами
   const { events: hookAstronomicalEvents, loading: astroLoading } = useAstronomicalEvents(
     dateRange.startDate,
@@ -94,6 +92,45 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   
   // Используем события из пропсов или из хука
   const astronomicalEvents = propAstronomicalEvents || convertedHookEvents || [];
+
+  // Конвертируем астрономические события для генератора будущих свечей
+  const eventsForGenerator = useMemo(() => {
+    return astronomicalEvents.map(event => ({
+      id: event.name,
+      name: event.name,
+      date: new Date(event.timestamp),
+      type: event.type,
+      description: event.description,
+      significance: 'medium'
+    }));
+  }, [astronomicalEvents]);
+
+  // Генерируем адаптивные будущие свечи с учетом событий
+  const enhancedCryptoData = useMemo(() => {
+    const historicalData = propCryptoData || hookCryptoData || [];
+    
+    if (historicalData.length === 0) {
+      return historicalData;
+    }
+
+    // Объединяем исторические данные с адаптивными будущими свечами
+    const combinedData = combineHistoricalAndFutureCandles(
+      historicalData,
+      timeframe,
+      eventsForGenerator
+    );
+
+    console.log('[LegacyChartAdapter] 🔮 Адаптивная генерация свечей:', {
+      symbol,
+      timeframe,
+      historicalCount: historicalData.length,
+      eventsCount: eventsForGenerator.length,
+      combinedCount: combinedData.length,
+      futureCount: combinedData.length - historicalData.length
+    });
+
+    return combinedData;
+  }, [propCryptoData, hookCryptoData, timeframe, eventsForGenerator]);
 
   // Управление WebSocket подпиской
   useEffect(() => {
@@ -150,7 +187,7 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       timeframe={timeframe}
       height={height}
       className={className}
-      cryptoData={cryptoData}
+      cryptoData={enhancedCryptoData}
       astronomicalEvents={astronomicalEvents}
       eventFilters={eventFilters}
       isLoading={isDataLoading}
