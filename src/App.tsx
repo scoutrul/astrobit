@@ -1,12 +1,12 @@
-import './index.css'
-import Chart from './components/chart/chartSimple'
-import TimeframeSelector from './components/ui/TimeframeSelector.tsx'
-import SymbolSelector from './components/ui/SymbolSelector.tsx'
-// import { DependencyContainer } from './Shared/infrastructure'
+import './index.css';
+import { DependencyContainer } from './Shared/infrastructure';
+import { LegacyChartAdapter } from './Charting/Presentation/adapters/LegacyChartAdapter';
+import { LegacySymbolSelectorAdapter } from './UserInterface/Presentation/adapters/LegacySymbolSelectorAdapter';
+import { LegacyTimeframeSelectorAdapter } from './UserInterface/Presentation/adapters/LegacyTimeframeSelectorAdapter';
 
 function App() {
-  // Получение DI контейнера (пока не используется, но будет использоваться в будущем)
-  // const container = DependencyContainer.getInstance();
+  // Получение DI контейнера (инициализация)
+  DependencyContainer.getInstance();
 
   return (
     <div className="h-screen bg-slate-900 text-white flex flex-col">
@@ -31,10 +31,10 @@ function App() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
             <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6 w-full sm:w-auto">
               <div className="flex items-center gap-2 justify-center sm:justify-start">
-                <SymbolSelector />
+                <LegacySymbolSelectorAdapter />
               </div>
               <div className="flex items-center gap-2 justify-center sm:justify-start">
-                <TimeframeSelector />
+                <LegacyTimeframeSelectorAdapter />
               </div>
             </div>
           </div>
@@ -43,10 +43,10 @@ function App() {
 
       {/* Chart - Full height of remaining space */}
       <div className="flex-1 w-full overflow-hidden">
-        <Chart className="w-full h-full" />
+        <LegacyChartAdapter className="w-full h-full" />
       </div>
     </div>
-  )
+  );
 }
 
-export default App 
+export default App; 
