@@ -256,17 +256,31 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         seriesInstance.setData(processedData as any);
         console.log('[ChartComponent] ✅ Data set successfully');
 
-        // Зум на последние 50 свечей
+        // Зум с показом будущих событий - сдвиг на треть влево
         if (chartInstance && processedData.length > 0) {
-          const visibleCount = Math.min(50, processedData.length);
-          const lastTime = processedData[processedData.length - 1].time;
-          const firstTime = processedData[Math.max(0, processedData.length - visibleCount)].time;
+          const totalDataPoints = processedData.length;
+          const historicalDataPoints = Math.max(0, totalDataPoints - 50); // Исторические данные (без будущих)
           
-          console.log('[ChartComponent] 🔍 Setting zoom to last 50 candles:', {
-            visibleCount,
+          // Вычисляем сдвиг на треть влево от правого края
+          const shiftRatio = 1/3; // Сдвиг на треть
+          const visibleRange = Math.floor(totalDataPoints * shiftRatio);
+          
+          // Начальная точка - сдвинута влево на треть
+          const startIndex = Math.max(0, totalDataPoints - visibleRange);
+          const endIndex = totalDataPoints - 1;
+          
+          const firstTime = processedData[startIndex].time;
+          const lastTime = processedData[endIndex].time;
+          
+          console.log('[ChartComponent] 🔍 Setting zoom to show future events:', {
+            totalDataPoints,
+            historicalDataPoints,
+            visibleRange,
+            startIndex,
+            endIndex,
             firstTime,
             lastTime,
-            totalDataPoints: processedData.length
+            shiftRatio
           });
           
           chartInstance.timeScale().setVisibleRange({
@@ -379,7 +393,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       )}
 
       {/* Панель фильтров событий */}
-      <div className="absolute top-2 sm:top-4 left-2 right-2 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-20 flex justify-center">
+      <div className="absolute bottom-2 sm:bottom-4 left-2 right-2 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-20 flex justify-center">
         <div className="w-full sm:w-auto max-w-full overflow-hidden">
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 md:gap-4 px-2 py-2 sm:px-3 md:px-4 bg-[#0a0b1e]/80 backdrop-blur-sm border border-[#334155] rounded-lg min-w-[100%] max-w-full">
             <span className="text-xs sm:text-sm text-[#8b8f9b] font-medium whitespace-nowrap">События:</span>
@@ -446,7 +460,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       {/* Контейнер графика */}
       <div
         ref={chartContainerRef}
-        style={{ height: `${height}px`, marginTop: '60px' }} // Добавлен отступ сверху для фильтров
+        style={{ height: `${height}px` }} // Убран marginBottom
         className="w-full"
       />
 
