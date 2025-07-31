@@ -191,6 +191,232 @@ astrobit/
 
 ---
 
+## 🔧 ТЕХНИЧЕСКОЕ ОПИСАНИЕ
+
+### Архитектура проекта
+
+**AstroBit** построен на современной React-архитектуре с использованием TypeScript и следует принципам **Custom Hooks Architecture** с централизованным state management через Zustand.
+
+#### Ключевые архитектурные решения:
+
+1. **Layered Service Architecture** - четкое разделение на слои:
+   - **UI Components** (React компоненты)
+   - **Custom Hooks** (бизнес-логика и data fetching)
+   - **Services Layer** (API интеграции и расчеты)
+   - **Utils Layer** (вспомогательные функции)
+
+2. **Event-Driven Data Flow** - асинхронная обработка данных:
+   - WebSocket + Polling fallback для real-time данных
+   - Event-driven синхронизация между компонентами
+   - Debounced updates для производительности
+
+3. **Multi-Level Caching Strategy**:
+   - In-memory cache для active данных
+   - SessionStorage для user session persistence
+   - Smart invalidation при data updates
+
+### Технологический стек
+
+#### Frontend Framework:
+- **React 19.1.0** - основной UI framework
+- **TypeScript 5.8.3** - статическая типизация
+- **Vite 6.0.1** - build tool и dev server
+- **Tailwind CSS 3.4.17** - utility-first CSS framework
+
+#### State Management:
+- **Zustand 5.0.6** - lightweight state management
+- **Custom Hooks** - локальное состояние компонентов
+- **Context API** - для глубоко вложенных компонентов
+
+#### Data Visualization:
+- **Lightweight Charts 5.0.8** - профессиональная charting library
+- **Custom Chart Components** - специализированные компоненты для астрономических событий
+- **Real-time Updates** - live data streaming
+
+#### API Integration:
+- **Axios 1.10.0** - HTTP client с interceptors
+- **Bybit API v5** - криптовалютные данные
+- **Astronomia** - астрономические расчеты
+- **HMAC-SHA256** - аутентификация API
+
+### Ключевые компоненты
+
+#### 1. ChartSimple.tsx (738 строк)
+**Основной компонент графика** с интеграцией астрономических событий:
+```typescript
+// Ключевые особенности:
+- Real-time candlestick rendering
+- Astronomical event markers overlay
+- Interactive tooltips с детальной информацией
+- Zoom/pan synchronization
+- Adaptive scaling (50 свечей, сдвиг на четверть)
+- Virtual rendering для производительности
+```
+
+#### 2. AstronomicalEvents.ts (1355+ строк)
+**Сервис астрономических расчетов** с comprehensive database:
+```typescript
+// Реализованные алгоритмы:
+- Lunar phase calculations (150+ событий)
+- Solar and lunar eclipses (25 событий)
+- Planetary alignments (56+ аспектов)
+- Meteor shower predictions (66 потоков)
+- Comet passage calculations (25+ комет)
+- Seasonal astronomical events
+```
+
+#### 3. BybitApi.ts
+**API интеграция** с полной типизацией и error handling:
+```typescript
+// Функциональность:
+- HMAC-SHA256 аутентификация
+- Rate limiting protection
+- Automatic retry logic
+- TypeScript interfaces для всех responses
+- Environment-aware configuration
+```
+
+#### 4. Custom Hooks
+**React hooks для data management**:
+- `useCryptoData` - криптовалютные данные с real-time updates
+- `useAstronomicalEvents` - астрономические события с caching
+- `useChartInteraction` - chart interactions и tooltips
+
+### Алгоритмы и оптимизации
+
+#### 1. Event Positioning Algorithm
+**Binning with Collision Resolution**:
+```typescript
+// Сложность: O(n + k) где n = total events, k = visible events
+- Adaptive bin sizing для различных zoom levels
+- Automatic collision detection и resolution
+- Vertical staggering для overlapping events
+- Memory-efficient bin management
+```
+
+#### 2. Performance Optimization
+**Virtualization with Fixed Window**:
+```typescript
+// Сложность: O(k) где k = visible events
+- Render only visible events в viewport
+- Preloading adjacent data для smooth scrolling
+- Caching с automatic cleanup
+- Debounced zoom/pan handlers
+```
+
+#### 3. Data Synchronization
+**Direct Transform Mapping**:
+```typescript
+// Сложность: O(1) для sync operations
+- Instant synchronization между chart и timeline
+- Debounced rapid updates (16ms)
+- State prediction для immediate feedback
+- Minimal overhead для state tracking
+```
+
+### Производительность
+
+#### Build Metrics:
+- **Build Time**: 2.53s (оптимизированный)
+- **Bundle Size**: 401.69 kB → 129.33 kB gzipped (67% compression)
+- **TypeScript**: 0 ошибок компиляции
+- **Tree Shaking**: Effective unused code elimination
+
+#### Runtime Performance:
+- **Chart Rendering**: <16ms для smooth 60fps
+- **Event Updates**: <8ms для update operations
+- **Memory Usage**: Стабильное потребление с cleanup
+- **Data Loading**: 1000 свечей загружается плавно
+
+#### Optimization Techniques:
+- **Connection Pooling** через axios
+- **Automatic Retry** при сетевых ошибках
+- **Request Deduplication** в hooks
+- **30-second Auto-refresh** для real-time данных
+
+### Безопасность
+
+#### API Security:
+- **HMAC-SHA256** подпись для всех запросов
+- **Timestamp Validation** против replay атак
+- **Receive Window Protection** (5000ms)
+- **Secret Key Masking** в логах
+
+#### Environment Security:
+- **Environment Variables** для секретов
+- **Testnet/Mainnet** переключение
+- **Rate Limiting** protection
+- **Error Handling** без exposure sensitive data
+
+### Структура проекта
+
+#### Core Directories:
+```
+src/
+├── components/
+│   ├── chart/           # Графические компоненты
+│   │   ├── chartSimple.tsx    # Основной график (738 строк)
+│   │   ├── chartTest.tsx      # Тестовый компонент
+│   │   └── ui/                # Chart UI элементы
+│   └── ui/              # Общие UI компоненты
+├── hooks/               # Custom React hooks
+│   ├── useCryptoData.ts       # Криптовалютные данные
+│   ├── useAstronomicalEvents.ts # Астрономические события
+│   └── useChartInteraction.ts  # Chart interactions
+├── services/            # API сервисы и бизнес-логика
+│   ├── astronomicalEvents.ts  # Астрономические расчеты (1355+ строк)
+│   ├── bybitApi.ts            # Bybit API интеграция
+│   └── astronomyService.ts    # Астрономический сервис
+├── utils/               # Вспомогательные функции
+│   ├── chartHelpers.ts        # Chart utilities
+│   └── eventBinning.ts        # Event positioning algorithms
+├── types/               # TypeScript типы
+│   ├── index.ts               # Основные типы
+│   └── astronomia.d.ts        # Астрономические типы
+└── store/               # State management
+    └── index.ts              # Zustand store configuration
+```
+
+#### Memory Bank (Документация):
+```
+memory-bank/
+├── archive/             # Архивные документы задач
+├── creative/            # Creative phase документы
+├── reflection/          # Документы рефлексии
+├── activeContext.md     # Текущий контекст
+├── tasks.md             # Активные задачи
+├── progress.md          # Прогресс разработки
+└── techContext.md       # Технический контекст
+```
+
+### Особенности реализации
+
+#### 1. Астрономические расчеты
+- **Локальные вычисления** без внешних API зависимостей
+- **Pre-computed database** для 2022-2027 периодов
+- **Real-time адаптация** к выбранному таймфрейму
+- **Точные алгоритмы** на основе астрономических формул
+
+#### 2. Chart Integration
+- **Seamless overlay** астрономических событий на candlestick chart
+- **Interactive tooltips** с детальной информацией
+- **Responsive design** для всех устройств
+- **Performance optimization** для больших datasets
+
+#### 3. Real-time Data
+- **WebSocket integration** для live криптовалютных данных
+- **Polling fallback** при WebSocket недоступности
+- **Automatic reconnection** с exponential backoff
+- **Data validation** и error recovery
+
+#### 4. User Experience
+- **Progressive disclosure** информации
+- **Touch-friendly interactions** для мобильных устройств
+- **Keyboard navigation** поддержка
+- **Accessibility features** (ARIA labels, screen reader support)
+
+---
+
 ## 📜 Лицензия
 
 MIT

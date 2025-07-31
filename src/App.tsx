@@ -2,8 +2,12 @@ import './index.css'
 import Chart from './components/chart/chartSimple'
 import TimeframeSelector from './components/ui/TimeframeSelector.tsx'
 import SymbolSelector from './components/ui/SymbolSelector.tsx'
+// import { DependencyContainer } from './Shared/infrastructure'
 
 function App() {
+  // Получение DI контейнера (пока не используется, но будет использоваться в будущем)
+  // const container = DependencyContainer.getInstance();
+
   return (
     <div className="h-screen bg-slate-900 text-white flex flex-col">
       {/* Header - Fixed height with responsive padding */}
