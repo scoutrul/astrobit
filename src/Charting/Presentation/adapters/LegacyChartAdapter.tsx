@@ -93,6 +93,22 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   // Используем события из пропсов или из хука
   const astronomicalEvents = propAstronomicalEvents || convertedHookEvents || [];
 
+  // Отладочная информация для астрономических событий
+  useEffect(() => {
+    console.log('[LegacyChartAdapter] 🌙 Astronomical events debug:', {
+      propAstronomicalEventsCount: propAstronomicalEvents?.length || 0,
+      hookAstronomicalEventsCount: hookAstronomicalEvents?.length || 0,
+      convertedHookEventsCount: convertedHookEvents.length,
+      finalAstronomicalEventsCount: astronomicalEvents.length,
+      astroLoading,
+      sampleEvents: astronomicalEvents.slice(0, 3).map(e => ({
+        name: e.name,
+        timestamp: new Date(e.timestamp).toISOString(),
+        type: e.type
+      }))
+    });
+  }, [propAstronomicalEvents, hookAstronomicalEvents, convertedHookEvents, astronomicalEvents, astroLoading]);
+
   // Конвертируем астрономические события для генератора будущих свечей
   const eventsForGenerator = useMemo(() => {
     return astronomicalEvents.map(event => ({
@@ -119,15 +135,6 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       timeframe,
       eventsForGenerator
     );
-
-    console.log('[LegacyChartAdapter] 🔮 Адаптивная генерация свечей:', {
-      symbol,
-      timeframe,
-      historicalCount: historicalData.length,
-      eventsCount: eventsForGenerator.length,
-      combinedCount: combinedData.length,
-      futureCount: combinedData.length - historicalData.length
-    });
 
     return combinedData;
   }, [propCryptoData, hookCryptoData, timeframe, eventsForGenerator]);

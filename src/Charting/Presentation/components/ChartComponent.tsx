@@ -1,8 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { TimeframeUtils } from '../../Infrastructure/utils/TimeframeUtils';
 import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
+
+// Функция debounce
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+  let timeout: NodeJS.Timeout;
+  return ((...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  }) as T;
+}
 
 interface ChartComponentProps {
   symbol: string;
@@ -32,8 +41,9 @@ interface ChartComponentProps {
 interface TooltipData {
   x: number;
   y: number;
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
+  events?: AstronomicalEvent[];
   visible: boolean;
 }
 
@@ -59,6 +69,11 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     description: '',
     visible: false
   });
+
+  // Отладочная информация для ToolTip
+  useEffect(() => {
+    console.log('[ToolTip Debug] 🔄 Tooltip state changed:', tooltip);
+  }, [tooltip]);
   const [localEventFilters, setLocalEventFilters] = useState(eventFilters);
 
   // Ключ для принудительного пересоздания компонента при смене symbol/timeframe
@@ -77,43 +92,121 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     setLocalEventFilters(eventFilters);
   }, [eventFilters]);
 
-  // Обработчик клика по маркеру
-  const handleMarkerClick = (param: any) => {
-    if (param.seriesData && param.seriesData.marker) {
-      const marker = param.seriesData.marker;
-      setTooltip({
-        x: param.point.x,
-        y: param.point.y,
-        title: marker.title || 'Астрономическое событие',
-        description: marker.description || 'Описание события',
-        visible: true
+  // Отладочная информация для астрономических событий
+  useEffect(() => {
+    console.log('[ToolTip Debug] 🌙 Astronomical events updated:', {
+      count: astronomicalEvents.length,
+      sampleEvents: astronomicalEvents.slice(0, 3).map(e => ({
+        name: e.name,
+        timestamp: new Date(e.timestamp).toISOString(),
+        type: e.type
+      }))
+    });
+  }, [astronomicalEvents]);
+
+  // Обработчик движения курсора для ToolTip
+  const handleCrosshairMove = (param: any) => {
+    // Проверяем, есть ли данные о свече (либо param.time, либо param.seriesData)
+    if ((param.time || param.seriesData) && param.point) {
+      // param.time может быть уже в правильном формате (секунды)
+      let timeInSeconds = 0;
+      
+      if (param.seriesData && param.seriesData.time) {
+        // Используем время из seriesData (надежнее для наведения)
+        timeInSeconds = param.seriesData.time;
+      } else if (typeof param.time === 'number' && param.time > 1000000000) {
+        // param.time уже в секундах (больше миллиарда)
+        timeInSeconds = param.time;
+      } else if (param.time) {
+        // Fallback - конвертируем param.time из миллисекунд
+        timeInSeconds = Math.floor(param.time / 1000);
+      } else {
+        // Нет времени - не можем показать ToolTip
+        setTooltip(prev => ({ ...prev, visible: false }));
+        return;
+      }
+      
+      // Динамический диапазон поиска в зависимости от таймфрейма
+      let timeRange = 3600; // 1 час по умолчанию
+      
+      switch (timeframe) {
+        case '1h':
+          timeRange = 1800; // 30 минут для часового
+          break;
+        case '8h':
+          timeRange = 14400; // 4 часа для 8-часового
+          break;
+        case '1d':
+          timeRange = 86400; // 24 часа для дневного
+          break;
+        case '1w':
+          timeRange = 604800; // 1 неделя для недельного
+          break;
+        case '1M':
+          timeRange = 2592000; // 1 месяц для месячного
+          break;
+      }
+      
+      const eventsNearTime = astronomicalEvents.filter(event => {
+        const eventTimeInSeconds = Math.floor(event.timestamp / 1000);
+        const diff = Math.abs(eventTimeInSeconds - timeInSeconds);
+        const isNear = diff <= timeRange;
+        
+        return isNear;
       });
+      
+      if (eventsNearTime.length > 0) {
+        // Есть события - показываем ToolTip
+        if (eventsNearTime.length === 1) {
+          // Одно событие
+          const event = eventsNearTime[0];
+          const newTooltip = {
+            x: param.point.x,
+            y: param.point.y - 60, // Смещаем выше курсора
+            title: event.name,
+            description: event.description,
+            visible: true
+          };
+          
+          setTooltip(newTooltip);
+        } else {
+          // Несколько событий - стэк
+          const newTooltip = {
+            x: param.point.x,
+            y: param.point.y - 60, // Смещаем выше курсора
+            events: eventsNearTime,
+            visible: true
+          };
+          
+          setTooltip(newTooltip);
+        }
+      } else {
+        // Нет событий - скрываем ToolTip
+        setTooltip(prev => ({ ...prev, visible: false }));
+      }
+    } else {
+      // Курсор не над свечой - скрываем ToolTip
+      setTooltip(prev => ({ ...prev, visible: false }));
     }
+  };
+
+  // Обработчик ухода с маркера
+  const handleMarkerLeave = () => {
+    setTooltip(prev => ({ ...prev, visible: false }));
   };
 
   // Инициализация графика
   useEffect(() => {
-    console.log('[ChartComponent] 🔄 Initializing chart...', {
-      chartKey,
-      symbol,
-      timeframe,
-      height,
-      containerWidth: chartContainerRef.current?.clientWidth,
-      hasChartInstance: !!chartInstance
-    });
-
     if (!chartContainerRef.current) {
-      console.log('[ChartComponent] ❌ Chart container not available');
       return;
     }
 
     // Очищаем старый график если он существует
     if (chartInstance) {
-      console.log('[ChartComponent] 🧹 Cleaning up existing chart...');
       try {
         chartInstance.remove();
       } catch (err) {
-        console.log('[ChartComponent] ℹ️ Chart was already disposed during cleanup');
+        // Chart was already disposed
       }
       setChartInstance(null);
       setSeriesInstance(null);
@@ -121,12 +214,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
     // Проверяем ширину контейнера
     if (chartContainerRef.current.clientWidth === 0) {
-      console.log('[ChartComponent] ⚠️ Container width is 0, waiting...');
       const timer = setTimeout(() => {
         if (chartContainerRef.current) {
-          console.log('[ChartComponent] 🔄 Retrying initialization after delay...');
           setChartInstance(null);
-          setSeriesInstance(null);
         }
       }, 100);
       return () => clearTimeout(timer);
@@ -136,8 +226,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     setError(null);
 
     try {
-      console.log('[ChartComponent] 🎨 Creating chart instance...');
-
       // Создаем новый график
       const chart = createChart(chartContainerRef.current, {
         width: chartContainerRef.current.clientWidth,
@@ -174,8 +262,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         }
       });
 
-      console.log('[ChartComponent] ✅ Chart instance created');
-
       // Создаем серию свечей
       const candlestickSeries = chart.addCandlestickSeries({
         upColor: '#10b981',
@@ -185,8 +271,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         wickDownColor: '#ef4444',
         wickUpColor: '#10b981'
       });
-
-      console.log('[ChartComponent] ✅ Candlestick series created');
 
       setChartInstance(chart);
       setSeriesInstance(candlestickSeries);
@@ -296,14 +380,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
   // Обновление астрономических событий
   useEffect(() => {
-    if (!seriesInstance || !astronomicalEvents.length) {
+    if (!seriesInstance || astronomicalEvents.length === 0) {
       return;
     }
-
-    console.log('[ChartComponent] 🌙 Updating astronomical events...', {
-      astronomicalEventsLength: astronomicalEvents.length,
-      eventFilters: activeEventFilters
-    });
 
     try {
       // Фильтруем события по активным фильтрам
@@ -316,9 +395,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       const markers = AstronomicalEventUtils.convertEventsToMarkers(filteredEvents);
 
       if (markers.length > 0) {
-        console.log('[ChartComponent] 🌙 Setting markers to chart...');
         seriesInstance.setMarkers(markers as any);
-        console.log('[ChartComponent] ✅ Markers set successfully');
       }
     } catch (err) {
       console.error('[ChartComponent] ❌ Error updating astronomical events:', err);
@@ -330,14 +407,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     if (!seriesInstance || !realTimeData || !realTimeData.isClosed) {
       return;
     }
-
-    console.log('[ChartComponent] 📡 Обновление real-time данных:', {
-      symbol: realTimeData.symbol,
-      interval: realTimeData.interval,
-      timestamp: new Date(realTimeData.timestamp).toISOString(),
-      close: realTimeData.close,
-      volume: realTimeData.volume
-    });
 
     try {
       // Конвертируем timestamp в секунды
@@ -354,8 +423,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
       // Обновляем последнюю свечу на графике
       seriesInstance.update(newCandle);
-      
-      console.log('[ChartComponent] ✅ Real-time данные обновлены на графике');
     } catch (err) {
       console.error('[ChartComponent] ❌ Ошибка обновления real-time данных:', err);
     }
@@ -366,17 +433,20 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     if (!chartInstance) return;
 
     const handleClick = (param: any) => {
-      if (param.seriesData && param.seriesData.marker) {
-        handleMarkerClick(param);
-      } else {
-        setTooltip(prev => ({ ...prev, visible: false }));
-      }
+      handleCrosshairMove(param);
     };
 
+    // Debounced обработчик мыши для hover
+    const debouncedMouseMove = debounce((param: any) => {
+      handleCrosshairMove(param);
+    }, 100);
+
     chartInstance.subscribeClick(handleClick);
+    chartInstance.subscribeCrosshairMove(debouncedMouseMove);
 
     return () => {
       chartInstance.unsubscribeClick(handleClick);
+      chartInstance.unsubscribeCrosshairMove(debouncedMouseMove);
     };
   }, [chartInstance]);
 
@@ -481,13 +551,46 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           style={{ 
             left: `${tooltip.x}px`, 
             top: `${tooltip.y}px`,
-            maxWidth: '300px'
+            maxWidth: '350px'
           }}
         >
-          <div className="text-[#e2e8f0] font-semibold text-sm mb-1">{tooltip.title}</div>
-          <div className="text-[#8b8f9b] text-xs">{tooltip.description}</div>
+          {tooltip.events ? (
+            // Стэк событий
+            <div className="space-y-2">
+              <div className="text-[#e2e8f0] font-semibold text-sm mb-2 border-b border-[#334155] pb-1">
+                События ({tooltip.events.length})
+              </div>
+              {tooltip.events.map((event, index) => (
+                <div key={index} className="border-l-2 border-[#f7931a] pl-2">
+                  <div className="text-[#e2e8f0] font-medium text-sm mb-1">
+                    {event.name}
+                  </div>
+                  <div className="text-[#8b8f9b] text-xs mb-1">
+                    {new Date(event.timestamp).toLocaleString('ru-RU', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                  <div className="text-[#8b8f9b] text-xs">
+                    {event.description}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            // Одно событие
+            <>
+              <div className="text-[#e2e8f0] font-semibold text-sm mb-1">{tooltip.title}</div>
+              <div className="text-[#8b8f9b] text-xs">{tooltip.description}</div>
+            </>
+          )}
         </div>
       )}
+
+
     </div>
   );
 }; 

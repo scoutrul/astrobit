@@ -33,6 +33,11 @@ export function useAstronomicalEvents(
         
         console.log(`[useAstronomicalEvents] ✨ Найдено ${calculatedEvents.length} астрономических событий`);
         console.log(`[useAstronomicalEvents] 🌙 Текущая фаза луны: ${moonPhase}`);
+        console.log(`[useAstronomicalEvents] 📅 Sample events:`, calculatedEvents.slice(0, 3).map(e => ({
+          name: e.name,
+          timestamp: new Date(e.timestamp).toISOString(),
+          type: e.type
+        })));
 
         setEvents(calculatedEvents);
         setCurrentMoonPhase(moonPhase);

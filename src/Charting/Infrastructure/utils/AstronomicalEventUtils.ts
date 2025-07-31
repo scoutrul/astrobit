@@ -11,6 +11,7 @@ export interface ChartMarker {
   color: string;
   text: string;
   size: number;
+  eventData?: AstronomicalEvent; // Добавляем данные события
 }
 
 export class AstronomicalEventUtils {
@@ -18,7 +19,7 @@ export class AstronomicalEventUtils {
    * Конвертирует астрономические события в маркеры для Lightweight Charts
    */
   static convertEventsToMarkers(events: AstronomicalEvent[]): ChartMarker[] {
-    return events
+    const markers = events
       .map((event) => {
         // Конвертируем timestamp в секунды (lightweight-charts ожидает секунды)
         const timeInSeconds = Math.floor(event.timestamp / 1000);
@@ -31,11 +32,14 @@ export class AstronomicalEventUtils {
           position: 'aboveBar' as const,
           color: color,
           text: text,
-          size: 2 // Увеличенный размер для лучшей видимости
+          size: 2, // Увеличенный размер для лучшей видимости
+          eventData: event // Сохраняем данные события для ToolTip
         };
       })
       .filter(marker => marker.time > 0) // Фильтруем корректные временные метки
       .sort((a, b) => a.time - b.time); // Сортируем по времени
+
+    return markers;
   }
 
   /**
@@ -290,6 +294,118 @@ export class AstronomicalEventUtils {
       y: mouseY,
       title: event.name,
       description: event.description,
+      visible: true
+    };
+  }
+
+  /**
+   * Группирует события по временным меткам с учетом таймфрейма
+   */
+  static groupEventsByTime(
+    events: AstronomicalEvent[],
+    timeframe: string
+  ): Map<number, AstronomicalEvent[]> {
+    const groupedEvents = new Map<number, AstronomicalEvent[]>();
+    
+    events.forEach(event => {
+      const timeInSeconds = Math.floor(event.timestamp / 1000);
+      const groupedTime = this.getGroupedTime(timeInSeconds, timeframe);
+      
+      if (!groupedEvents.has(groupedTime)) {
+        groupedEvents.set(groupedTime, []);
+      }
+      groupedEvents.get(groupedTime)!.push(event);
+    });
+    
+    return groupedEvents;
+  }
+
+  /**
+   * Получает сгруппированное время для данного таймфрейма
+   */
+  private static getGroupedTime(timeInSeconds: number, timeframe: string): number {
+    const date = new Date(timeInSeconds * 1000);
+    
+    switch (timeframe) {
+      case '1h':
+        // Группируем по часам
+        date.setMinutes(0, 0, 0);
+        break;
+      case '8h':
+        // Группируем по 8-часовым блокам
+        const hour = date.getHours();
+        const blockHour = Math.floor(hour / 8) * 8;
+        date.setHours(blockHour, 0, 0, 0);
+        break;
+      case '1d':
+        // Группируем по дням
+        date.setHours(0, 0, 0, 0);
+        break;
+      case '1w':
+        // Группируем по неделям (начало недели)
+        const dayOfWeek = date.getDay();
+        const daysToSubtract = dayOfWeek === 0 ? 0 : dayOfWeek;
+        date.setDate(date.getDate() - daysToSubtract);
+        date.setHours(0, 0, 0, 0);
+        break;
+      case '1M':
+        // Группируем по месяцам (начало месяца)
+        date.setDate(1);
+        date.setHours(0, 0, 0, 0);
+        break;
+      default:
+        // По умолчанию группируем по дням
+        date.setHours(0, 0, 0, 0);
+    }
+    
+    return Math.floor(date.getTime() / 1000);
+  }
+
+  /**
+   * Находит все события на заданной временной метке
+   */
+  static findEventsAtTime(
+    events: AstronomicalEvent[],
+    timeInSeconds: number,
+    timeframe: string
+  ): AstronomicalEvent[] {
+    console.log('[AstronomicalEventUtils] 🔍 findEventsAtTime called:', {
+      eventsCount: events.length,
+      timeInSeconds,
+      timeISO: new Date(timeInSeconds * 1000).toISOString(),
+      timeframe
+    });
+
+    const groupedTime = this.getGroupedTime(timeInSeconds, timeframe);
+    const groupedEvents = this.groupEventsByTime(events, timeframe);
+    
+    console.log('[AstronomicalEventUtils] 📊 Grouping results:', {
+      groupedTime,
+      groupedTimeISO: new Date(groupedTime * 1000).toISOString(),
+      groupedEventsKeys: Array.from(groupedEvents.keys()).map(k => new Date(k * 1000).toISOString()),
+      foundEvents: groupedEvents.get(groupedTime) || []
+    });
+    
+    return groupedEvents.get(groupedTime) || [];
+  }
+
+  /**
+   * Создает tooltip данные для стэка событий
+   */
+  static createStackedTooltipData(
+    events: AstronomicalEvent[],
+    mouseX: number,
+    mouseY: number
+  ): {
+    x: number;
+    y: number;
+    events: AstronomicalEvent[];
+    visible: boolean;
+  } {
+    return {
+      x: mouseX,
+      y: mouseY,
+      events: events.sort((a, b) => a.name.localeCompare(b.name)), // Сортируем по алфавиту
       visible: true
     };
   }
