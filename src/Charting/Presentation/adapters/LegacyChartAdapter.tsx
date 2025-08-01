@@ -59,8 +59,6 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
 
   // Real-time данные
   const { 
-    isConnected, 
-    currentSubscription, 
     lastUpdate, 
     subscribe, 
     unsubscribe 
@@ -79,7 +77,7 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   }, []); // Пустой массив зависимостей - даты не должны меняться
 
   // Получаем криптоданные через хук
-  const { data: hookCryptoData, loading: cryptoLoading, error: cryptoError } = useCryptoData(symbol, timeframe);
+  const { data: hookCryptoData, loading: cryptoLoading } = useCryptoData(symbol, timeframe);
   
   // Получаем астрономические события с стабилизированными датами
   const { events: hookAstronomicalEvents, loading: astroLoading } = useAstronomicalEvents(

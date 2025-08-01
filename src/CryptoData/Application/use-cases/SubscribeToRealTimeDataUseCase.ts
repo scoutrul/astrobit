@@ -15,14 +15,15 @@ export interface SubscribeToRealTimeDataResponse {
   message: string;
 }
 
-export class SubscribeToRealTimeDataUseCase implements UseCase<SubscribeToRealTimeDataRequest, SubscribeToRealTimeDataResponse> {
+export class SubscribeToRealTimeDataUseCase extends UseCase<SubscribeToRealTimeDataRequest, SubscribeToRealTimeDataResponse> {
   private webSocketService: BinanceWebSocketService;
 
   constructor() {
+    super();
     this.webSocketService = BinanceWebSocketService.getInstance();
   }
 
-  validateRequest(request: SubscribeToRealTimeDataRequest): Result<void> {
+  protected validateRequest(request: SubscribeToRealTimeDataRequest): Result<SubscribeToRealTimeDataRequest> {
     if (!request.symbol) {
       return Result.fail('Symbol is required');
     }
@@ -32,7 +33,7 @@ export class SubscribeToRealTimeDataUseCase implements UseCase<SubscribeToRealTi
     if (!request.onDataUpdate) {
       return Result.fail('Data update callback is required');
     }
-    return Result.ok();
+    return Result.ok(request);
   }
 
   async execute(request: SubscribeToRealTimeDataRequest): Promise<Result<SubscribeToRealTimeDataResponse>> {
