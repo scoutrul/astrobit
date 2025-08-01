@@ -70,10 +70,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     visible: false
   });
 
-  // Отладочная информация для ToolTip
-  useEffect(() => {
-    console.log('[ToolTip Debug] 🔄 Tooltip state changed:', tooltip);
-  }, [tooltip]);
   const [localEventFilters, setLocalEventFilters] = useState(eventFilters);
 
   // Ключ для принудительного пересоздания компонента при смене symbol/timeframe
@@ -91,18 +87,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   useEffect(() => {
     setLocalEventFilters(eventFilters);
   }, [eventFilters]);
-
-  // Отладочная информация для астрономических событий
-  useEffect(() => {
-    console.log('[ToolTip Debug] 🌙 Astronomical events updated:', {
-      count: astronomicalEvents.length,
-      sampleEvents: astronomicalEvents.slice(0, 3).map(e => ({
-        name: e.name,
-        timestamp: new Date(e.timestamp).toISOString(),
-        type: e.type
-      }))
-    });
-  }, [astronomicalEvents]);
 
   // Обработчик движения курсора для ToolTip
   const handleCrosshairMove = (param: any) => {
@@ -328,7 +312,8 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           open: item.open,
           high: item.high,
           low: item.low,
-          close: item.close
+          close: item.close,
+          volume: item.volume // Добавляем volume для различения реальных и фейковых свечей
         };
       });
 
@@ -340,31 +325,50 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         seriesInstance.setData(processedData as any);
         console.log('[ChartComponent] ✅ Data set successfully');
 
-        // Зум с показом будущих событий - сдвиг на треть влево
+        // Зум с показом будущих событий - последняя реальная свеча по центру
         if (chartInstance && processedData.length > 0) {
           const totalDataPoints = processedData.length;
-          const historicalDataPoints = Math.max(0, totalDataPoints - 50); // Исторические данные (без будущих)
           
-          // Вычисляем сдвиг на треть влево от правого края
-          const shiftRatio = 1/3; // Сдвиг на треть
-          const visibleRange = Math.floor(totalDataPoints * shiftRatio);
+          // Находим индекс последней реальной свечи (без фейковых)
+          // Предполагаем, что фейковые свечи имеют volume = 0
+          let lastRealCandleIndex = -1;
+          for (let i = processedData.length - 1; i >= 0; i--) {
+            const candle = processedData[i] as any;
+            if (candle.volume && candle.volume > 0) {
+              lastRealCandleIndex = i;
+              break;
+            }
+          }
           
-          // Начальная точка - сдвинута влево на треть
-          const startIndex = Math.max(0, totalDataPoints - visibleRange);
-          const endIndex = totalDataPoints - 1;
+          // Если не нашли реальные свечи, используем последние 50
+          const realCandleIndex = lastRealCandleIndex >= 0 ? lastRealCandleIndex : totalDataPoints - 1;
+          
+          // Показываем максимум 50 свечей
+          const maxVisibleCandles = 50;
+          
+          // Вычисляем начальный индекс так, чтобы последняя реальная свеча была по центру
+          const centerIndex = realCandleIndex;
+          const halfVisible = Math.floor(maxVisibleCandles / 2);
+          
+          // Начальный индекс - половина видимых свечей до центра
+          const startIndex = Math.max(0, centerIndex - halfVisible);
+          
+          // Конечный индекс - половина видимых свечей после центра
+          const endIndex = Math.min(totalDataPoints - 1, centerIndex + halfVisible);
           
           const firstTime = processedData[startIndex].time;
           const lastTime = processedData[endIndex].time;
           
-          console.log('[ChartComponent] 🔍 Setting zoom to show future events:', {
+          console.log('[ChartComponent] 🔍 Setting zoom with centered real candle:', {
             totalDataPoints,
-            historicalDataPoints,
-            visibleRange,
+            realCandleIndex,
+            centerIndex,
             startIndex,
             endIndex,
+            visibleCandles: endIndex - startIndex + 1,
             firstTime,
             lastTime,
-            shiftRatio
+            lastRealCandleTime: processedData[realCandleIndex]?.time
           });
           
           chartInstance.timeScale().setVisibleRange({
