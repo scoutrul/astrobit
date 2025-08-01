@@ -64,7 +64,7 @@ export const TimeframeSelector: React.FC<TimeframeSelectorProps> = ({
             border border-gray-600 min-w-[2.5rem] sm:min-w-auto
             ${timeframe === option.value
               ? 'bg-orange-500 text-white border-orange-500 shadow-lg' 
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-gray-500'
+              : 'bg-gray-700 text-gray-300 border-gray-600'
             }
             ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
           `}
