@@ -3,6 +3,7 @@ import { DependencyContainer } from './Shared/infrastructure';
 import { LegacyChartAdapter } from './Charting/Presentation/adapters/LegacyChartAdapter';
 import { LegacySymbolSelectorAdapter } from './UserInterface/Presentation/adapters/LegacySymbolSelectorAdapter';
 import { LegacyTimeframeSelectorAdapter } from './UserInterface/Presentation/adapters/LegacyTimeframeSelectorAdapter';
+import { ProjectModal } from './components/ui/ProjectModal';
 import { CryptoDataDependencyConfig } from './CryptoData/Infrastructure/config/DependencyConfig';
 import { ChartingDependencyConfig } from './Charting/Infrastructure/config/DependencyConfig';
 import { AstronomicalDependencyConfig } from './Astronomical/Infrastructure/config/DependencyConfig';
@@ -29,6 +30,9 @@ function App() {
     meteor: true
   });
 
+  // Состояние модального окна
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+
   return (
     <div className="h-screen bg-slate-900 text-white flex flex-col">
       {/* Header - Two rows with logo, event filters, symbol and timeframe */}
@@ -49,7 +53,7 @@ function App() {
                 className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none ${
                   eventFilters.lunar
                     ? 'bg-[#fbbf24]/20 border border-[#fbbf24] text-[#fbbf24]'
-                    : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#fbbf24]/50 hover:text-[#fbbf24]/70'
+                    : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b]'
                 }`}
               >
                 <span className="text-xs sm:text-sm">🌙</span>
@@ -63,7 +67,7 @@ function App() {
                 className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none ${
                   eventFilters.solar
                     ? 'bg-[#f59e0b]/20 border border-[#f59e0b] text-[#f59e0b]'
-                    : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#f59e0b]/50 hover:text-[#f59e0b]/70'
+                    : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b]'
                 }`}
               >
                 <span className="text-xs sm:text-sm">☀️</span>
@@ -77,7 +81,7 @@ function App() {
                 className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none ${
                   eventFilters.planetary
                     ? 'bg-[#8b5cf6]/20 border border-[#8b5cf6] text-[#8b5cf6]'
-                    : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#8b5cf6]/50 hover:text-[#8b5cf6]/70'
+                    : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b]'
                 }`}
               >
                 <span className="text-xs sm:text-sm">☿</span>
@@ -91,7 +95,7 @@ function App() {
                 className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none ${
                   eventFilters.meteor
                     ? 'bg-[#ec4899]/20 border border-[#ec4899] text-[#ec4899]'
-                    : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#ec4899]/50 hover:text-[#ec4899]/70'
+                    : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b]'
                 }`}
               >
                 <span className="text-xs sm:text-sm">☄️</span>
@@ -110,12 +114,29 @@ function App() {
       </header>
 
       {/* Chart - Full remaining space */}
-      <div className="flex-1 w-full overflow-hidden">
+      <div className="flex-1 w-full overflow-hidden -mb-4">
         <LegacyChartAdapter 
           className="w-full h-full" 
           eventFilters={eventFilters}
         />
       </div>
+
+      {/* Project Info Link - Fixed in bottom right corner */}
+      <button
+        onClick={() => setIsProjectModalOpen(true)}
+        className="fixed bottom-4 right-4 z-40 bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700/80 transition-all duration-200 shadow-lg"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-orange-400">ℹ️</span>
+          <span className="hidden sm:inline">О проекте</span>
+        </div>
+      </button>
+
+      {/* Project Modal */}
+      <ProjectModal 
+        isOpen={isProjectModalOpen}
+        onClose={() => setIsProjectModalOpen(false)}
+      />
     </div>
   );
 }
