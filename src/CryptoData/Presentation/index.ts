@@ -1,6 +1,2 @@
-// Hooks
-export { useCryptoData } from './components/useCryptoData';
-export type { UseCryptoDataResult } from './components/useCryptoData';
-
-// Adapters
-export { createLegacyHookAdapter } from './adapters/LegacyHookAdapter'; 
+// Presentation layer exports
+// Currently no components or adapters are being used 

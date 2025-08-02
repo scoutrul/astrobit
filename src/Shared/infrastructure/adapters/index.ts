@@ -1,2 +1,2 @@
 // Adapters
-export { StoreAdapter } from './StoreAdapter'; 
+// Currently no adapters are being used 

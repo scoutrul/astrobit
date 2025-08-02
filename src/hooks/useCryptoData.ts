@@ -144,7 +144,9 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
       }
     };
 
-    console.log(`[useCryptoData] 🎯 useEffect triggered: symbol=${symbol}, timeframe=${timeframe}`);
+    // Примечание: В режиме разработки React.StrictMode может вызывать useEffect дважды
+    // Это нормальное поведение для обнаружения побочных эффектов
+    console.log(`[useCryptoData] 🎯 useEffect triggered: symbol=${symbol}, timeframe=${timeframe}, retryCount=${retryCount}`);
     fetchData();
 
     return () => {
@@ -154,15 +156,7 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         clearTimeout(retryTimeoutRef.current);
       }
     };
-  }, [symbol, timeframe]); // Убрали retryCount из зависимостей
-
-  // Отдельный useEffect для обработки retryCount
-  useEffect(() => {
-    if (retryCount > 0) {
-      console.log(`[useCryptoData] 🔄 Retry triggered: attempt ${retryCount}`);
-      // fetchData будет вызван автоматически через основной useEffect
-    }
-  }, [retryCount]);
+  }, [symbol, timeframe, retryCount]); // Добавляем retryCount в зависимости
 
   return {
     data,

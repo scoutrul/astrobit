@@ -4,7 +4,6 @@ import { BinanceApiService } from '../external-services/BinanceApiService';
 import { BinanceWebSocketService } from '../external-services/BinanceWebSocketService';
 import { BinanceCryptoDataRepository } from '../repositories/BinanceCryptoDataRepository';
 import { GetCryptoDataUseCase } from '../../Application/use-cases/GetCryptoDataUseCase';
-import { GetSymbolsUseCase } from '../../Application/use-cases/GetSymbolsUseCase';
 import { SubscribeToRealTimeDataUseCase } from '../../Application/use-cases/SubscribeToRealTimeDataUseCase';
 
 export class CryptoDataDependencyConfig {
@@ -25,11 +24,6 @@ export class CryptoDataDependencyConfig {
     container.register<GetCryptoDataUseCase>('GetCryptoDataUseCase', () => {
       const repository = container.resolve<ICryptoDataRepository>('ICryptoDataRepository');
       return new GetCryptoDataUseCase(repository);
-    });
-
-    container.register<GetSymbolsUseCase>('GetSymbolsUseCase', () => {
-      const repository = container.resolve<ICryptoDataRepository>('ICryptoDataRepository');
-      return new GetSymbolsUseCase(repository);
     });
 
     container.register<SubscribeToRealTimeDataUseCase>('SubscribeToRealTimeDataUseCase', () => {
