@@ -1,3 +1,2 @@
 // Adapters
-export { StoreAdapter } from './StoreAdapter';
-export { HookAdapter } from './HookAdapter'; 
+export { StoreAdapter } from './StoreAdapter'; 

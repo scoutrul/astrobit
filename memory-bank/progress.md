@@ -159,7 +159,6 @@
 
 #### Адаптеры для обратной совместимости ✅
 - `src/Shared/infrastructure/adapters/StoreAdapter.ts` - Адаптер для работы с store
-- `src/Shared/infrastructure/adapters/HookAdapter.ts` - Адаптер для работы с хуками
 - `src/Shared/infrastructure/adapters/index.ts` - Экспорты адаптеров
 
 #### Legacy адаптеры компонентов ✅
@@ -234,7 +233,7 @@
 
 ### Backward Compatibility: Legacy адаптеры
 **Решение:** Создание адаптеров для обеспечения обратной совместимости
-**Подход:** StoreAdapter, HookAdapter, Legacy компоненты
+**Подход:** StoreAdapter, Legacy компоненты
 **Результат:** Плавный переход без нарушения существующей функциональности
 
 ---
