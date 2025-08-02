@@ -29,11 +29,6 @@ export class StoreAdapter {
     return this.container.resolve<any>('GetSymbolsUseCase');
   }
 
-  // UserInterface use cases
-  getUpdateUserPreferenceUseCase(): any {
-    return this.container.resolve<any>('UpdateUserPreferenceUseCase');
-  }
-
   // Store state helpers
   getStoreState() {
     return useStore.getState();
@@ -59,20 +54,6 @@ export class StoreAdapter {
 
   setTimeframe(timeframe: string): void {
     useStore.setState({ timeframe });
-  }
-
-  // User preferences helpers
-  async updateUserPreference(userId: string, preferences: any): Promise<void> {
-    const useCase = this.getUpdateUserPreferenceUseCase();
-    const result = await useCase.execute({
-      userId,
-      ...preferences
-    });
-
-    if (result.isFailure) {
-      console.error('Failed to update user preference:', result.error);
-      throw new Error(result.error);
-    }
   }
 
   // Utility methods

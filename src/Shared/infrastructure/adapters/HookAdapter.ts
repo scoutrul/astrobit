@@ -115,71 +115,7 @@ export class HookAdapter {
     };
   }
 
-  // Legacy useUserPreferences hook replacement
-  createLegacyUserPreferencesHook() {
-    return (userId: string) => {
-      const [preferences, setPreferences] = useState<any>(null);
-      const [loading, setLoading] = useState(false);
-      const [error, setError] = useState<string | null>(null);
 
-      const fetchPreferences = async () => {
-        try {
-          setLoading(true);
-          setError(null);
-
-          // Здесь можно добавить GetUserPreferenceUseCase когда он будет создан
-          // Пока используем значения по умолчанию
-          setPreferences({
-            theme: 'dark',
-            language: 'ru',
-            timezone: 'Europe/Moscow',
-            notifications: {
-              email: true,
-              push: true,
-              astronomical: true,
-              crypto: true
-            },
-            display: {
-              chartHeight: 400,
-              showVolume: true,
-              showGrid: true,
-              showCrosshair: true
-            }
-          });
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Unknown error');
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const updatePreferences = async (newPreferences: any) => {
-        try {
-          setLoading(true);
-          setError(null);
-
-          await this.storeAdapter.updateUserPreference(userId, newPreferences);
-          await fetchPreferences();
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Unknown error');
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      useEffect(() => {
-        fetchPreferences();
-      }, [userId]);
-
-      return {
-        preferences,
-        loading,
-        error,
-        updatePreferences,
-        refetch: fetchPreferences
-      };
-    };
-  }
 
   // Legacy useAstronomicalEvents hook replacement
   createLegacyAstronomicalEventsHook() {

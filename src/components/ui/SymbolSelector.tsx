@@ -48,7 +48,7 @@ function SymbolSelector() {
       {/* Compact Selected Symbol Display */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-gray-800 rounded-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-700 transition-colors text-sm border border-gray-600"
+        className="bg-gray-700 rounded-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-700 transition-colors text-sm border border-gray-600"
         style={{ gap: '0.5rem' }}
       >
         <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">

@@ -1,14 +1,13 @@
 import './index.css';
 import { DependencyContainer } from './Shared/infrastructure';
 import { LegacyChartAdapter } from './Charting/Presentation/adapters/LegacyChartAdapter';
-import { LegacySymbolSelectorAdapter } from './UserInterface/Presentation/adapters/LegacySymbolSelectorAdapter';
-import { LegacyTimeframeSelectorAdapter } from './UserInterface/Presentation/adapters/LegacyTimeframeSelectorAdapter';
 import { ProjectModal } from './components/ui/ProjectModal';
+import SymbolSelector from './components/ui/SymbolSelector';
+import TimeframeSelector from './components/ui/TimeframeSelector';
 import { CryptoDataDependencyConfig } from './CryptoData/Infrastructure/config/DependencyConfig';
 import { ChartingDependencyConfig } from './Charting/Infrastructure/config/DependencyConfig';
 import { AstronomicalDependencyConfig } from './Astronomical/Infrastructure/config/DependencyConfig';
-import { UserInterfaceDependencyConfig } from './UserInterface/Infrastructure/config/DependencyConfig';
-import { useLoadingStatus } from './hooks/useLoadingStatus';
+
 import { useState } from 'react';
 
 function App() {
@@ -17,10 +16,8 @@ function App() {
   CryptoDataDependencyConfig.configure(container);
   ChartingDependencyConfig.configure(container);
   AstronomicalDependencyConfig.configure(container);
-  UserInterfaceDependencyConfig.configure(container);
 
-  // Получаем глобальный loading статус
-  const { isLoading } = useLoadingStatus();
+
 
   // Состояние фильтров событий
   const [eventFilters, setEventFilters] = useState({
@@ -107,8 +104,8 @@ function App() {
 
           {/* Second row: Symbol (left) + Timeframe (right) */}
           <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 md:gap-4">
-            <LegacySymbolSelectorAdapter />
-            <LegacyTimeframeSelectorAdapter isLoading={isLoading} />
+            <SymbolSelector />
+            <TimeframeSelector />
           </div>
         </div>
       </header>
