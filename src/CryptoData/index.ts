@@ -6,6 +6,3 @@ export * from './Application';
 
 // Infrastructure Layer
 export * from './Infrastructure';
-
-// Presentation Layer
-export * from './Presentation'; 
