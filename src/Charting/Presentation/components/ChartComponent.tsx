@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, Time } from 'lightweight-charts';
 import { TimeframeUtils } from '../../Infrastructure/utils/TimeframeUtils';
 import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
@@ -67,6 +67,12 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     y: 0,
     visible: false
   });
+
+  // Флаги и refs для управления зумом/скроллом без сбросов
+  const hasUserInteractedRef = useRef(false);
+  const isProgrammaticRangeChangeRef = useRef(false);
+  const initialRangeAppliedRef = useRef(false);
+  const lastManualRangeRef = useRef<{ from: number; to: number } | null>(null);
 
   // Используем фильтры из пропсов
   const activeEventFilters = eventFilters;
@@ -251,12 +257,32 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
       window.addEventListener('resize', handleResize);
 
+      // Подписка на изменение видимого диапазона для отслеживания пользовательского зума/скролла
+      const timeScale = chart.timeScale();
+      const handleVisibleRangeChange = (range: any) => {
+        // Игнорируем собственные программные изменения диапазона
+        if (isProgrammaticRangeChangeRef.current) {
+          // Сбрасываем флаг только после первого уведомления от чарт-а
+          isProgrammaticRangeChangeRef.current = false;
+          return;
+        }
+        hasUserInteractedRef.current = true;
+        if (range && typeof range.from === 'number' && typeof range.to === 'number') {
+          lastManualRangeRef.current = { from: range.from, to: range.to };
+        }
+      };
+
+      timeScale.subscribeVisibleTimeRangeChange(handleVisibleRangeChange);
+
       // setIsLoading(false); // Удалено локальное состояние isLoading
       console.log('[ChartComponent] ✅ Chart initialization completed');
 
       return () => {
         console.log('[ChartComponent] 🧹 Cleaning up chart...');
         window.removeEventListener('resize', handleResize);
+        try {
+          timeScale.unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
+        } catch {}
         if (chart) {
           try {
             chart.remove();
@@ -337,8 +363,8 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           // Конечный индекс - половина видимых свечей после центра
           const endIndex = Math.min(totalDataPoints - 1, centerIndex + halfVisible);
           
-          const firstTime = processedData[startIndex].time;
-          const lastTime = processedData[endIndex].time;
+          const firstTime = processedData[startIndex].time as number;
+          const lastTime = processedData[endIndex].time as number;
           
           console.log('[ChartComponent] 🔍 Setting zoom with centered real candle:', {
             totalDataPoints,
@@ -352,10 +378,26 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             lastRealCandleTime: processedData[realCandleIndex]?.time
           });
           
-          chartInstance.timeScale().setVisibleRange({
-            from: firstTime,
-            to: lastTime
-          });
+          // Применяем начальный видимый диапазон только один раз, чтобы не сбрасывать зум пользователя при обновлениях
+          if (!initialRangeAppliedRef.current) {
+            isProgrammaticRangeChangeRef.current = true;
+            const range = { from: firstTime as Time, to: lastTime as Time };
+            chartInstance.timeScale().setVisibleRange(range as any);
+            initialRangeAppliedRef.current = true;
+          } else {
+            // Если пользователь уже взаимодействовал, не меняем видимый диапазон
+            if (hasUserInteractedRef.current) {
+              // Ничего не делаем — сохраняем текущий пользовательский зум
+            } else if (lastManualRangeRef.current) {
+              // Если пользователь не трогал, но у нас есть последний диапазон (напр., от автонастройки), можем его восстановить безопасно
+              isProgrammaticRangeChangeRef.current = true;
+              const restoreRange = {
+                from: lastManualRangeRef.current.from as Time,
+                to: lastManualRangeRef.current.to as Time
+              };
+              chartInstance.timeScale().setVisibleRange(restoreRange as any);
+            }
+          }
         }
       }
     } catch (err) {
@@ -514,3 +556,5 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     </div>
   );
 }; 
+
+export default ChartComponent;
