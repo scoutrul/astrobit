@@ -1,94 +1,141 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../../store'
+import { DependencyContainer } from '../../Shared/infrastructure/DependencyContainer'
+import { BinanceApiService } from '../../CryptoData/Infrastructure/external-services/BinanceApiService'
 
 interface SymbolOption {
   symbol: string
   name: string
-  category: 'major' | 'altcoins' | 'defi'
 }
 
-const symbolOptions: SymbolOption[] = [
-  // Major cryptocurrencies
-  { symbol: 'BTCUSDT', name: 'Bitcoin', category: 'major' },
-  { symbol: 'ETHUSDT', name: 'Ethereum', category: 'major' },
-  { symbol: 'BNBUSDT', name: 'BNB', category: 'major' },
-  { symbol: 'XRPUSDT', name: 'XRP', category: 'major' },
-  { symbol: 'ADAUSDT', name: 'Cardano', category: 'major' },
-  
-  // Popular Altcoins
-  { symbol: 'SOLUSDT', name: 'Solana', category: 'altcoins' },
-  { symbol: 'DOTUSDT', name: 'Polkadot', category: 'altcoins' },
-  { symbol: 'AVAXUSDT', name: 'Avalanche', category: 'altcoins' },
-  { symbol: 'LINKUSDT', name: 'Chainlink', category: 'altcoins' },
-  { symbol: 'MATICUSDT', name: 'Polygon', category: 'altcoins' },
-  
-  // DeFi Tokens
-  { symbol: 'UNIUSDT', name: 'Uniswap', category: 'defi' },
-  { symbol: 'AAVEUSDT', name: 'Aave', category: 'defi' },
-  { symbol: 'COMPUSDT', name: 'Compound', category: 'defi' },
-  { symbol: 'MKRUSDT', name: 'Maker', category: 'defi' },
-  { symbol: 'CRVUSDT', name: 'Curve', category: 'defi' },
+// Топ-20 пар по рынку (USDT), статический список для быстрого выбора
+const TOP20_OPTIONS: SymbolOption[] = [
+  { symbol: 'BTCUSDT', name: 'Bitcoin' },
+  { symbol: 'ETHUSDT', name: 'Ethereum' },
+  { symbol: 'BNBUSDT', name: 'BNB' },
+  { symbol: 'SOLUSDT', name: 'Solana' },
+  { symbol: 'XRPUSDT', name: 'XRP' },
+  { symbol: 'ADAUSDT', name: 'Cardano' },
+  { symbol: 'DOGEUSDT', name: 'Dogecoin' },
+  { symbol: 'TRXUSDT', name: 'TRON' },
+  { symbol: 'TONUSDT', name: 'Toncoin' },
+  { symbol: 'AVAXUSDT', name: 'Avalanche' },
+  { symbol: 'LINKUSDT', name: 'Chainlink' },
+  { symbol: 'MATICUSDT', name: 'Polygon' },
+  { symbol: 'DOTUSDT', name: 'Polkadot' },
+  { symbol: 'BCHUSDT', name: 'Bitcoin Cash' },
+  { symbol: 'LTCUSDT', name: 'Litecoin' },
+  { symbol: 'NEARUSDT', name: 'NEAR' },
+  { symbol: 'ATOMUSDT', name: 'Cosmos' },
+  { symbol: 'SHIBUSDT', name: 'Shiba Inu' },
+  { symbol: 'ETCUSDT', name: 'Ethereum Classic' },
+  { symbol: 'UNIUSDT', name: 'Uniswap' },
 ]
 
 function SymbolSelector() {
   const { symbol, setSymbol } = useStore()
   const [isOpen, setIsOpen] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState<'major' | 'altcoins' | 'defi'>('major')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const [searchResults, setSearchResults] = useState<SymbolOption[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const allSymbolsRef = useRef<{ symbol: string; baseAsset: string; quoteAsset: string }[] | null>(null)
+  const searchTimeoutRef = useRef<number | null>(null)
 
-  const currentSymbolInfo = symbolOptions.find(opt => opt.symbol === symbol) || symbolOptions[0]
-  const filteredOptions = symbolOptions.filter(option => option.category === selectedCategory)
+  const currentSymbolInfo = useMemo<SymbolOption>(() => {
+    const topHit = TOP20_OPTIONS.find(opt => opt.symbol === symbol)
+    if (topHit) return topHit
+    return { symbol, name: symbol.replace('USDT', '') }
+  }, [symbol])
 
   const handleSymbolChange = (newSymbol: string) => {
     setSymbol(newSymbol)
     setIsOpen(false)
+    setIsSearchFocused(false)
+  }
+
+  const ensureSymbolsLoaded = async () => {
+    if (allSymbolsRef.current) return
+    try {
+      const container = DependencyContainer.getInstance()
+      const api = container.resolve<BinanceApiService>('BinanceApiService')
+      const result = await api.getSymbols()
+      if (result.isSuccess) {
+        allSymbolsRef.current = result.value
+          .filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING' && s.isSpotTradingAllowed)
+          .map(s => ({ symbol: s.symbol, baseAsset: s.baseAsset, quoteAsset: s.quoteAsset }))
+      }
+    } catch (e) {
+      // fail silently
+    }
+  }
+
+  // Поиск по вводу с debounce
+  useEffect(() => {
+    const doSearch = async () => {
+      const q = searchQuery.trim().toUpperCase()
+      if (q.length < 2) {
+        setSearchResults([])
+        setIsSearching(false)
+        return
+      }
+      setIsSearching(true)
+      await ensureSymbolsLoaded()
+      const list = allSymbolsRef.current || []
+      const results: SymbolOption[] = list
+        .filter(s => s.baseAsset.includes(q) || s.symbol.includes(q))
+        .slice(0, 20)
+        .map(s => ({ symbol: s.symbol, name: s.symbol.replace('USDT', '') }))
+      setSearchResults(results)
+      setIsSearching(false)
+    }
+
+    if (searchTimeoutRef.current) window.clearTimeout(searchTimeoutRef.current)
+    // @ts-ignore - setTimeout in browser returns number
+    searchTimeoutRef.current = window.setTimeout(doSearch, 300)
+    return () => {
+      if (searchTimeoutRef.current) window.clearTimeout(searchTimeoutRef.current)
+    }
+  }, [searchQuery])
+
+  const onSearchSubmit = async () => {
+    const q = searchQuery.trim().toUpperCase().replace(/[^A-Z]/g, '')
+    if (!q) return
+    await ensureSymbolsLoaded()
+    const list = allSymbolsRef.current || []
+    const target = `${q}USDT`
+    const exists = list.some(s => s.symbol === target)
+    if (exists) {
+      handleSymbolChange(target)
+      setSearchResults([])
+    }
   }
 
   return (
-    <div className="relative">
-      {/* Compact Selected Symbol Display */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="bg-gray-700 rounded-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-700 transition-colors text-sm border border-gray-600"
-        style={{ gap: '0.5rem' }}
-      >
-        <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-          <span className="text-xs font-bold text-black">
-            {currentSymbolInfo.symbol.slice(0, 2)}
-          </span>
-        </div>
-        <span className="font-medium text-white">{currentSymbolInfo.name}</span>
-        <div className={`transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
-          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </button>
-
-      {/* Compact Dropdown */}
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 rounded-lg border border-gray-600 shadow-xl z-50 min-w-[200px]">
-          {/* Compact Category Selector */}
-          <div className="p-2 border-b border-gray-600">
-            <div className="flex gap-1 bg-gray-900 rounded-md p-1" style={{ gap: '0.25rem' }}>
-              {(['major', 'altcoins', 'defi'] as const).map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                    selectedCategory === category
-                      ? 'bg-emerald-500 text-black'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  }`}
-                >
-                  {category === 'major' ? 'Major' : category === 'altcoins' ? 'Alt' : 'DeFi'}
-                </button>
-              ))}
-            </div>
+    <div className="relative flex items-center gap-2">
+      {/* Кнопка выбора из топ-20 */}
+      <div className="relative">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="bg-gray-700 rounded-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-700 transition-colors text-sm border border-gray-600"
+          style={{ gap: '0.5rem' }}
+        >
+          <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+            <span className="text-xs font-bold text-black">
+              {currentSymbolInfo.symbol.slice(0, 2)}
+            </span>
           </div>
+          <span className="font-medium text-white">{currentSymbolInfo.name}</span>
+          <div className={`transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+            <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </button>
 
-          {/* Compact Symbol Options */}
-          <div className="max-h-48 overflow-y-auto">
-            {filteredOptions.map((option) => (
+        {isOpen && (
+          <div className="absolute top-full left-0 mt-1 bg-gray-800 rounded-lg border border-gray-600 shadow-xl z-50 min-w-[220px] max-h-64 overflow-y-auto">
+            {TOP20_OPTIONS.map((option) => (
               <button
                 key={option.symbol}
                 onClick={() => handleSymbolChange(option.symbol)}
@@ -104,6 +151,7 @@ function SymbolSelector() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-white truncate">{option.name}</div>
+                  <div className="text-xs text-gray-400">{option.symbol}</div>
                 </div>
                 {symbol === option.symbol && (
                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
@@ -111,13 +159,66 @@ function SymbolSelector() {
               </button>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Overlay to close dropdown */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-40" 
+      {/* Поле поиска монеты (USDT пара) */}
+      <div className="relative">
+        <div className="flex items-center bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 gap-2 min-w-[240px]">
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z" />
+          </svg>
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSearchSubmit()
+            }}
+            placeholder="Название монеты (например, DOGE)"
+            className="bg-transparent outline-none text-sm text-white placeholder-gray-400 flex-1"
+          />
+          <span className="text-xs text-gray-400">USDT</span>
+        </div>
+
+        {/* Результаты поиска */}
+        {isSearchFocused && (searchResults.length > 0 || (searchQuery.trim().length >= 2 && isSearching)) && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 rounded-lg border border-gray-600 shadow-xl z-50 max-h-64 overflow-y-auto">
+            {isSearching && (
+              <div className="p-2 text-xs text-gray-400">Поиск...</div>
+            )}
+            {!isSearching && searchResults.map((option) => (
+              <button
+                key={option.symbol}
+                onClick={() => handleSymbolChange(option.symbol)}
+                className={`w-full p-2 text-left flex items-center gap-2 hover:bg-gray-700 transition-colors text-sm ${
+                  symbol === option.symbol ? 'bg-gray-700' : ''
+                }`}
+                style={{ gap: '0.5rem' }}
+              >
+                <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+                  <span className="text-xs font-bold text-black">
+                    {option.symbol.slice(0, 2)}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-white truncate">{option.name}</div>
+                  <div className="text-xs text-gray-400">{option.symbol}</div>
+                </div>
+              </button>
+            ))}
+            {!isSearching && searchResults.length === 0 && searchQuery.trim().length >= 2 && (
+              <div className="p-2 text-xs text-gray-400">Ничего не найдено</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Оверлей для закрытия выпадающего меню */}
+      {(isOpen) && (
+        <div
+          className="fixed inset-0 z-40"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -125,4 +226,4 @@ function SymbolSelector() {
   )
 }
 
-export default SymbolSelector 
+export default SymbolSelector
