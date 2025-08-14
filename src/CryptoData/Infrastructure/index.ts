@@ -9,7 +9,7 @@ export { BybitApiService } from './external-services/bybitApi';
 export { BinanceCryptoDataRepository } from './repositories/BinanceCryptoDataRepository';
 
 // Utils
-export { TimeframeMapper } from './utils/TimeframeMapper';
+export * from './utils/futureCandlesGenerator';
 
 // Config
 export { CryptoDataDependencyConfig } from './config/DependencyConfig'; 

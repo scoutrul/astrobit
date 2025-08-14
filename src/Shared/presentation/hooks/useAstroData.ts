@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
-import { useStore } from '../../../store';
+import { useStore } from '../store';
 import { astronomyService } from '../../../Astronomical/Infrastructure/services/astronomyService';
-import { EventBinner, calculateOptimalBinSize } from '../../../utils/eventBinning';
+import { EventBinner, calculateOptimalBinSize } from '../../../Astronomical/Infrastructure/utils/eventBinning';
 
 /**
  * Custom hook for managing astronomical data
@@ -47,7 +47,7 @@ export function useAstroData() {
     const binner = new EventBinner(optimalBinSize);
     
     // Add all visible events to binner
-    visibleEvents.forEach(event => binner.addEvent(event));
+    visibleEvents.forEach((event: any) => binner.addEvent(event));
     
     return binner;
   }, [chartRange, visibleEvents]);
@@ -64,7 +64,7 @@ export function useAstroData() {
    * Get events in a specific time range (for virtualization)
    */
   const getEventsInRange = useCallback((startTime: number, endTime: number) => {
-    return astroEvents.filter(event => 
+    return astroEvents.filter((event: any) => 
       event.timestamp >= startTime && event.timestamp <= endTime
     );
   }, [astroEvents]);
@@ -73,14 +73,14 @@ export function useAstroData() {
    * Filter events by type
    */
   const getEventsByType = useCallback((eventType: string) => {
-    return visibleEvents.filter(event => event.type === eventType);
+    return visibleEvents.filter((event: any) => event.type === eventType);
   }, [visibleEvents]);
   
   /**
    * Filter events by significance
    */
   const getEventsBySignificance = useCallback((significance: 'low' | 'medium' | 'high') => {
-    return visibleEvents.filter(event => event.significance === significance);
+    return visibleEvents.filter((event: any) => event.significance === significance);
   }, [visibleEvents]);
   
   /**
@@ -98,47 +98,27 @@ export function useAstroData() {
     const bufferTime = timeSpan * 0.1; // 10% buffer
     
     // Check if we need more data (when user scrolls/zooms)
-    const needsUpdate = astroEvents.length === 0 || 
-                       astroEvents.some(event => 
-                         event.timestamp < chartRange.from - bufferTime || 
-                         event.timestamp > chartRange.to + bufferTime
-                       );
+    const hasEventsNearBoundaries = 
+      astroEvents.some((event: any) =>
+        event.timestamp <= chartRange.from + bufferTime ||
+        event.timestamp >= chartRange.to - bufferTime
+      );
     
-    if (needsUpdate) {
+    if (!hasEventsNearBoundaries) {
       fetchAstroData();
     }
   }, [chartRange, astroEvents, fetchAstroData]);
   
   return {
-    // Data
     astroEvents,
     visibleEvents,
     timelineConfig,
-    
-    // Event management
+    chartRange,
     fetchAstroData,
+    createEventBinner,
+    getBinnedEvents,
     getEventsInRange,
     getEventsByType,
     getEventsBySignificance,
-    
-    // Binning and collision resolution
-    createEventBinner,
-    getBinnedEvents,
-    
-    // Computed values
-    hasEvents: astroEvents.length > 0,
-    visibleEventCount: visibleEvents.length,
-    totalEventCount: astroEvents.length,
-    
-    // Event type counts
-    lunarPhaseCount: getEventsByType('lunar_phase').length,
-    solarEclipseCount: getEventsByType('solar_eclipse').length,
-    lunarEclipseCount: getEventsByType('lunar_eclipse').length,
-    planetaryAspectCount: getEventsByType('planetary_aspect').length,
-    
-    // Significance counts
-    highSignificanceCount: getEventsBySignificance('high').length,
-    mediumSignificanceCount: getEventsBySignificance('medium').length,
-    lowSignificanceCount: getEventsBySignificance('low').length,
   };
 } 

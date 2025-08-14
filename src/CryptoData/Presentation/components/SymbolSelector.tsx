@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useStore } from '../../store'
-import { DependencyContainer } from '../../Shared/infrastructure/DependencyContainer'
-import { BinanceApiService } from '../../CryptoData/Infrastructure/external-services/BinanceApiService'
+import { useStore } from '../../../Shared/presentation/store'
+import { DependencyContainer } from '../../../Shared/infrastructure/DependencyContainer'
+import { BinanceApiService } from '../../Infrastructure/external-services/BinanceApiService'
 
 interface SymbolOption {
   symbol: string

@@ -10,3 +10,6 @@ export type { IAstronomicalEventRepository, AstronomicalEventSearchCriteria } fr
 
 // Services
 export type { IAstronomicalCalculationService } from './services/IAstronomicalCalculationService'; 
+
+// Types
+export * from './types'; 

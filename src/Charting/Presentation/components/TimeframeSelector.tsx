@@ -1,4 +1,4 @@
-import { useStore } from '../../store'
+import { useStore } from '../../../Shared/presentation/store'
 
 // Обновленные таймфреймы для астрономической корреляции
 const timeframeOptions = [

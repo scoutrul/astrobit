@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { CryptoData } from '../../../types';
+import { CryptoData } from '../../Domain/types';
 import { DependencyContainer } from '../../../Shared/infrastructure/DependencyContainer';
 import { GetCryptoDataUseCase } from '../../Application/use-cases/GetCryptoDataUseCase';
 

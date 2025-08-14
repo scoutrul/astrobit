@@ -3,4 +3,7 @@ export { InMemoryAstronomicalEventRepository } from './repositories/InMemoryAstr
 
 // Services
 export { AstronomicalEventsService } from './services/astronomicalEvents';
-export { astronomyService } from './services/astronomyService'; 
+export { astronomyService } from './services/astronomyService';
+
+// Utils
+export * from './utils/eventBinning'; 

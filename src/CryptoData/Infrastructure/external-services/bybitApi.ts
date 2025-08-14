@@ -8,7 +8,7 @@ import {
   BybitApiConfig,
   BybitTickerData,
   BybitSymbolInfo
-} from '../../../types';
+} from '../../Domain/types';
 
 class BybitApiService {
   private client: AxiosInstance;

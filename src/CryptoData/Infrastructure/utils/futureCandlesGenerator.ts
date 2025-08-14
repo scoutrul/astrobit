@@ -3,24 +3,8 @@
  * Создает адаптивное количество свечей вперед для размещения всех астрономических событий
  */
 
-export interface CryptoData {
-  symbol: string;
-  time: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
-
-export interface AstronomicalEvent {
-  id: string;
-  name: string;
-  date: Date;
-  type: string;
-  description: string;
-  significance: string;
-}
+import { CryptoData } from '../../Domain/types';
+import { AstronomicalEvent } from '../../../Astronomical/Domain/types';
 
 /**
  * Вычисляет требуемое количество будущих свечей для размещения всех событий

@@ -1,4 +1,4 @@
-import { AstroEvent } from '../../../types';
+import { AstroEvent } from '../../Domain/types';
 
 class AstronomyService {
   /**

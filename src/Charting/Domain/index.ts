@@ -11,3 +11,6 @@ export type { ChartState, ChartInteraction } from './entities/Chart';
 
 // Repositories
 export type { IChartRepository, ChartSearchCriteria } from './repositories/IChartRepository'; 
+
+// Types
+export * from './types'; 

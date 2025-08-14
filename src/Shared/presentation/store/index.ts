@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { StoreState } from '../types'
+import { StoreState } from '../../domain/types'
 
 export const useStore = create<StoreState>((set, get) => ({
   // Crypto data state

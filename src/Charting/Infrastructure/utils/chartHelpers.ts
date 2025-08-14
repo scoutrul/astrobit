@@ -1,4 +1,4 @@
-import { CryptoData } from '../types';
+import { CryptoData } from '../../../CryptoData/Domain/types';
 
 /**
  * Convert timestamp to chart X coordinate

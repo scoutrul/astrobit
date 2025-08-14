@@ -1,4 +1,4 @@
-import { AstroEvent, EventBin } from '../types';
+import { AstroEvent, EventBin } from '../../Domain/types';
 
 /**
  * Event Binning with Collision Resolution

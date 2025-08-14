@@ -2,11 +2,11 @@ import React, { useMemo, useEffect, useRef } from 'react';
 import { useCryptoData } from '../../../CryptoData/Presentation/hooks/useCryptoData';
 import { useAstronomicalEvents } from '../../../Astronomical/Presentation/hooks/useAstronomicalEvents';
 import { useRealTimeCryptoData } from '../../../CryptoData/Presentation/hooks/useRealTimeCryptoData';
-import { useStore } from '../../../store';
+import { useStore } from '../../../Shared/presentation/store';
 import { ChartComponent } from '../components/ChartComponent';
 import { AstronomicalEvent as NewAstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { AstronomicalEvent as OldAstronomicalEvent } from '../../../Astronomical/Infrastructure/services/astronomicalEvents';
-import { combineHistoricalAndFutureCandles } from '../../../utils/futureCandlesGenerator';
+import { combineHistoricalAndFutureCandles } from '../../../CryptoData/Infrastructure/utils/futureCandlesGenerator';
 
 interface LegacyChartAdapterProps {
   height?: number;

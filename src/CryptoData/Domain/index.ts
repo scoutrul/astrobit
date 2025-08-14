@@ -8,3 +8,6 @@ export { CryptoData } from './entities/CryptoData';
 
 // Repositories
 export type { ICryptoDataRepository, CryptoDataSearchCriteria } from './repositories/ICryptoDataRepository'; 
+
+// Types
+export * from './types'; 
