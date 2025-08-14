@@ -1,2 +1,2 @@
 // Hooks
-export { useAstronomicalEvents, type UseAstronomicalEventsResult } from './components/useAstronomicalEvents'; 
+export { useAstronomicalEvents } from './hooks/useAstronomicalEvents'; 

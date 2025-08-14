@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { DependencyContainer } from '../Shared/infrastructure/DependencyContainer';
-import { SubscribeToRealTimeDataUseCase } from '../CryptoData/Application/use-cases/SubscribeToRealTimeDataUseCase';
-import { BinanceKlineWebSocketData } from '../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
-import { Symbol } from '../CryptoData/Domain/value-objects/Symbol';
-import { Timeframe } from '../CryptoData/Domain/value-objects/Timeframe';
+import { DependencyContainer } from '../../../Shared/infrastructure/DependencyContainer';
+import { SubscribeToRealTimeDataUseCase } from '../../Application/use-cases/SubscribeToRealTimeDataUseCase';
+import { BinanceKlineWebSocketData } from '../../Infrastructure/external-services/BinanceWebSocketService';
+import { Symbol } from '../../Domain/value-objects/Symbol';
+import { Timeframe } from '../../Domain/value-objects/Timeframe';
 
 export interface UseRealTimeCryptoDataResult {
   isConnected: boolean;

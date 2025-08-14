@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AstronomicalEvent, astronomicalEventsService } from '../services/astronomicalEvents';
+import { AstronomicalEvent, astronomicalEventsService } from '../../Infrastructure/services/astronomicalEvents';
 
 interface UseAstronomicalEventsResult {
   events: AstronomicalEvent[];

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from 'react';
-import { useStore } from '../store';
-import { debounce, timestampToChartX, chartXToTimestamp } from '../utils/chartHelpers';
+import { useStore } from '../../../store';
+import { debounce, timestampToChartX, chartXToTimestamp } from '../../../utils/chartHelpers';
 
 /**
  * Custom hook for managing chart interactions and timeline synchronization

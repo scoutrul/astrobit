@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { CryptoData } from '../types';
-import { DependencyContainer } from '../Shared/infrastructure/DependencyContainer';
-import { GetCryptoDataUseCase } from '../CryptoData/Application/use-cases/GetCryptoDataUseCase';
+import { CryptoData } from '../../../types';
+import { DependencyContainer } from '../../../Shared/infrastructure/DependencyContainer';
+import { GetCryptoDataUseCase } from '../../Application/use-cases/GetCryptoDataUseCase';
 
 interface UseCryptoDataResult {
   data: CryptoData[];

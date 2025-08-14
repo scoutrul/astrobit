@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
-import { useStore } from '../store';
-import { astronomyService } from '../services/astronomyService';
-import { EventBinner, calculateOptimalBinSize } from '../utils/eventBinning';
+import { useStore } from '../../../store';
+import { astronomyService } from '../../../Astronomical/Infrastructure/services/astronomyService';
+import { EventBinner, calculateOptimalBinSize } from '../../../utils/eventBinning';
 
 /**
  * Custom hook for managing astronomical data

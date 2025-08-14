@@ -1,6 +1,6 @@
-import { useCryptoData } from './useCryptoData';
-import { useAstronomicalEvents } from './useAstronomicalEvents';
-import { useStore } from '../store';
+import { useCryptoData } from '../../../CryptoData/Presentation/hooks/useCryptoData';
+import { useAstronomicalEvents } from '../../../Astronomical/Presentation/hooks/useAstronomicalEvents';
+import { useStore } from '../../../store';
 import { useMemo } from 'react';
 
 export function useLoadingStatus() {
