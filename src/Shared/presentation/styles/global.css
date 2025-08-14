@@ -1,19 +1,4 @@
-@import './styles/components.css';
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities; 
-
-/* CSS Reset */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html, body, #root {
-  height: 100%;
-}
+/* Global CSS Variables and Base Styles */
 
 /* Dark Astronomical Theme Variables */
 :root {
@@ -28,6 +13,17 @@ html, body, #root {
   --border-color: #374151;    /* Asteroid belt */
   --shadow-dark: rgba(0, 0, 0, 0.5);
   --shadow-glow: rgba(16, 185, 129, 0.1);
+}
+
+/* CSS Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
 }
 
 /* Global Body Styles */
@@ -100,65 +96,24 @@ button {
 /* Input Reset */
 input, textarea, select {
   border: none;
-  background: transparent;
-  color: inherit;
+  background: none;
   font-family: inherit;
+  outline: none;
 }
 
 /* Link Reset */
 a {
-  color: var(--accent-secondary);
+  color: inherit;
   text-decoration: none;
 }
 
-a:hover {
-  color: var(--accent-primary);
-}
-
-/* Remove default list styles */
+/* List Reset */
 ul, ol {
   list-style: none;
 }
 
-/* Ensure full height layout */
-#root {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Custom utility classes for consistent spacing */
-.container-responsive {
-  max-width: 1400px;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-
-@media (min-width: 640px) {
-  .container-responsive {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .container-responsive {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-}
-
-@media (min-width: 1280px) {
-  .container-responsive {
-    padding-left: 3rem;
-    padding-right: 3rem;
-  }
-}
-
-@media (min-width: 1536px) {
-  .container-responsive {
-    padding-left: 4rem;
-    padding-right: 4rem;
-  }
+/* Image Reset */
+img {
+  max-width: 100%;
+  height: auto;
 } 

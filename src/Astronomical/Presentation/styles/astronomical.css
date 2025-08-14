@@ -1,0 +1,122 @@
+/* Astronomical Bounded Context Styles */
+
+/* Event Filter Buttons */
+.event-filter-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.event-filter-button.lunar {
+  background-color: rgba(251, 191, 36, 0.2);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.event-filter-button.lunar:hover {
+  background-color: rgba(251, 191, 36, 0.3);
+  transform: translateY(-1px);
+}
+
+.event-filter-button.solar {
+  background-color: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.event-filter-button.solar:hover {
+  background-color: rgba(245, 158, 11, 0.3);
+  transform: translateY(-1px);
+}
+
+.event-filter-button.planetary {
+  background-color: rgba(139, 92, 246, 0.2);
+  border-color: #8b5cf6;
+  color: #8b5cf6;
+}
+
+.event-filter-button.planetary:hover {
+  background-color: rgba(139, 92, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+.event-filter-button.meteor {
+  background-color: rgba(236, 72, 153, 0.2);
+  border-color: #ec4899;
+  color: #ec4899;
+}
+
+.event-filter-button.meteor:hover {
+  background-color: rgba(236, 72, 153, 0.3);
+  transform: translateY(-1px);
+}
+
+.event-filter-button.inactive {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #8b8f9b;
+}
+
+.event-filter-button.inactive:hover {
+  background-color: #334155;
+  color: #c9ccd3;
+}
+
+/* Timeline Styles */
+.astronomical-timeline {
+  background: linear-gradient(90deg, var(--bg-secondary), var(--bg-accent));
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  border: 1px solid var(--border-color);
+}
+
+.timeline-event {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  background-color: var(--bg-accent);
+  margin: 0.25rem 0;
+  transition: all 0.2s ease;
+}
+
+.timeline-event:hover {
+  background-color: var(--border-color);
+  transform: translateX(4px);
+}
+
+.event-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.875rem;
+}
+
+.event-icon.lunar { background-color: rgba(251, 191, 36, 0.2); }
+.event-icon.solar { background-color: rgba(245, 158, 11, 0.2); }
+.event-icon.planetary { background-color: rgba(139, 92, 246, 0.2); }
+.event-icon.meteor { background-color: rgba(236, 72, 153, 0.2); }
+
+/* Event Significance Indicators */
+.significance-high {
+  border-left: 4px solid var(--accent-primary);
+}
+
+.significance-medium {
+  border-left: 4px solid var(--accent-secondary);
+}
+
+.significance-low {
+  border-left: 4px solid var(--text-muted);
+} 

@@ -1,0 +1,127 @@
+/* CryptoData Bounded Context Styles */
+
+/* Symbol Selector */
+.symbol-selector {
+  position: relative;
+  min-width: 200px;
+}
+
+.symbol-selector-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-accent);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 200px;
+}
+
+.symbol-selector-button:hover {
+  background-color: var(--border-color);
+  border-color: var(--accent-primary);
+}
+
+.symbol-selector-button:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.symbol-selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  margin-top: 0.25rem;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 10px 25px var(--shadow-dark);
+}
+
+.symbol-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.symbol-option:hover {
+  background-color: var(--bg-accent);
+}
+
+.symbol-option.selected {
+  background-color: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.symbol-search {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.symbol-search input {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.25rem;
+  color: var(--text-primary);
+}
+
+.symbol-search input:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+/* Symbol Info */
+.symbol-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.symbol-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.symbol-description {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Loading States */
+.symbol-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: var(--text-muted);
+}
+
+.symbol-loading::after {
+  content: '';
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: 0.5rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+} 

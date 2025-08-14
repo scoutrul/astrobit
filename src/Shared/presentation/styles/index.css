@@ -1,0 +1,17 @@
+/* Main Styles Entry Point */
+
+/* Global Styles */
+@import './global.css';
+
+/* Utility Styles */
+@import './utilities.css';
+
+/* Bounded Context Styles */
+@import '../../../Astronomical/Presentation/styles/astronomical.css';
+@import '../../../CryptoData/Presentation/styles/cryptodata.css';
+@import '../../../Charting/Presentation/styles/charting.css';
+
+/* Tailwind CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities; 

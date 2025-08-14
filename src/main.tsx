@@ -1,8 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
-import './index.css'
-import { AppDependencyConfig } from './config/DependencyConfig'
+import './Shared/Presentation/styles/index.css'
+import { AppDependencyConfig } from './Shared/infrastructure'
 
 // Инициализация DI контейнера
 AppDependencyConfig.configure();
