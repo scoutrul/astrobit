@@ -91,22 +91,6 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   // Используем события из пропсов или из хука
   const astronomicalEvents = propAstronomicalEvents || convertedHookEvents || [];
 
-  // Отладочная информация для астрономических событий
-  useEffect(() => {
-    console.log('[LegacyChartAdapter] 🌙 Astronomical events debug:', {
-      propAstronomicalEventsCount: propAstronomicalEvents?.length || 0,
-      hookAstronomicalEventsCount: hookAstronomicalEvents?.length || 0,
-      convertedHookEventsCount: convertedHookEvents.length,
-      finalAstronomicalEventsCount: astronomicalEvents.length,
-      astroLoading,
-      sampleEvents: astronomicalEvents.slice(0, 3).map(e => ({
-        name: e.name,
-        timestamp: new Date(e.timestamp).toISOString(),
-        type: e.type
-      }))
-    });
-  }, [propAstronomicalEvents, hookAstronomicalEvents, convertedHookEvents, astronomicalEvents, astroLoading]);
-
   // Конвертируем астрономические события для генератора будущих свечей
   const eventsForGenerator = useMemo(() => {
     return astronomicalEvents.map(event => ({
@@ -117,7 +101,7 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       description: event.description,
       significance: 'medium'
     }));
-  }, [astronomicalEvents]);
+  }, [astronomicalEvents.length]); // Используем только length вместо всего массива
 
   // Генерируем адаптивные будущие свечи с учетом событий
   const enhancedCryptoData = useMemo(() => {
@@ -135,52 +119,39 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
     );
 
     return combinedData;
-  }, [propCryptoData, hookCryptoData, timeframe, eventsForGenerator]);
+  }, [propCryptoData, hookCryptoData, timeframe, eventsForGenerator.length]); // Используем только length вместо всего массива
 
-  // Управление WebSocket подпиской
+  // Подписка на real-time данные при изменении symbol/timeframe
   useEffect(() => {
-    const currentSub = { symbol, timeframe };
+    const currentSubscription = { symbol, timeframe };
     
-    // Проверяем, изменились ли параметры подписки
-    if (
-      !prevSubscription.current ||
-      prevSubscription.current.symbol !== symbol ||
-      prevSubscription.current.timeframe !== timeframe
-    ) {
-      console.log('[LegacyChartAdapter] 🔄 Смена подписки:', {
-        from: prevSubscription.current,
-        to: currentSub
-      });
-
+    // Проверяем, изменилась ли подписка
+    if (prevSubscription.current && 
+        (prevSubscription.current.symbol !== symbol || 
+         prevSubscription.current.timeframe !== timeframe)) {
       // Отписываемся от предыдущей подписки
-      if (prevSubscription.current) {
-        unsubscribe();
-      }
-
-      // Подписываемся на новую подписку
-      if (symbol && timeframe) {
-        subscribe(symbol, timeframe);
-      }
-
-      prevSubscription.current = currentSub;
+      unsubscribe();
     }
+    
+    // Подписываемся на новую подписку
+    if (symbol && timeframe) {
+      subscribe(symbol, timeframe);
+      prevSubscription.current = currentSubscription;
+    }
+
+    // Очистка при размонтировании
+    return () => {
+      unsubscribe();
+    };
   }, [symbol, timeframe, subscribe, unsubscribe]);
 
   // Логирование real-time обновлений
   useEffect(() => {
     if (lastUpdate) {
-      console.log('[LegacyChartAdapter] 📡 Real-time обновление:', {
-        symbol: lastUpdate.symbol,
-        interval: lastUpdate.interval,
-        timestamp: new Date(lastUpdate.timestamp).toISOString(),
-        close: lastUpdate.close,
-        isClosed: lastUpdate.isClosed
-      });
+      // Real-time обновления обрабатываются автоматически
     }
   }, [lastUpdate]);
 
-  // Комбинированный loading статус
-  const isDataLoading = cryptoLoading || astroLoading;
 
   // Ключ для принудительного пересоздания ChartComponent
   const chartKey = `${symbol}-${timeframe}`;
@@ -195,7 +166,7 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       cryptoData={enhancedCryptoData}
       astronomicalEvents={astronomicalEvents}
       eventFilters={eventFilters}
-      isLoading={isDataLoading}
+      isLoading={cryptoLoading || astroLoading}
       realTimeData={lastUpdate}
     />
   );

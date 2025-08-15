@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { LegacyChartAdapter } from '../../../Charting/Presentation/adapters/LegacyChartAdapter';
 import { CryptoDataContainer } from '../../../CryptoData/Presentation/containers/CryptoDataContainer';
 import { ChartingContainer } from '../../../Charting/Presentation/containers/ChartingContainer';
@@ -18,6 +18,11 @@ export const AppContainer: React.FC<AppContainerProps> = ({ className = '' }) =>
     meteor: true
   });
 
+  // Обработчик изменения фильтров событий
+  const handleEventFiltersChange = useCallback((newFilters: typeof eventFilters) => {
+    setEventFilters(newFilters);
+  }, []);
+
   return (
     <div className={`h-screen bg-slate-900 text-white flex flex-col ${className}`}>
       {/* Header - Two rows with logo, event filters, symbol and timeframe */}
@@ -33,7 +38,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({ className = '' }) =>
             {/* Event Filters - Right side */}
             <AstronomicalContainer 
               eventFilters={eventFilters}
-              onFiltersChange={setEventFilters}
+              onFiltersChange={handleEventFiltersChange}
             />
           </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AstronomicalEvent, astronomicalEventsService } from '../../Infrastructure/services/astronomicalEvents';
 
 interface UseAstronomicalEventsResult {
@@ -16,14 +16,33 @@ export function useAstronomicalEvents(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentMoonPhase, setCurrentMoonPhase] = useState<string>('🌙');
+  
+  // Используем ref для предотвращения повторных вычислений
+  const calculatedRef = useRef<{
+    startDate: number;
+    endDate: number;
+    events: AstronomicalEvent[];
+    moonPhase: string;
+  } | null>(null);
 
   useEffect(() => {
     const calculateEvents = async () => {
       try {
+        // Проверяем, не вычисляли ли мы уже события для этих дат
+        const startTime = startDate.getTime();
+        const endTime = endDate.getTime();
+        
+        if (calculatedRef.current && 
+            calculatedRef.current.startDate === startTime && 
+            calculatedRef.current.endDate === endTime) {
+          setEvents(calculatedRef.current.events);
+          setCurrentMoonPhase(calculatedRef.current.moonPhase);
+          setLoading(false);
+          return;
+        }
+
         setLoading(true);
         setError(null);
-
-        console.log(`[useAstronomicalEvents] 🌙 Расчет астрономических событий: ${startDate.toDateString()} - ${endDate.toDateString()}`);
 
         // Рассчитываем события
         const calculatedEvents = astronomicalEventsService.getEventsForPeriod(startDate, endDate);
@@ -31,13 +50,13 @@ export function useAstronomicalEvents(
         // Получаем текущую фазу луны
         const moonPhase = astronomicalEventsService.getMoonPhaseForDate(new Date());
         
-        console.log(`[useAstronomicalEvents] ✨ Найдено ${calculatedEvents.length} астрономических событий`);
-        console.log(`[useAstronomicalEvents] 🌙 Текущая фаза луны: ${moonPhase}`);
-        console.log(`[useAstronomicalEvents] 📅 Sample events:`, calculatedEvents.slice(0, 3).map(e => ({
-          name: e.name,
-          timestamp: new Date(e.timestamp).toISOString(),
-          type: e.type
-        })));
+        // Кэшируем результаты
+        calculatedRef.current = {
+          startDate: startTime,
+          endDate: endTime,
+          events: calculatedEvents,
+          moonPhase
+        };
 
         setEvents(calculatedEvents);
         setCurrentMoonPhase(moonPhase);

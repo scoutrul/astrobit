@@ -42,7 +42,7 @@ export interface BinanceTickerData {
 
 export class BinanceApiService extends ExternalService {
   private static instance: BinanceApiService | null = null;
-  private readonly baseUrl = 'https://api.binance.com/api/v3';
+  private readonly baseUrl = '/binance-api/api/v3';
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
 
@@ -60,19 +60,11 @@ export class BinanceApiService extends ExternalService {
 
   private async initialize(): Promise<void> {
     try {
-      console.log('[BinanceApiService] Starting initialization...');
-      // Проверяем доступность API
-      const response = await fetch(`${this.baseUrl}/ping`);
-      if (response.ok) {
-        this.isInitialized = true;
-        console.log('[BinanceApiService] API initialized successfully');
-      } else {
-        throw new Error('Failed to ping Binance API');
-      }
+      // Для избежания CORS проблем, просто помечаем как инициализированный
+      // WebSocket соединение будет проверять доступность API
+      this.isInitialized = true;
     } catch (error) {
-      console.error('[BinanceApiService] Failed to initialize:', error);
-      // Не выбрасываем ошибку, а просто помечаем как неинициализированный
-      this.isInitialized = false;
+      throw new Error(`Failed to initialize Binance API: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

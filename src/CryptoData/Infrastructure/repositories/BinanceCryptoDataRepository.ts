@@ -11,24 +11,14 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
 
   async getKlineData(symbol: Symbol, timeframe: Timeframe, limit: number): Promise<Result<CryptoData[]>> {
     try {
-      console.log('[BinanceCryptoDataRepository] 🔄 Getting kline data:', {
-        symbol: symbol.toString(),
-        timeframe: timeframe.toString(),
-        limit
-      });
-
       // Проверяем доступность сервиса
-      console.log('[BinanceCryptoDataRepository] 🔍 Checking service availability...');
       const isAvailable = await this.binanceService.isAvailable();
-      console.log('[BinanceCryptoDataRepository] 📊 Service available:', isAvailable);
       
       if (!isAvailable) {
-        console.log('[BinanceCryptoDataRepository] ❌ Service not available');
         return Result.fail('Binance API service is not available');
       }
 
       // Получаем данные с Binance
-      console.log('[BinanceCryptoDataRepository] 📊 Fetching data from Binance...');
       const klineDataResult = await this.binanceService.getKlineData(
         symbol.toString(),
         TimeframeMapper.mapToExternal(timeframe),
@@ -36,31 +26,12 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
       );
 
       if (klineDataResult.isFailure) {
-        console.log('[BinanceCryptoDataRepository] ❌ Failed to get kline data:', klineDataResult.error);
         return Result.fail(klineDataResult.error);
       }
 
-      console.log('[BinanceCryptoDataRepository] ✅ Raw kline data received:', {
-        count: klineDataResult.value.length,
-        first: klineDataResult.value[0],
-        last: klineDataResult.value[klineDataResult.value.length - 1]
-      });
-
       const result = this.convertKlineDataToCryptoData(klineDataResult.value, symbol, timeframe);
-      
-      if (result.isSuccess) {
-        console.log('[BinanceCryptoDataRepository] ✅ Converted to CryptoData:', {
-          count: result.value.length,
-          first: result.value[0],
-          last: result.value[result.value.length - 1]
-        });
-      } else {
-        console.log('[BinanceCryptoDataRepository] ❌ Conversion failed:', result.error);
-      }
-
       return result;
     } catch (error) {
-      console.error('[BinanceCryptoDataRepository] ❌ Error in getKlineData:', error);
       return Result.fail(`Failed to get kline data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -325,7 +296,6 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
         
         // Пропускаем дублирующиеся timestamp
         if (seenTimestamps.has(timestamp)) {
-          console.log(`[BinanceCryptoDataRepository] ⚠️ Skipping duplicate timestamp: ${timestamp}`);
           continue;
         }
         
@@ -343,12 +313,6 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
 
         cryptoDataArray.push(cryptoData);
       }
-
-      console.log('[BinanceCryptoDataRepository] Data conversion completed:', {
-        originalCount: klineData.length,
-        uniqueCount: cryptoDataArray.length,
-        duplicatesRemoved: klineData.length - cryptoDataArray.length
-      });
 
       return Result.ok(cryptoDataArray);
     } catch (error) {

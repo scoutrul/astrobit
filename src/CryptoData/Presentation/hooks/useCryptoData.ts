@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { CryptoData } from '../../Domain/types';
 import { DependencyContainer } from '../../../Shared/infrastructure/DependencyContainer';
 import { GetCryptoDataUseCase } from '../../Application/use-cases/GetCryptoDataUseCase';
@@ -24,7 +24,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
 
     const fetchData = async () => {
       if (!symbol || !timeframe) {
-        console.log(`[useCryptoData] Пропуск загрузки: symbol=${symbol}, timeframe=${timeframe}`);
         setLoading(false);
         return;
       }
@@ -33,19 +32,11 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         setLoading(true);
         setError(null);
 
-        console.log(`[useCryptoData] 🔄 ЗАГРУЗКА ДАННЫХ: ${symbol} с таймфреймом ${timeframe} (попытка ${retryCount + 1})`);
-        
         // Получаем use case из DI контейнера
-        console.log('[useCryptoData] 🔧 Getting DI container...');
         const container = DependencyContainer.getInstance();
-        console.log('[useCryptoData] ✅ DI container obtained');
-        
-        console.log('[useCryptoData] 🔧 Resolving GetCryptoDataUseCase...');
         const getCryptoDataUseCase = container.resolve<GetCryptoDataUseCase>('GetCryptoDataUseCase');
-        console.log('[useCryptoData] ✅ GetCryptoDataUseCase resolved:', getCryptoDataUseCase);
         
         // Выполняем use case
-        console.log('[useCryptoData] 📊 Executing use case...');
         const result = await getCryptoDataUseCase.execute({
           symbol: symbol,
           timeframe: timeframe,
@@ -84,12 +75,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
               volume: cryptoData.volume
             };
           });
-          
-          console.log(`[useCryptoData] ✅ Успешно загружено ${legacyData.length} точек данных для ${timeframe}`);
-          console.log(`[useCryptoData] 📊 Sample data:`, {
-            first: legacyData[0],
-            last: legacyData[legacyData.length - 1]
-          });
 
           setData(legacyData);
           setLastUpdated(new Date());
@@ -100,7 +85,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
           
           // Если ошибка связана с недоступностью API, пробуем повторить
           if (result.error.includes('not available') && retryCount < 3) {
-            console.log(`[useCryptoData] 🔄 Повторная попытка через 2 секунды...`);
             // Очищаем предыдущий таймаут
             if (retryTimeoutRef.current) {
               clearTimeout(retryTimeoutRef.current);
@@ -123,7 +107,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         
         // Если ошибка связана с недоступностью API, пробуем повторить
         if (errorMsg.includes('not available') && retryCount < 3) {
-          console.log(`[useCryptoData] 🔄 Повторная попытка через 2 секунды...`);
           // Очищаем предыдущий таймаут
           if (retryTimeoutRef.current) {
             clearTimeout(retryTimeoutRef.current);
@@ -146,7 +129,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
 
     // Примечание: В режиме разработки React.StrictMode может вызывать useEffect дважды
     // Это нормальное поведение для обнаружения побочных эффектов
-    console.log(`[useCryptoData] 🎯 useEffect triggered: symbol=${symbol}, timeframe=${timeframe}, retryCount=${retryCount}`);
     fetchData();
 
     return () => {
@@ -158,8 +140,11 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
     };
   }, [symbol, timeframe, retryCount]); // Добавляем retryCount в зависимости
 
+  // Стабилизируем данные криптовалют, чтобы избежать лишних обновлений
+  const stableData = useMemo(() => data, [data]);
+
   return {
-    data,
+    data: stableData,
     loading,
     error,
     lastUpdated,

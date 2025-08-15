@@ -6,87 +6,75 @@
 import { CryptoData } from '../../Domain/types';
 import { AstronomicalEvent } from '../../../Astronomical/Domain/types';
 
+// Кэш для предотвращения повторных вычислений
+const combinationCache = new Map<string, CryptoData[]>();
+
 /**
  * Вычисляет требуемое количество будущих свечей для размещения всех событий
  */
 export function calculateRequiredFutureCandles(
-  historicalData: CryptoData[],
-  astronomicalEvents: AstronomicalEvent[],
-  timeframe: string
+  lastTime: Date,
+  timeframe: string,
+  astronomicalEvents: AstronomicalEvent[]
 ): number {
-  if (historicalData.length === 0) {
-    console.warn('[FutureCandlesGenerator] Нет исторических данных для расчета будущих свечей');
-    return 50; // Возвращаем дефолтное значение
-  }
+  // Кэш для предотвращения повторных вычислений
+  const calculationCache = new Map<string, number>();
 
-  const lastCandle = historicalData[historicalData.length - 1];
-  const lastTime = new Date(lastCandle.time);
-  
-  // Фильтруем события в будущем
-  const futureEvents = astronomicalEvents.filter(event => event.date > lastTime);
-  
-  if (futureEvents.length === 0) {
-    console.log('[FutureCandlesGenerator] Нет будущих событий, используем дефолтные 50 свечей');
+  // Если нет будущих событий, используем дефолтные 50 свечей
+  if (astronomicalEvents.length === 0) {
     return 50;
   }
 
-  // Находим самое дальнее событие
-  const maxEventDate = new Date(Math.max(...futureEvents.map(event => event.date.getTime())));
-  
-  // Вычисляем разницу во времени
-  const timeDifference = maxEventDate.getTime() - lastTime.getTime();
-  
-  // Конвертируем разницу в количество свечей для данного таймфрейма
-  const candlesNeeded = convertTimeDifferenceToCandles(timeDifference, timeframe);
-  
-  // Добавляем буфер для комфортного отображения
-  const bufferCandles = 10;
-  const totalCandles = candlesNeeded + bufferCandles;
-  
-  // Ограничиваем минимальным и максимальным значением
-  const minCandles = 20;
-  const maxCandles = 200;
-  const finalCandles = Math.max(minCandles, Math.min(maxCandles, totalCandles));
-  
-  console.log('[FutureCandlesGenerator] Расчет требуемых свечей:', {
-    lastTime: lastTime.toISOString(),
-    maxEventDate: maxEventDate.toISOString(),
-    timeDifferenceMs: timeDifference,
-    timeDifferenceDays: timeDifference / (1000 * 60 * 60 * 24),
-    futureEventsCount: futureEvents.length,
-    candlesNeeded,
-    bufferCandles,
-    totalCandles,
-    finalCandles,
-    timeframe
-  });
-  
-  return finalCandles;
-}
+  // Проверяем кэш
+  const cacheKey = `${lastTime.toISOString()}-${timeframe}-${astronomicalEvents.length}`;
+  if (calculationCache.has(cacheKey)) {
+    return calculationCache.get(cacheKey)!;
+  }
 
-/**
- * Конвертирует разницу во времени в количество свечей для данного таймфрейма
- */
-function convertTimeDifferenceToCandles(timeDifferenceMs: number, timeframe: string): number {
-  const msPerHour = 1000 * 60 * 60;
-  const msPerDay = msPerHour * 24;
-  const msPerWeek = msPerDay * 7;
-  const msPerMonth = msPerDay * 30; // Приблизительно
-  
+  // Находим самое дальнее событие
+  const futureEvents = astronomicalEvents.filter(event => 
+    event.date > lastTime
+  );
+
+  if (futureEvents.length === 0) {
+    return 50; // Дефолтное значение
+  }
+
+  const maxEventDate = new Date(Math.max(...futureEvents.map(e => e.date.getTime())));
+  const timeDifferenceMs = maxEventDate.getTime() - lastTime.getTime();
+  const timeDifferenceDays = Math.ceil(timeDifferenceMs / (1000 * 60 * 60 * 24));
+
+  // Рассчитываем количество свечей в зависимости от таймфрейма
+  let candlesPerDay = 1;
   switch (timeframe) {
     case '1h':
-      return Math.ceil(timeDifferenceMs / msPerHour);
+      candlesPerDay = 24;
+      break;
     case '8h':
-      return Math.ceil(timeDifferenceMs / (msPerHour * 8));
+      candlesPerDay = 3;
+      break;
     case '1d':
-      return Math.ceil(timeDifferenceMs / msPerDay);
+      candlesPerDay = 1;
+      break;
     case '1w':
-      return Math.ceil(timeDifferenceMs / msPerWeek);
+      candlesPerDay = 1/7;
+      break;
     case '1M':
-      return Math.ceil(timeDifferenceMs / msPerMonth);
-    default:
-      return Math.ceil(timeDifferenceMs / msPerDay); // По умолчанию дневной
+      candlesPerDay = 1/30;
+      break;
   }
+
+  const requiredCandles = Math.ceil(timeDifferenceDays * candlesPerDay);
+  const finalCandles = Math.max(requiredCandles, 50); // Минимум 50 свечей
+
+  // Кэшируем результат
+  calculationCache.set(cacheKey, finalCandles);
+  if (calculationCache.size > 100) {
+    const keys = Array.from(calculationCache.keys());
+    keys.slice(0, keys.length - 100).forEach(key => calculationCache.delete(key));
+  }
+
+  return finalCandles;
 }
 
 /**
@@ -104,14 +92,6 @@ export function generateFutureCandles(
 
   const lastCandle = historicalData[historicalData.length - 1];
   const lastTime = new Date(lastCandle.time);
-  
-  console.log('[FutureCandlesGenerator] Генерация будущих свечей:', {
-    symbol: lastCandle.symbol,
-    timeframe,
-    count,
-    lastTime: lastTime.toISOString(),
-    lastPrice: lastCandle.close
-  });
 
   const futureCandles: CryptoData[] = [];
   
@@ -131,7 +111,6 @@ export function generateFutureCandles(
     futureCandles.push(futureCandle);
   }
 
-  console.log('[FutureCandlesGenerator] Сгенерировано свечей:', futureCandles.length);
   return futureCandles;
 }
 
@@ -173,20 +152,34 @@ export function combineHistoricalAndFutureCandles(
   timeframe: string,
   astronomicalEvents: AstronomicalEvent[] = []
 ): CryptoData[] {
+  if (historicalData.length === 0) {
+    return historicalData;
+  }
+
+  // Создаем ключ кэша для объединения
+  const lastCandle = historicalData[historicalData.length - 1];
+  const lastTime = new Date(lastCandle.time);
+  const eventsKey = astronomicalEvents.map(e => `${e.name}-${e.date.toISOString()}`).join('|');
+  const combinationCacheKey = `${lastTime.toISOString()}-${timeframe}-${historicalData.length}-${eventsKey}`;
+  
+  // Проверяем кэш объединения
+  if (combinationCache.has(combinationCacheKey)) {
+    return combinationCache.get(combinationCacheKey)!;
+  }
+
   // Вычисляем требуемое количество будущих свечей
-  const requiredCandles = calculateRequiredFutureCandles(historicalData, astronomicalEvents, timeframe);
+  const requiredCandles = calculateRequiredFutureCandles(lastTime, timeframe, astronomicalEvents);
   
   // Генерируем будущие свечи
   const futureCandles = generateFutureCandles(historicalData, timeframe, requiredCandles);
   const combinedData = [...historicalData, ...futureCandles];
   
-  console.log('[FutureCandlesGenerator] Объединенные данные:', {
-    historical: historicalData.length,
-    future: futureCandles.length,
-    total: combinedData.length,
-    requiredCandles,
-    eventsCount: astronomicalEvents.length
-  });
-  
+  // Кэшируем результат объединения
+  combinationCache.set(combinationCacheKey, combinedData);
+  if (combinationCache.size > 50) {
+    const keys = Array.from(combinationCache.keys());
+    keys.slice(0, keys.length - 50).forEach(key => combinationCache.delete(key));
+  }
+
   return combinedData;
 } 

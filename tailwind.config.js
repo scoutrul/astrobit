@@ -13,7 +13,28 @@ export default {
         error: '#ff5c5c',
         text: '#ffffff',
       },
+      transitionDuration: {
+        '0': '0ms',
+        'instant': '0ms',
+      },
+      animation: {
+        'none': 'none',
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    function({ addUtilities }) {
+      const newUtilities = {
+        '.transition-instant': {
+          'transition': 'none !important',
+          'animation': 'none !important',
+        },
+        '.opacity-instant': {
+          'opacity': '1 !important',
+          'transform': 'none !important',
+        },
+      }
+      addUtilities(newUtilities)
+    }
+  ],
 } 

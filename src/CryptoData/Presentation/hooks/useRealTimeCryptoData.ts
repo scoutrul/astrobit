@@ -26,9 +26,8 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
     return container.resolve<SubscribeToRealTimeDataUseCase>('SubscribeToRealTimeDataUseCase');
   }, []);
 
-  // Обработчик обновления данных
+  // Обработчик обновлений real-time данных
   const handleDataUpdate = useCallback((data: BinanceKlineWebSocketData) => {
-    console.log('[useRealTimeCryptoData] Получено обновление:', data);
     setLastUpdate(data);
     setError(null);
   }, []);
@@ -36,11 +35,9 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
   // Подписка на real-time данные
   const subscribe = useCallback(async (symbol: string, timeframe: string) => {
     try {
-      console.log('[useRealTimeCryptoData] Подписка на:', symbol, timeframe);
-      
       setError(null);
       const useCase = getUseCase();
-
+      
       const result = await useCase.execute({
         symbol: new Symbol(symbol),
         timeframe: new Timeframe(timeframe as '1h' | '8h' | '1d' | '1w' | '1M'),
@@ -50,23 +47,18 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
       if (result.isSuccess) {
         setIsConnected(true);
         setCurrentSubscription({ symbol, interval: timeframe });
-        console.log('[useRealTimeCryptoData] ✅ Подписка установлена');
       } else {
         setError(result.error);
-        console.error('[useRealTimeCryptoData] ❌ Ошибка подписки:', result.error);
       }
     } catch (err) {
       const errorMsg = `Failed to subscribe: ${err instanceof Error ? err.message : 'Unknown error'}`;
       setError(errorMsg);
-      console.error('[useRealTimeCryptoData] ❌ Ошибка подписки:', err);
     }
   }, [getUseCase, handleDataUpdate]);
 
   // Отписка от real-time данных
   const unsubscribe = useCallback(async () => {
     try {
-      console.log('[useRealTimeCryptoData] Отписка от real-time данных');
-      
       const useCase = getUseCase();
       const result = await useCase.unsubscribe();
 
@@ -74,15 +66,12 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
         setIsConnected(false);
         setCurrentSubscription(null);
         setLastUpdate(null);
-        console.log('[useRealTimeCryptoData] ✅ Отписка выполнена');
       } else {
         setError(result.error);
-        console.error('[useRealTimeCryptoData] ❌ Ошибка отписки:', result.error);
       }
     } catch (err) {
       const errorMsg = `Failed to unsubscribe: ${err instanceof Error ? err.message : 'Unknown error'}`;
       setError(errorMsg);
-      console.error('[useRealTimeCryptoData] ❌ Ошибка отписки:', err);
     }
   }, [getUseCase]);
 
@@ -104,7 +93,7 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
     checkConnection(); // Первоначальная проверка
 
     return () => clearInterval(interval);
-  }, [getUseCase]);
+  }, []); // Убираем getUseCase из зависимостей, так как он стабилен
 
   return {
     isConnected,

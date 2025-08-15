@@ -101,6 +101,81 @@ input, textarea, select {
   outline: none;
 }
 
+/* Мгновенное появление тултипов астрономических событий */
+.astro-tooltip {
+  transition: none !important;
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.astro-tooltip * {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Мгновенное скрытие тултипа */
+.astro-tooltip.hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
+}
+
+/* Мгновенный отклик для всех интерактивных элементов */
+* {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+}
+
+/* Отключаем все анимации для производительности */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Мгновенный отклик для тултипов */
+.tooltip-instant {
+  transition: none !important;
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  will-change: auto !important;
+}
+
+/* Отключаем GPU ускорение для мгновенного отклика */
+.gpu-off {
+  transform: translateZ(0) !important;
+  backface-visibility: hidden !important;
+  perspective: 1000px !important;
+}
+
+/* Мгновенное скрытие тултипа */
+.tooltip-hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Мгновенное появление тултипа */
+.tooltip-visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Мгновенный отклик для всех элементов */
+.instant-response {
+  transition: none !important;
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  will-change: auto !important;
+}
+
 /* Link Reset */
 a {
   color: inherit;

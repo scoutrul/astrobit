@@ -215,15 +215,6 @@ export class TimeframeUtils {
       }
     }
 
-    console.log('[TimeframeUtils] Data processing:', {
-      originalLength: data.length,
-      validLength: validData.length,
-      sortedLength: sortedData.length,
-      uniqueLength: uniqueData.length,
-      firstTime: uniqueData[0]?.time,
-      lastTime: uniqueData[uniqueData.length - 1]?.time
-    });
-
     return uniqueData;
   }
 

@@ -38,11 +38,6 @@ export class SubscribeToRealTimeDataUseCase extends UseCase<SubscribeToRealTimeD
 
   async execute(request: SubscribeToRealTimeDataRequest): Promise<Result<SubscribeToRealTimeDataResponse>> {
     try {
-      console.log('[SubscribeToRealTimeDataUseCase] Подписка на real-time данные:', {
-        symbol: request.symbol.toString(),
-        timeframe: request.timeframe.toString()
-      });
-
       // Валидация входных данных
       const validationResult = this.validateRequest(request);
       if (!validationResult.isSuccess) {
@@ -57,17 +52,14 @@ export class SubscribeToRealTimeDataUseCase extends UseCase<SubscribeToRealTimeD
       );
 
       if (result.isSuccess) {
-        console.log('[SubscribeToRealTimeDataUseCase] ✅ Подписка успешно установлена');
         return Result.ok({
           success: true,
           message: `Подписка на ${request.symbol.toString()}@${request.timeframe.toString()} установлена`
         });
       } else {
-        console.error('[SubscribeToRealTimeDataUseCase] ❌ Ошибка подписки:', result.error);
         return Result.fail(result.error);
       }
     } catch (error) {
-      console.error('[SubscribeToRealTimeDataUseCase] ❌ Неожиданная ошибка:', error);
       return Result.fail(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -77,10 +69,8 @@ export class SubscribeToRealTimeDataUseCase extends UseCase<SubscribeToRealTimeD
    */
   async unsubscribe(): Promise<Result<void>> {
     try {
-      console.log('[SubscribeToRealTimeDataUseCase] Отписка от real-time данных');
       return await this.webSocketService.unsubscribe();
     } catch (error) {
-      console.error('[SubscribeToRealTimeDataUseCase] ❌ Ошибка отписки:', error);
       return Result.fail(`Failed to unsubscribe: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

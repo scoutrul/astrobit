@@ -70,8 +70,6 @@ export class BinanceWebSocketService extends ExternalService {
     onData: (data: BinanceKlineWebSocketData) => void
   ): Promise<Result<void>> {
     try {
-      console.log(`[BinanceWebSocketService] Подписка на kline данные: ${symbol}@${interval}`);
-
       // Отписываемся от предыдущей подписки
       await this.unsubscribe();
 
@@ -86,7 +84,6 @@ export class BinanceWebSocketService extends ExternalService {
 
       return Result.ok();
     } catch (error) {
-      console.error('[BinanceWebSocketService] Ошибка подписки:', error);
       return Result.fail(`Failed to subscribe: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -96,8 +93,6 @@ export class BinanceWebSocketService extends ExternalService {
    */
   async unsubscribe(): Promise<Result<void>> {
     try {
-      console.log('[BinanceWebSocketService] Отписка от текущей подписки');
-
       // Закрываем WebSocket соединение
       if (this.ws) {
         this.ws.close();
@@ -110,7 +105,6 @@ export class BinanceWebSocketService extends ExternalService {
 
       return Result.ok();
     } catch (error) {
-      console.error('[BinanceWebSocketService] Ошибка отписки:', error);
       return Result.fail(`Failed to unsubscribe: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -127,14 +121,11 @@ export class BinanceWebSocketService extends ExternalService {
     const streamName = `${symbol}@kline_${interval}`;
     const wsUrl = `wss://stream.binance.com:9443/ws/${streamName}`;
 
-    console.log(`[BinanceWebSocketService] Подключение к: ${wsUrl}`);
-
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
-          console.log('[BinanceWebSocketService] WebSocket соединение установлено');
           this.isConnected = true;
           this.reconnectAttempts = 0;
           resolve();
@@ -142,22 +133,19 @@ export class BinanceWebSocketService extends ExternalService {
 
         this.ws.onmessage = (event) => {
           try {
-            // Убираем избыточное логирование каждого сообщения
             const message = JSON.parse(event.data);
             this.handleMessage(message);
           } catch (error) {
-            console.error('[BinanceWebSocketService] Ошибка парсинга сообщения:', error);
-            console.error('[BinanceWebSocketService] Сырые данные:', event.data);
+            console.error('[WebSocket] ❌ Message parsing error:', error);
           }
         };
 
         this.ws.onerror = (error) => {
-          console.error('[BinanceWebSocketService] WebSocket ошибка:', error);
+          console.error('[WebSocket] ❌ WebSocket error:', error);
           reject(error);
         };
 
-        this.ws.onclose = (event) => {
-          console.log('[BinanceWebSocketService] WebSocket соединение закрыто:', event.code, event.reason);
+        this.ws.onclose = () => {
           this.isConnected = false;
           this.handleReconnection();
         };
@@ -246,19 +234,12 @@ export class BinanceWebSocketService extends ExternalService {
         isClosed: klineData.x
       };
 
-      // Логируем только важные события (закрытые свечи)
-      console.log(`[BinanceWebSocketService] 📊 Закрытая свеча: ${data.symbol} ${data.interval}`, {
-        timestamp: new Date(data.timestamp).toISOString(),
-        close: data.close,
-        volume: data.volume
-      });
-
       // Вызываем все обработчики
       this.messageHandlers.forEach(handler => {
         try {
           handler(data);
         } catch (error) {
-          console.error('[BinanceWebSocketService] Ошибка в обработчике:', error);
+          console.error('[WebSocket] ❌ Handler error:', error);
         }
       });
     } catch (error) {
@@ -271,21 +252,17 @@ export class BinanceWebSocketService extends ExternalService {
    */
   private handleReconnection(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[BinanceWebSocketService] Превышено максимальное количество попыток переподключения');
       return;
     }
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
 
-    console.log(`[BinanceWebSocketService] Переподключение через ${delay}ms (попытка ${this.reconnectAttempts})`);
-
     setTimeout(async () => {
       if (this.currentSubscription) {
         try {
           await this.connect();
         } catch (error) {
-          console.error('[BinanceWebSocketService] Ошибка переподключения:', error);
           this.handleReconnection();
         }
       }
