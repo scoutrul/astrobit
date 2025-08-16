@@ -28,6 +28,14 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
 
   // Обработчик обновлений real-time данных
   const handleDataUpdate = useCallback((data: BinanceKlineWebSocketData) => {
+    console.log(`[useRealTimeCryptoData] 🔄 Real-time data received:`, {
+      symbol: data.symbol,
+      interval: data.interval,
+      price: data.close,
+      volume: data.volume,
+      timestamp: data.timestamp
+    });
+    
     setLastUpdate(data);
     setError(null);
   }, []);

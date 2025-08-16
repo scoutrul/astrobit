@@ -8,6 +8,10 @@ export interface CryptoData {
   low: number;
   close: number;
   volume: number;
+  // Опциональные свойства для стилизации свечей
+  color?: string;
+  borderColor?: string;
+  wickColor?: string;
 }
 
 export interface ApiResponse<T> {

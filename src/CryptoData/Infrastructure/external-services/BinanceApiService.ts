@@ -92,7 +92,16 @@ export class BinanceApiService extends ExternalService {
       }
 
       const url = `${this.baseUrl}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-      const response = await fetch(url);
+      
+      // Добавляем заголовки для предотвращения кэширования
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       
       if (!response.ok) {
         return Result.fail(`HTTP ${response.status}: ${response.statusText}`);

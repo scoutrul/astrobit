@@ -44,6 +44,17 @@ export class SubscribeToRealTimeDataUseCase extends UseCase<SubscribeToRealTimeD
         return Result.fail(validationResult.error);
       }
 
+      // Для недельных и месячных таймфреймов WebSocket обновления не имеют смысла
+      // так как свечи обновляются крайне редко
+      const timeframeValue = request.timeframe.value;
+      if (timeframeValue === '1w' || timeframeValue === '1M') {
+        console.log(`[RealTime] ℹ️ Skipping WebSocket subscription for ${timeframeValue} timeframe (updates too infrequent)`);
+        return Result.ok({
+          success: true,
+          message: `WebSocket подписка пропущена для ${timeframeValue} (обновления слишком редкие)`
+        });
+      }
+
       // Подписываемся на WebSocket данные
       const result = await this.webSocketService.subscribeToKlineData(
         request.symbol.toString(),

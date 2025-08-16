@@ -22,11 +22,19 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
   useEffect(() => {
     let isMounted = true;
 
+    // Очищаем данные при смене символа для предотвращения кэширования
+    setData([]);
+    setLoading(true);
+    setError(null);
+
     const fetchData = async () => {
       if (!symbol || !timeframe) {
+        console.warn(`[useCryptoData] ⚠️ Missing symbol or timeframe:`, { symbol, timeframe });
         setLoading(false);
         return;
       }
+      
+      console.log(`[useCryptoData] 🔄 Fetching data for:`, { symbol, timeframe });
 
       try {
         setLoading(true);
@@ -76,6 +84,8 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
             };
           });
 
+
+          
           setData(legacyData);
           setLastUpdated(new Date());
           setRetryCount(0); // Сбрасываем счетчик попыток при успехе

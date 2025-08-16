@@ -215,6 +215,16 @@ export class TimeframeUtils {
       }
     }
 
+    // Дополнительная проверка: убеждаемся, что данные отсортированы
+    for (let i = 1; i < uniqueData.length; i++) {
+      if (uniqueData[i].time <= uniqueData[i - 1].time) {
+        console.warn('[TimeframeUtils] ⚠️ Data not properly sorted at index', i, {
+          current: uniqueData[i].time,
+          previous: uniqueData[i - 1].time
+        });
+      }
+    }
+
     return uniqueData;
   }
 

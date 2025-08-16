@@ -7,6 +7,7 @@ import { ChartComponent } from '../components/ChartComponent';
 import { AstronomicalEvent as NewAstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { AstronomicalEvent as OldAstronomicalEvent } from '../../../Astronomical/Infrastructure/services/astronomicalEvents';
 import { combineHistoricalAndFutureCandles } from '../../../CryptoData/Infrastructure/utils/futureCandlesGenerator';
+import { DependencyContainer } from '../../../Shared/infrastructure/DependencyContainer';
 
 interface LegacyChartAdapterProps {
   height?: number;
@@ -79,17 +80,23 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   // Получаем криптоданные через хук
   const { data: hookCryptoData, loading: cryptoLoading } = useCryptoData(symbol, timeframe);
   
+
+  
   // Получаем астрономические события с стабилизированными датами
   const { events: hookAstronomicalEvents, loading: astroLoading } = useAstronomicalEvents(
     dateRange.startDate,
     dateRange.endDate
   );
 
-  // Конвертируем старые события в новый формат
-  const convertedHookEvents = hookAstronomicalEvents ? convertAstronomicalEvents(hookAstronomicalEvents) : [];
+  // Конвертируем старые события в новый формат (стабилизируем)
+  const convertedHookEvents = useMemo(() => {
+    return hookAstronomicalEvents ? convertAstronomicalEvents(hookAstronomicalEvents) : [];
+  }, [hookAstronomicalEvents]);
   
-  // Используем события из пропсов или из хука
-  const astronomicalEvents = propAstronomicalEvents || convertedHookEvents || [];
+  // Используем события из пропсов или из хука (стабилизируем)
+  const astronomicalEvents = useMemo(() => {
+    return propAstronomicalEvents || convertedHookEvents || [];
+  }, [propAstronomicalEvents, convertedHookEvents]);
 
   // Конвертируем астрономические события для генератора будущих свечей
   const eventsForGenerator = useMemo(() => {
@@ -101,60 +108,197 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       description: event.description,
       significance: 'medium'
     }));
-  }, [astronomicalEvents.length]); // Используем только length вместо всего массива
+  }, [astronomicalEvents]); // Теперь можем использовать весь массив, так как он стабилизирован
 
   // Генерируем адаптивные будущие свечи с учетом событий
   const enhancedCryptoData = useMemo(() => {
     const historicalData = propCryptoData || hookCryptoData || [];
     
+    console.log(`[LegacyChartAdapter] 📊 Processing data for ${symbol}:`, {
+      symbol,
+      timeframe,
+      propDataLength: propCryptoData?.length || 0,
+      hookDataLength: hookCryptoData?.length || 0,
+      historicalDataLength: historicalData.length,
+      firstPrice: historicalData[0]?.close,
+      lastPrice: historicalData[historicalData.length - 1]?.close,
+      cryptoLoading
+    });
+    
+    // ВАЖНО: Не обрабатываем данные пока они загружаются
+    // Это предотвращает использование старых кешированных данных
+    if (cryptoLoading) {
+      console.log(`[LegacyChartAdapter] ⏳ Data still loading for ${symbol}, waiting...`);
+      return [];
+    }
+    
     if (historicalData.length === 0) {
-      return historicalData;
+      console.log(`[LegacyChartAdapter] ⚠️ No data available for ${symbol}`);
+      return [];
+    }
+
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, что данные соответствуют текущему символу
+    // Это предотвращает использование кешированных данных от предыдущего символа
+    if (historicalData.length > 0 && historicalData[0].symbol !== symbol) {
+      console.warn(`[LegacyChartAdapter] ⚠️ Symbol mismatch: expected ${symbol}, got ${historicalData[0].symbol}`);
+      return [];
     }
 
     // Объединяем исторические данные с адаптивными будущими свечами
     const combinedData = combineHistoricalAndFutureCandles(
       historicalData,
       timeframe,
-      eventsForGenerator
+      eventsForGenerator,
+      symbol
     );
 
-    return combinedData;
-  }, [propCryptoData, hookCryptoData, timeframe, eventsForGenerator.length]); // Используем только length вместо всего массива
+    console.log(`[LegacyChartAdapter] ✅ Enhanced data ready for ${symbol}:`, {
+      originalLength: historicalData.length,
+      combinedLength: combinedData.length,
+      firstPrice: combinedData[0]?.close,
+      lastPrice: combinedData[combinedData.length - 1]?.close
+    });
+
+    // Принудительно создаем новый массив для обеспечения изменения ссылки
+    // Это гарантирует, что React увидит изменение даже если длина массива одинакова
+    return [...combinedData];
+  }, [propCryptoData, hookCryptoData, timeframe, eventsForGenerator, symbol, cryptoLoading]); // Добавляем cryptoLoading для отслеживания состояния загрузки
 
   // Подписка на real-time данные при изменении symbol/timeframe
   useEffect(() => {
+    let isMounted = true;
     const currentSubscription = { symbol, timeframe };
     
-    // Проверяем, изменилась ли подписка
+    const handleSubscription = async () => {
+      // Проверяем, изменилась ли подписка
+      if (prevSubscription.current && 
+          (prevSubscription.current.symbol !== symbol || 
+           prevSubscription.current.timeframe !== timeframe)) {
+        // Отписываемся от предыдущей подписки
+        await unsubscribe();
+        
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно закрываем все WebSocket соединения
+        // Это гарантирует, что старые соединения полностью прекратят работу
+        const container = DependencyContainer.getInstance();
+        const webSocketService = container.resolve('BinanceWebSocketService') as any;
+        if (webSocketService && typeof webSocketService.forceCloseAllConnections === 'function') {
+          await webSocketService.forceCloseAllConnections();
+        }
+        
+        // Увеличенная задержка для корректного закрытия WebSocket соединения
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Подписываемся на новую подписку только если компонент еще смонтирован
+        // Пропускаем WebSocket подписку для недельных и месячных таймфреймов
+        if (isMounted && symbol && timeframe) {
+          if (timeframe === '1w' || timeframe === '1M') {
+            console.log(`[LegacyChartAdapter] ℹ️ Skipping WebSocket subscription for ${timeframe} timeframe`);
+            prevSubscription.current = currentSubscription;
+          } else {
+            await subscribe(symbol, timeframe);
+            prevSubscription.current = currentSubscription;
+          }
+        }
+      } else if (!prevSubscription.current && symbol && timeframe) {
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Подписываемся только при ПЕРВОМ изменении
+        // НЕ при первоначальном монтировании компонента
+        if (timeframe === '1w' || timeframe === '1M') {
+          console.log(`[LegacyChartAdapter] ℹ️ Skipping WebSocket subscription for ${timeframe} timeframe`);
+          prevSubscription.current = currentSubscription;
+        } else {
+          console.log(`[LegacyChartAdapter] 🔌 Initial WebSocket subscription for ${symbol}@${timeframe}`);
+          await subscribe(symbol, timeframe);
+          prevSubscription.current = currentSubscription;
+        }
+      }
+    };
+
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: НЕ вызываем handleSubscription() при монтировании
+    // Подписываемся только при изменении symbol/timeframe
     if (prevSubscription.current && 
         (prevSubscription.current.symbol !== symbol || 
          prevSubscription.current.timeframe !== timeframe)) {
-      // Отписываемся от предыдущей подписки
-      unsubscribe();
-    }
-    
-    // Подписываемся на новую подписку
-    if (symbol && timeframe) {
-      subscribe(symbol, timeframe);
-      prevSubscription.current = currentSubscription;
+      handleSubscription();
     }
 
     // Очистка при размонтировании
     return () => {
+      isMounted = false;
       unsubscribe();
     };
   }, [symbol, timeframe, subscribe, unsubscribe]);
 
-  // Логирование real-time обновлений
+  // НОВАЯ ЛОГИКА: Подписка на WebSocket после загрузки данных
   useEffect(() => {
-    if (lastUpdate) {
-      // Real-time обновления обрабатываются автоматически
+    let isMounted = true;
+    
+    const setupWebSocket = async () => {
+      // Подписываемся на WebSocket только если:
+      // 1. Данные загружены (не loading)
+      // 2. Есть данные для отображения
+      // 3. Нет активной подписки
+      // 4. Таймфрейм поддерживает real-time обновления
+      if (!cryptoLoading && 
+          (hookCryptoData.length > 0 || (propCryptoData && propCryptoData.length > 0)) &&
+          !prevSubscription.current &&
+          symbol && 
+          timeframe &&
+          timeframe !== '1w' && 
+          timeframe !== '1M') {
+        
+        console.log(`[LegacyChartAdapter] 🔌 Setting up WebSocket for ${symbol}@${timeframe} after data load`);
+        
+        try {
+          await subscribe(symbol, timeframe);
+          prevSubscription.current = { symbol, timeframe };
+          console.log(`[LegacyChartAdapter] ✅ WebSocket subscription established for ${symbol}@${timeframe}`);
+        } catch (error) {
+          console.warn(`[LegacyChartAdapter] ⚠️ Failed to setup WebSocket for ${symbol}@${timeframe}:`, error);
+        }
+      }
+    };
+
+    // Небольшая задержка для стабилизации данных
+    const timer = setTimeout(setupWebSocket, 500);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [cryptoLoading, hookCryptoData.length, propCryptoData?.length, symbol, timeframe, subscribe]);
+
+  // Обработка real-time обновлений для графика
+  useEffect(() => {
+    if (lastUpdate && lastUpdate.symbol && lastUpdate.interval) {
+      console.log(`[LegacyChartAdapter] 🔄 Real-time update received:`, {
+        symbol: lastUpdate.symbol,
+        interval: lastUpdate.interval,
+        price: lastUpdate.close,
+        volume: lastUpdate.volume,
+        timestamp: lastUpdate.timestamp
+      });
+
+      // Проверяем, что обновление соответствует текущей подписке
+      if (lastUpdate.symbol === symbol && lastUpdate.interval === timeframe) {
+        console.log(`[LegacyChartAdapter] ✅ Real-time update matches current subscription`);
+        
+        // Здесь можно добавить логику для обновления графика
+        // Например, обновить последнюю свечу или добавить новую
+        // Пока просто логируем для отладки
+      } else {
+        console.log(`[LegacyChartAdapter] ⚠️ Real-time update mismatch:`, {
+          expected: `${symbol}@${timeframe}`,
+          received: `${lastUpdate.symbol}@${lastUpdate.interval}`
+        });
+      }
     }
-  }, [lastUpdate]);
+  }, [lastUpdate, symbol, timeframe]);
 
 
   // Ключ для принудительного пересоздания ChartComponent
   const chartKey = `${symbol}-${timeframe}`;
+
+
 
   return (
     <ChartComponent

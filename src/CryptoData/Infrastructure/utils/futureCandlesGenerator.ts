@@ -105,7 +105,11 @@ export function generateFutureCandles(
       high: lastCandle.close, // Все цены одинаковые
       low: lastCandle.close,
       close: lastCandle.close,
-      volume: 0 // Нулевой объем для будущих свечей
+      volume: 0, // Нулевой объем для будущих свечей
+      // Делаем будущие свечи ПОЛНОСТЬЮ ПРОЗРАЧНЫМИ для отображения событий
+      color: 'rgba(0, 0, 0, 0)', // Полностью прозрачный цвет
+      borderColor: 'rgba(0, 0, 0, 0)', // Прозрачная граница
+      wickColor: 'rgba(0, 0, 0, 0)' // Прозрачный фитиль
     };
     
     futureCandles.push(futureCandle);
@@ -150,17 +154,18 @@ function calculateFutureTime(lastTime: Date, timeframe: string, offset: number):
 export function combineHistoricalAndFutureCandles(
   historicalData: CryptoData[],
   timeframe: string,
-  astronomicalEvents: AstronomicalEvent[] = []
+  astronomicalEvents: AstronomicalEvent[] = [],
+  symbol: string = 'unknown'
 ): CryptoData[] {
   if (historicalData.length === 0) {
     return historicalData;
   }
 
-  // Создаем ключ кэша для объединения
+  // Создаем ключ кэша для объединения (КРИТИЧЕСКИ ВАЖНО: включаем символ!)
   const lastCandle = historicalData[historicalData.length - 1];
   const lastTime = new Date(lastCandle.time);
   const eventsKey = astronomicalEvents.map(e => `${e.name}-${e.date.toISOString()}`).join('|');
-  const combinationCacheKey = `${lastTime.toISOString()}-${timeframe}-${historicalData.length}-${eventsKey}`;
+  const combinationCacheKey = `${symbol}-${lastTime.toISOString()}-${timeframe}-${historicalData.length}-${eventsKey}`;
   
   // Проверяем кэш объединения
   if (combinationCache.has(combinationCacheKey)) {
