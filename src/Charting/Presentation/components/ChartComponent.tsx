@@ -315,6 +315,17 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     }
 
     try {
+      // Сохраняем текущий диапазон перед обновлением данных
+      let savedRange = null;
+      if (chartInstance && hasUserInteractedRef.current) {
+        try {
+          savedRange = chartInstance.timeScale().getVisibleRange();
+
+        } catch (err) {
+          console.warn('[Chart] ⚠️ Не удалось сохранить диапазон:', err);
+        }
+      }
+      
       // Конвертируем данные в формат Lightweight Charts
       const chartData = stableCryptoData.map(item => {
         const timeInSeconds = TimeframeUtils.convertTimestampToSeconds(item.time);
@@ -368,32 +379,26 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           const firstTime = processedData[startIndex].time as number;
           const lastTime = processedData[endIndex].time as number;
           
-          // Применяем начальный видимый диапазон только один раз, чтобы не сбрасывать зум пользователя при обновлениях
-          if (!initialRangeAppliedRef.current) {
+          // Восстанавливаем сохраненный диапазон или применяем начальный
+          if (savedRange && hasUserInteractedRef.current) {
+            // Восстанавливаем пользовательский диапазон
+            try {
+              isProgrammaticRangeChangeRef.current = true;
+              chartInstance.timeScale().setVisibleRange(savedRange as any);
+
+            } catch (err) {
+              console.warn('[Chart] ⚠️ Не удалось восстановить диапазон, применяем дефолтный');
+              // Применяем дефолтный диапазон при ошибке
+              isProgrammaticRangeChangeRef.current = true;
+              const range = { from: firstTime as Time, to: lastTime as Time };
+              chartInstance.timeScale().setVisibleRange(range as any);
+            }
+          } else if (!initialRangeAppliedRef.current) {
+            // Применяем начальный диапазон только один раз
             isProgrammaticRangeChangeRef.current = true;
             const range = { from: firstTime as Time, to: lastTime as Time };
             chartInstance.timeScale().setVisibleRange(range as any);
             initialRangeAppliedRef.current = true;
-          } else {
-            // Если зум уже был применен, проверяем, не нужно ли его скорректировать
-            const currentRange = chartInstance.timeScale().getVisibleRange();
-            if (currentRange && typeof currentRange.from === 'number' && typeof currentRange.to === 'number') {
-              // Проверяем, не выходит ли текущий зум за пределы данных
-              const currentFrom = currentRange.from as number;
-              const currentTo = currentRange.to as number;
-              
-              if (currentFrom < firstTime || currentTo > lastTime) {
-                // Корректируем зум, чтобы он не выходил за пределы данных
-                const correctedFrom = Math.max(firstTime, currentFrom);
-                const correctedTo = Math.min(lastTime, currentTo);
-                
-                if (correctedFrom !== currentFrom || correctedTo !== currentTo) {
-                  isProgrammaticRangeChangeRef.current = true;
-                  const correctedRange = { from: correctedFrom as Time, to: correctedTo as Time };
-                  chartInstance.timeScale().setVisibleRange(correctedRange as any);
-                }
-              }
-            }
           }
         }
       }
@@ -507,8 +512,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       
       console.log(`[ChartComponent] 📈 Real-time update: ${realTimeData.symbol}@${realTimeData.interval} - Close: ${realTimeData.close} (${realTimeData.isClosed ? 'closed' : 'live'}) at ${new Date(realTimeData.timestamp).toLocaleTimeString()}`);
 
-      // Автоматически скроллим к последней свече, если пользователь не взаимодействовал с графиком
-      if (!hasUserInteractedRef.current) {
+      // Автоматически скроллим к последней свече только если пользователь не взаимодействовал с графиком
+      // и только для живых данных (не закрытых свечей)
+      if (!hasUserInteractedRef.current && !realTimeData.isClosed) {
         const timeScale = chartInstance.timeScale();
         timeScale.scrollToPosition(0, false);
       }

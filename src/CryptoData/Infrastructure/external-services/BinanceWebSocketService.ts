@@ -210,6 +210,10 @@ export class BinanceWebSocketService extends ExternalService {
 
     // Закрываем существующее соединение только если оно отличается
     if (this.ws && this.activeStream !== streamKey) {
+      // Очищаем подписки старого потока
+      this.subscriptions.clear();
+      console.log(`[WebSocket] 🧹 Очищены подписки старого потока ${this.activeStream}`);
+      
       this.ws.close();
       this.ws = null;
       this.isConnected = false;
