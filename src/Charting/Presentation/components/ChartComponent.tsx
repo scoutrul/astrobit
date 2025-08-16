@@ -3,6 +3,7 @@ import { createChart, IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightwei
 import { TimeframeUtils } from '../../Infrastructure/utils/TimeframeUtils';
 import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
+import { LivePriceWidget } from './LivePriceWidget';
 
 interface ChartComponentProps {
   symbol: string;
@@ -561,6 +562,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           minWidth: '100%'
         }}
         className="w-full"
+      />
+
+      {/* Live Price Widget */}
+      <LivePriceWidget 
+        symbol={symbol}
+        realTimeData={realTimeData}
+        isLoading={isLoading}
       />
 
       {/* Индикатор загрузки */}
