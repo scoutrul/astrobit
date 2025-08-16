@@ -65,7 +65,7 @@ export function calculateRequiredFutureCandles(
   }
 
   const requiredCandles = Math.ceil(timeDifferenceDays * candlesPerDay);
-  const finalCandles = Math.max(requiredCandles, 50); // Минимум 50 свечей
+  const finalCandles = Math.min(Math.max(requiredCandles, 50), 365); // Минимум 50, максимум 365 свечей
 
   // Кэшируем результат
   calculationCache.set(cacheKey, finalCandles);
@@ -168,7 +168,16 @@ export function combineHistoricalAndFutureCandles(
   }
 
   // Вычисляем требуемое количество будущих свечей
-  const requiredCandles = calculateRequiredFutureCandles(lastTime, timeframe, astronomicalEvents);
+  let requiredCandles = calculateRequiredFutureCandles(lastTime, timeframe, astronomicalEvents);
+  
+  // Ограничиваем будущие свечи до разумного предела (максимум 3 месяца в будущее)
+  const now = new Date();
+  const maxFutureDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 3 месяца
+  
+  if (lastTime > maxFutureDate) {
+    console.warn(`[FutureCandlesGenerator] Последняя свеча слишком далеко в будущем: ${lastTime.toISOString()}, ограничиваем`);
+    requiredCandles = Math.min(requiredCandles, 30); // Максимум 30 свечей
+  }
   
   // Генерируем будущие свечи
   const futureCandles = generateFutureCandles(historicalData, timeframe, requiredCandles);

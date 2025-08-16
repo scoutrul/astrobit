@@ -78,6 +78,8 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
 
   // Получаем криптоданные через хук
   const { data: hookCryptoData, loading: cryptoLoading } = useCryptoData(symbol, timeframe);
+
+
   
   // Получаем астрономические события с стабилизированными датами
   const { events: hookAstronomicalEvents, loading: astroLoading } = useAstronomicalEvents(
@@ -112,38 +114,69 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
     }
 
     // Объединяем исторические данные с адаптивными будущими свечами
-    const combinedData = combineHistoricalAndFutureCandles(
+    let combinedData = combineHistoricalAndFutureCandles(
       historicalData,
       timeframe,
       eventsForGenerator
     );
 
+    // Если есть real-time данные, обновляем будущие свечи на основе последней цены
+    if (lastUpdate && combinedData.length > 0) {
+      const lastHistoricalIndex = historicalData.length - 1;
+      const currentPrice = lastUpdate.close;
+      
+      // Обновляем все будущие свечи (после исторических) на текущую цену
+      combinedData = combinedData.map((candle, index) => {
+        if (index > lastHistoricalIndex) {
+          return {
+            ...candle,
+            open: currentPrice,
+            high: currentPrice,
+            low: currentPrice,
+            close: currentPrice
+          };
+        }
+        return candle;
+      });
+    }
+
+
     return combinedData;
-  }, [propCryptoData, hookCryptoData, timeframe, eventsForGenerator.length]); // Используем только length вместо всего массива
+  }, [propCryptoData, hookCryptoData, timeframe, eventsForGenerator.length, symbol, lastUpdate?.close]); // Добавляем lastUpdate
 
   // Подписка на real-time данные при изменении symbol/timeframe
   useEffect(() => {
+    // Подписываемся только если есть symbol и timeframe
+    if (!symbol || !timeframe) {
+      return;
+    }
+
     const currentSubscription = { symbol, timeframe };
     
     // Проверяем, изменилась ли подписка
-    if (prevSubscription.current && 
-        (prevSubscription.current.symbol !== symbol || 
-         prevSubscription.current.timeframe !== timeframe)) {
-      // Отписываемся от предыдущей подписки
-      unsubscribe();
-    }
+    const hasChanged = !prevSubscription.current || 
+      prevSubscription.current.symbol !== symbol || 
+      prevSubscription.current.timeframe !== timeframe;
     
-    // Подписываемся на новую подписку
-    if (symbol && timeframe) {
+    if (hasChanged) {
+      console.log(`[LegacyChartAdapter] 🔄 Подписка изменилась: ${symbol}@${timeframe}`);
+      
+      // Подписываемся на новую подписку (старая автоматически отменится в хуке)
       subscribe(symbol, timeframe);
       prevSubscription.current = currentSubscription;
     }
+  }, [symbol, timeframe, subscribe]);
 
-    // Очистка при размонтировании
+  // Отдельный useEffect для очистки при размонтировании
+  useEffect(() => {
     return () => {
-      unsubscribe();
+      if (prevSubscription.current) {
+        console.log(`[LegacyChartAdapter] 🧹 Очистка при размонтировании`);
+        unsubscribe();
+        prevSubscription.current = null;
+      }
     };
-  }, [symbol, timeframe, subscribe, unsubscribe]);
+  }, [unsubscribe]);
 
   // Логирование real-time обновлений
   useEffect(() => {
@@ -153,12 +186,8 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   }, [lastUpdate]);
 
 
-  // Ключ для принудительного пересоздания ChartComponent
-  const chartKey = `${symbol}-${timeframe}`;
-
   return (
     <ChartComponent
-      key={chartKey} // Принудительное пересоздание при смене параметров
       symbol={symbol}
       timeframe={timeframe}
       height={height}

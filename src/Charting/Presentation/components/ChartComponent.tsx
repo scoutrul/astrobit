@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { createChart, IChartApi, ISeriesApi, Time } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts';
 import { TimeframeUtils } from '../../Infrastructure/utils/TimeframeUtils';
 import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
@@ -452,38 +452,60 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       }
     }
 
+    // Проверяем, что график готов к обновлению
+    try {
+      const existingData = seriesInstance.data();
+      if (!existingData || existingData.length === 0) {
+        console.log('[ChartComponent] ⏳ График пустой, ждем исторические данные');
+        return; // Возвращаемся, чтобы не обновлять пустой график
+      }
+      
+      // Проверяем последнюю свечу для валидации времени
+      const lastCandle = existingData[existingData.length - 1];
+      
+      // Проверяем, что real-time данные не старше последней свечи
+      const realTimeSeconds = Math.floor(realTimeData.timestamp / 1000);
+      if (lastCandle && realTimeSeconds < (lastCandle.time as number)) {
+        console.warn(`[ChartComponent] ⚠️ Real-time данные старше последней свечи: ${realTimeSeconds} < ${lastCandle.time}, пропускаем`);
+        return;
+      }
+    } catch (err) {
+      console.warn('[ChartComponent] ⚠️ Ошибка получения данных графика, пропускаем');
+      return;
+    }
+
     try {
       // Конвертируем WebSocket данные в формат для графика
       const timeInSeconds = Math.floor(realTimeData.timestamp / 1000);
       
-      // Проверяем, есть ли уже свеча с таким временем
-      const existingData = seriesInstance.dataByIndex(seriesInstance.dataByIndex(seriesInstance.dataByIndex(0, 0) as any, -1) as any);
+
       
-      if (existingData && existingData.time === timeInSeconds) {
-        // Обновляем существующую свечу
-        const updatedCandle = {
-          time: timeInSeconds as any,
-          open: realTimeData.open,
-          high: realTimeData.high,
-          low: realTimeData.low,
-          close: realTimeData.close,
-          volume: realTimeData.volume
-        };
-        
-        seriesInstance.update(updatedCandle as any);
-      } else {
-        // Добавляем новую свечу
-        const newCandle = {
-          time: timeInSeconds as any,
-          open: realTimeData.open,
-          high: realTimeData.high,
-          low: realTimeData.low,
-          close: realTimeData.close,
-          volume: realTimeData.volume
-        };
-        
-        seriesInstance.update(newCandle as any);
+      // Проверяем валидность данных
+      if (!realTimeData.open || !realTimeData.high || !realTimeData.low || !realTimeData.close) {
+        console.warn('[ChartComponent] ⚠️ Invalid real-time data received:', realTimeData);
+        return;
       }
+
+      // Отладочная информация (только для закрытых свечей)
+      if (realTimeData.isClosed) {
+        console.log(`[ChartComponent] 🔍 Processing closed candle: timestamp=${realTimeData.timestamp}, timeInSeconds=${timeInSeconds}, close=${realTimeData.close}`);
+      }
+
+      // Создаем обновленную свечу с правильным форматом времени
+      const updatedCandle = {
+        time: timeInSeconds as UTCTimestamp, // Правильный тип для LightweightCharts
+        open: realTimeData.open,
+        high: realTimeData.high,
+        low: realTimeData.low,
+        close: realTimeData.close
+      };
+      
+
+
+      // Простое обновление - LightweightCharts сам разберется
+      seriesInstance.update(updatedCandle);
+      
+      console.log(`[ChartComponent] 📈 Real-time update: ${realTimeData.symbol}@${realTimeData.interval} - Close: ${realTimeData.close} (${realTimeData.isClosed ? 'closed' : 'live'}) at ${new Date(realTimeData.timestamp).toLocaleTimeString()}`);
 
       // Автоматически скроллим к последней свече, если пользователь не взаимодействовал с графиком
       if (!hasUserInteractedRef.current) {

@@ -62,4 +62,4 @@ export const AppContainer: React.FC<AppContainerProps> = ({ className = '' }) =>
       <SharedContainer />
     </div>
   );
-}; 
+};
