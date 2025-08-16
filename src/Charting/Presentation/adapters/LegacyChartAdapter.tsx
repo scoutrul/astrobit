@@ -9,6 +9,13 @@ import { AstronomicalEvent as OldAstronomicalEvent } from '../../../Astronomical
 import { combineHistoricalAndFutureCandles } from '../../../CryptoData/Infrastructure/utils/futureCandlesGenerator';
 import { DependencyContainer } from '../../../Shared/infrastructure/DependencyContainer';
 
+// Расширяем Window интерфейс для глобального отслеживания WebSocket подписок
+declare global {
+  interface Window {
+    __astrobitWebSocketSubscriptions?: Set<string>;
+  }
+}
+
 interface LegacyChartAdapterProps {
   height?: number;
   className?: string;
@@ -58,12 +65,25 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   const symbol = propSymbol || storeSymbol;
   const timeframe = propTimeframe || storeTimeframe;
 
-  // Real-time данные
+  // Real-time данные для виджета цены (НЕ для графика)
   const { 
     lastUpdate, 
     subscribe, 
-    unsubscribe 
+    unsubscribe,
+    isConnected,
+    currentSubscription,
+    error: wsError
   } = useRealTimeCryptoData();
+
+  // Логирование WebSocket статуса
+  console.log(`[LegacyChartAdapter] 🔌 WebSocket status:`, {
+    symbol,
+    timeframe,
+    isConnected,
+    currentSubscription,
+    wsError,
+    lastUpdate: lastUpdate ? 'received' : 'none'
+  });
 
   // Ref для отслеживания изменений symbol/timeframe
   const prevSubscription = useRef<{ symbol: string; timeframe: string } | null>(null);
@@ -164,58 +184,81 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
     return [...combinedData];
   }, [propCryptoData, hookCryptoData, timeframe, eventsForGenerator, symbol, cryptoLoading]); // Добавляем cryptoLoading для отслеживания состояния загрузки
 
-  // Подписка на real-time данные при изменении symbol/timeframe
+  // WebSocket подписка для виджета цены (НЕ для графика)
   useEffect(() => {
     let isMounted = true;
     const currentSubscription = { symbol, timeframe };
+    
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, не пытаемся ли мы создать дублирующую подписку
+    // Это защищает от React.StrictMode двойного рендера в development
+    if (prevSubscription.current && 
+        prevSubscription.current.symbol === symbol && 
+        prevSubscription.current.timeframe === timeframe) {
+      console.log(`[LegacyChartAdapter] ℹ️ Skipping duplicate subscription for ${symbol}@${timeframe}`);
+      return;
+    }
+
+    // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: Глобальная проверка на дублирующие подписки
+    // Это предотвращает создание множественных WebSocket даже при разных рендерах
+    const globalSubscriptionKey = `${symbol}@${timeframe}`;
+    if (window.__astrobitWebSocketSubscriptions && window.__astrobitWebSocketSubscriptions.has(globalSubscriptionKey)) {
+      console.log(`[LegacyChartAdapter] 🚨 Global duplicate subscription detected for ${globalSubscriptionKey}, skipping`);
+      return;
+    }
+    
+    // Регистрируем подписку глобально
+    if (!window.__astrobitWebSocketSubscriptions) {
+      window.__astrobitWebSocketSubscriptions = new Set();
+    }
+    window.__astrobitWebSocketSubscriptions.add(globalSubscriptionKey);
     
     const handleSubscription = async () => {
       // Проверяем, изменилась ли подписка
       if (prevSubscription.current && 
           (prevSubscription.current.symbol !== symbol || 
            prevSubscription.current.timeframe !== timeframe)) {
+        console.log(`[LegacyChartAdapter] 🔄 Symbol/timeframe changed, cleaning up old subscription:`, {
+          old: prevSubscription.current,
+          new: currentSubscription
+        });
+        
         // Отписываемся от предыдущей подписки
         await unsubscribe();
         
-        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно закрываем все WebSocket соединения
-        // Это гарантирует, что старые соединения полностью прекратят работу
+        // Очищаем глобальное состояние для старой подписки
+        if (window.__astrobitWebSocketSubscriptions && prevSubscription.current) {
+          const oldGlobalKey = `${prevSubscription.current.symbol}@${prevSubscription.current.timeframe}`;
+          window.__astrobitWebSocketSubscriptions.delete(oldGlobalKey);
+          console.log(`[LegacyChartAdapter] 🧹 Removed old global subscription: ${oldGlobalKey}`);
+        }
+        
+        // Принудительно закрываем все WebSocket соединения
         const container = DependencyContainer.getInstance();
         const webSocketService = container.resolve('BinanceWebSocketService') as any;
         if (webSocketService && typeof webSocketService.forceCloseAllConnections === 'function') {
+          console.log(`[LegacyChartAdapter] 🚨 Force closing all WebSocket connections`);
           await webSocketService.forceCloseAllConnections();
         }
         
         // Увеличенная задержка для корректного закрытия WebSocket соединения
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // Подписываемся на новую подписку только если компонент еще смонтирован
-        // Пропускаем WebSocket подписку для недельных и месячных таймфреймов
         if (isMounted && symbol && timeframe) {
-          if (timeframe === '1w' || timeframe === '1M') {
-            console.log(`[LegacyChartAdapter] ℹ️ Skipping WebSocket subscription for ${timeframe} timeframe`);
-            prevSubscription.current = currentSubscription;
-          } else {
-            await subscribe(symbol, timeframe);
-            prevSubscription.current = currentSubscription;
-          }
-        }
-      } else if (!prevSubscription.current && symbol && timeframe) {
-        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Подписываемся только при ПЕРВОМ изменении
-        // НЕ при первоначальном монтировании компонента
-        if (timeframe === '1w' || timeframe === '1M') {
-          console.log(`[LegacyChartAdapter] ℹ️ Skipping WebSocket subscription for ${timeframe} timeframe`);
-          prevSubscription.current = currentSubscription;
-        } else {
-          console.log(`[LegacyChartAdapter] 🔌 Initial WebSocket subscription for ${symbol}@${timeframe}`);
+          console.log(`[LegacyChartAdapter] 🔌 Subscribing to new symbol: ${symbol}@${timeframe}`);
           await subscribe(symbol, timeframe);
           prevSubscription.current = currentSubscription;
         }
+      } else if (!prevSubscription.current && symbol && timeframe) {
+        // Первая подписка
+        console.log(`[LegacyChartAdapter] 🔌 Initial WebSocket subscription for ${symbol}@${timeframe}`);
+        await subscribe(symbol, timeframe);
+        prevSubscription.current = currentSubscription;
       }
     };
 
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: НЕ вызываем handleSubscription() при монтировании
-    // Подписываемся только при изменении symbol/timeframe
-    if (prevSubscription.current && 
+    // ВАЖНО: Вызываем handleSubscription при первом монтировании И при изменении
+    if (!prevSubscription.current || 
         (prevSubscription.current.symbol !== symbol || 
          prevSubscription.current.timeframe !== timeframe)) {
       handleSubscription();
@@ -224,75 +267,30 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
     // Очистка при размонтировании
     return () => {
       isMounted = false;
+      console.log(`[LegacyChartAdapter] 🧹 Cleaning up WebSocket subscription on unmount`);
+      
+      // Очищаем глобальное состояние
+      if (window.__astrobitWebSocketSubscriptions) {
+        const globalSubscriptionKey = `${symbol}@${timeframe}`;
+        window.__astrobitWebSocketSubscriptions.delete(globalSubscriptionKey);
+        console.log(`[LegacyChartAdapter] 🧹 Removed global subscription: ${globalSubscriptionKey}`);
+      }
+      
       unsubscribe();
     };
   }, [symbol, timeframe, subscribe, unsubscribe]);
 
-  // НОВАЯ ЛОГИКА: Подписка на WebSocket после загрузки данных
+  // Логирование WebSocket данных для отладки
   useEffect(() => {
-    let isMounted = true;
-    
-    const setupWebSocket = async () => {
-      // Подписываемся на WebSocket только если:
-      // 1. Данные загружены (не loading)
-      // 2. Есть данные для отображения
-      // 3. Нет активной подписки
-      // 4. Таймфрейм поддерживает real-time обновления
-      if (!cryptoLoading && 
-          (hookCryptoData.length > 0 || (propCryptoData && propCryptoData.length > 0)) &&
-          !prevSubscription.current &&
-          symbol && 
-          timeframe &&
-          timeframe !== '1w' && 
-          timeframe !== '1M') {
-        
-        console.log(`[LegacyChartAdapter] 🔌 Setting up WebSocket for ${symbol}@${timeframe} after data load`);
-        
-        try {
-          await subscribe(symbol, timeframe);
-          prevSubscription.current = { symbol, timeframe };
-          console.log(`[LegacyChartAdapter] ✅ WebSocket subscription established for ${symbol}@${timeframe}`);
-        } catch (error) {
-          console.warn(`[LegacyChartAdapter] ⚠️ Failed to setup WebSocket for ${symbol}@${timeframe}:`, error);
-        }
-      }
-    };
-
-    // Небольшая задержка для стабилизации данных
-    const timer = setTimeout(setupWebSocket, 500);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [cryptoLoading, hookCryptoData.length, propCryptoData?.length, symbol, timeframe, subscribe]);
-
-  // Обработка real-time обновлений для графика
-  useEffect(() => {
-    if (lastUpdate && lastUpdate.symbol && lastUpdate.interval) {
-      console.log(`[LegacyChartAdapter] 🔄 Real-time update received:`, {
+    if (lastUpdate) {
+      console.log(`[LegacyChartAdapter] 🔄 WebSocket data received:`, {
         symbol: lastUpdate.symbol,
         interval: lastUpdate.interval,
         price: lastUpdate.close,
-        volume: lastUpdate.volume,
-        timestamp: lastUpdate.timestamp
+        timestamp: new Date(lastUpdate.timestamp).toISOString()
       });
-
-      // Проверяем, что обновление соответствует текущей подписке
-      if (lastUpdate.symbol === symbol && lastUpdate.interval === timeframe) {
-        console.log(`[LegacyChartAdapter] ✅ Real-time update matches current subscription`);
-        
-        // Здесь можно добавить логику для обновления графика
-        // Например, обновить последнюю свечу или добавить новую
-        // Пока просто логируем для отладки
-      } else {
-        console.log(`[LegacyChartAdapter] ⚠️ Real-time update mismatch:`, {
-          expected: `${symbol}@${timeframe}`,
-          received: `${lastUpdate.symbol}@${lastUpdate.interval}`
-        });
-      }
     }
-  }, [lastUpdate, symbol, timeframe]);
+  }, [lastUpdate]);
 
 
   // Ключ для принудительного пересоздания ChartComponent
@@ -311,7 +309,7 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       astronomicalEvents={astronomicalEvents}
       eventFilters={eventFilters}
       isLoading={cryptoLoading || astroLoading}
-      realTimeData={lastUpdate}
+      realTimeData={lastUpdate} // Передаем для виджета цены
     />
   );
 }; 

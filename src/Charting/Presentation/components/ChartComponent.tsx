@@ -4,6 +4,8 @@ import { TimeframeUtils } from '../../Infrastructure/utils/TimeframeUtils';
 import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
 import { CryptoData } from '../../../CryptoData/Domain/types';
+import { PriceWidget } from './PriceWidget';
+import { usePriceWidget } from '../hooks/usePriceWidget';
 
 interface ChartComponentProps {
   symbol: string;
@@ -19,7 +21,7 @@ interface ChartComponentProps {
     meteor?: boolean;
   };
   isLoading?: boolean;
-  realTimeData?: BinanceKlineWebSocketData | null;
+  realTimeData?: BinanceKlineWebSocketData | null; // Для виджета цены
 }
 
 interface TooltipData {
@@ -54,19 +56,16 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     visible: false
   });
   
-  // Состояние для текущей цены из WebSocket
-  const [currentPrice, setCurrentPrice] = useState<{
-    price: number;
-    symbol: string;
-    timestamp: number;
-    isLive: boolean;
-  } | null>(null);
-  
-  // Состояние загрузки для виджета цены
-  const [isPriceLoading, setIsPriceLoading] = useState(true);
-  
   // Состояние загрузки графика
   const [isChartLoading, setIsChartLoading] = useState(true);
+
+  // Используем хук для виджета цены
+  const { price, isLive, isPriceLoading } = usePriceWidget({
+    symbol,
+    realTimeData,
+    initialPrice: cryptoData.length > 0 ? cryptoData[cryptoData.length - 1]?.close : undefined,
+    isLoading
+  });
 
   // Флаги и refs для управления зумом/скроллом без сбросов
   const hasUserInteractedRef = useRef(false);
@@ -538,166 +537,12 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     }
   }, [seriesInstance, stableAstronomicalEvents, activeEventFilters]);
 
-  // Обновление real-time данных
+  // Установка загрузки графика
   useEffect(() => {
-    if (!realTimeData || !seriesInstance || !chartInstance) {
-      return;
-    }
-
-    // Обновляем текущую цену для виджета
-    setCurrentPrice({
-      price: realTimeData.close,
-      symbol: realTimeData.symbol,
-      timestamp: realTimeData.timestamp,
-      isLive: true
-    });
-    setIsPriceLoading(false); // Отключаем загрузку когда получили live данные
-
-
-
-    try {
-      // Конвертируем WebSocket данные в формат для графика
-      const timeInSeconds = Math.floor(realTimeData.timestamp / 1000);
-      const currentTime = Math.floor(Date.now() / 1000);
-      
-      console.log(`[ChartComponent] 🔍 DEBUG: Real-time update:`, {
-        originalTimestamp: realTimeData.timestamp,
-        timeInSeconds,
-        currentTime,
-        timeDiff: currentTime - timeInSeconds,
-        price: realTimeData.close,
-        symbol: realTimeData.symbol,
-        interval: realTimeData.interval
-      });
-      
-      // ВРЕМЕННО ОТКЛЮЧАЕМ ПРОВЕРКУ возраста данных для демонстрации обновления свечей
-      const maxAgeSeconds = 60; // 1 минута
-      if (currentTime - timeInSeconds > maxAgeSeconds) {
-        console.log(`[ChartComponent] ⚠️ Data is old but processing anyway for demo:`, {
-          dataAge: currentTime - timeInSeconds,
-          maxAge: maxAgeSeconds,
-          dataTime: new Date(realTimeData.timestamp).toISOString(),
-          currentTime: new Date().toISOString()
-        });
-        // return; // ВРЕМЕННО ОТКЛЮЧАЕМ для демонстрации
-      }
-      
-      // СОЗДАНИЕ/ОБНОВЛЕНИЕ ТЕКУЩЕЙ ОТКРЫТОЙ СВЕЧИ
-      console.log(`[ChartComponent] 🕯️ Creating/updating current open candle:`, {
-        price: realTimeData.close,
-        wsTimestamp: new Date(realTimeData.timestamp).toISOString(),
-        interval: realTimeData.interval
-      });
-      
-      try {
-        // Получаем все данные серии
-        const allData = seriesInstance.data() as any[];
-        
-        if (allData && allData.length > 0) {
-          // Берем последнюю историческую свечу
-          const lastHistoricalCandle = allData[allData.length - 1];
-          
-          // Вычисляем время для следующей свечи на основе таймфрейма
-          let nextCandleTime: number;
-          const intervalSeconds = {
-            '1h': 3600,      // 1 час = 3600 секунд
-            '1d': 86400,     // 1 день = 86400 секунд
-            '1w': 604800,    // 1 неделя = 604800 секунд
-            '1M': 2592000    // 1 месяц ≈ 30 дней
-          };
-          
-          const interval = intervalSeconds[realTimeData.interval as keyof typeof intervalSeconds] || 3600;
-          nextCandleTime = lastHistoricalCandle.time + interval;
-          
-          console.log(`[ChartComponent] 🕐 Next candle time calculated:`, {
-            interval: realTimeData.interval,
-            lastCandleTime: new Date(lastHistoricalCandle.time * 1000).toISOString(),
-            nextCandleTime: new Date(nextCandleTime * 1000).toISOString(),
-            intervalSeconds: interval
-          });
-          
-          // Проверяем, есть ли уже "следующая" свеча
-          const existingNextCandle = allData.find(candle => candle.time === nextCandleTime);
-          
-          if (existingNextCandle) {
-            // Обновляем существующую следующую свечу - ПОЛНОСТЬЮ ПРОЗРАЧНУЮ
-            const updatedCandle = {
-              time: nextCandleTime as any,
-              open: existingNextCandle.open, // Сохраняем оригинальный open
-              high: Math.max(existingNextCandle.high, realTimeData.close), // Обновляем high
-              low: Math.min(existingNextCandle.low, realTimeData.close), // Обновляем low
-              close: realTimeData.close, // Обновляем close с live данными
-              volume: existingNextCandle.volume, // Сохраняем volume
-              // Делаем свечу полностью прозрачной
-              color: 'rgba(0, 0, 0, 0)', // Полностью прозрачный цвет
-              borderColor: 'rgba(0, 0, 0, 0)', // Прозрачная граница
-              wickColor: 'rgba(0, 0, 0, 0)' // Прозрачный фитиль
-            };
-            
-            seriesInstance.update(updatedCandle as any);
-            console.log(`[ChartComponent] 🔄 Updated existing transparent next candle:`, {
-              time: new Date(nextCandleTime * 1000).toISOString(),
-              oldClose: existingNextCandle.close,
-              newClose: realTimeData.close
-            });
-            
-          } else {
-            // Создаем новую свечу после последней исторической - ПОЛНОСТЬЮ ПРОЗРАЧНУЮ
-            const newNextCandle = {
-              time: nextCandleTime as any,
-              open: realTimeData.close, // Открытие = текущая цена
-              high: realTimeData.close, // High = текущая цена
-              low: realTimeData.close, // Low = текущая цена  
-              close: realTimeData.close, // Close = текущая цена
-              volume: 0, // Начальный volume
-              // Делаем свечу полностью прозрачной
-              color: 'rgba(0, 0, 0, 0)', // Полностью прозрачный цвет
-              borderColor: 'rgba(0, 0, 0, 0)', // Прозрачная граница
-              wickColor: 'rgba(0, 0, 0, 0)' // Прозрачный фитиль
-            };
-            
-            seriesInstance.update(newNextCandle as any);
-            console.log(`[ChartComponent] ✨ Created new transparent next candle:`, {
-              time: new Date(nextCandleTime * 1000).toISOString(),
-              price: realTimeData.close,
-              note: "New transparent open candle added after last historical candle"
-            });
-          }
-          
-        } else {
-          console.log(`[ChartComponent] ⚠️ No historical data found to append current candle`);
-        }
-        
-      } catch (error) {
-        console.log(`[ChartComponent] ❌ Error creating/updating current candle:`, error);
-      }
-      
-      
-
-      // Автоматически скроллим к последней свече, если пользователь не взаимодействовал с графиком
-      if (!hasUserInteractedRef.current) {
-        const timeScale = chartInstance.timeScale();
-        timeScale.scrollToPosition(0, false);
-      }
-    } catch (err) {
-      console.error('[ChartComponent] ❌ Error updating real-time data:', err);
-    }
-  }, [realTimeData, seriesInstance, chartInstance]);
-
-  // Установка начальной цены из исторических данных
-  useEffect(() => {
-    if (cryptoData.length > 0 && !currentPrice) {
-      const lastCandle = cryptoData[cryptoData.length - 1];
-      setCurrentPrice({
-        price: lastCandle.close,
-        symbol: lastCandle.symbol,
-        timestamp: Date.now(),
-        isLive: false
-      });
-      setIsPriceLoading(false); // Отключаем загрузку когда данные появились
+    if (cryptoData.length > 0) {
       setIsChartLoading(false); // График загружен
     }
-  }, [cryptoData, currentPrice]);
+  }, [cryptoData]);
 
   // Обработчик событий графика (тултип при ховере)
   useEffect(() => {
@@ -732,43 +577,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         className="w-full"
       />
 
-            {/* Виджет текущей цены - всегда видимый, но с разным содержимым */}
-      <div className="absolute top-4 left-4 z-30 bg-[#0a0b1e]/95 backdrop-blur-sm border border-[#334155] rounded-lg px-4 py-3 shadow-lg">
-        <div className="flex flex-col items-start gap-2">
-          {/* Символ всегда показываем */}
-          <div className="flex items-center gap-2">
-            <div className="text-[#e2e8f0] font-semibold text-sm">
-              {symbol || 'BTCUSDT'}
-            </div>
-            {!isChartLoading && currentPrice && (
-              <div className={`w-2 h-2 rounded-full ${currentPrice.isLive ? 'bg-[#10b981] animate-pulse' : 'bg-[#6b7280]'}`}
-                   title={currentPrice.isLive ? 'Live данные' : 'Исторические данные'} />
-            )}
-          </div>
-
-          {/* Цена - показываем только после загрузки графика */}
-          {!isChartLoading && currentPrice ? (
-            <>
-              {/* Цена */}
-              <div className="text-[#f7931a] font-bold text-xl">
-                ${currentPrice.price.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
-                })}
-              </div>
-
-            </>
-          ) : (
-            <>
-              {/* Пустое место для цены при загрузке */}
-              <div className="text-[#f7931a] font-bold text-xl">
-                &nbsp;
-              </div>
-
-            </>
-          )}
-        </div>
-      </div>
+      {/* Виджет текущей цены */}
+      <PriceWidget
+        symbol={symbol}
+        price={price}
+        isLive={isLive}
+        isLoading={isPriceLoading || isChartLoading}
+      />
 
       {/* Индикатор загрузки */}
       {isLoading && (

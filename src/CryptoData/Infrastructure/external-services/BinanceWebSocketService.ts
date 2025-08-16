@@ -74,12 +74,27 @@ export class BinanceWebSocketService extends ExternalService {
       // Логируем попытку подключения
       console.log(`[WebSocket] 🔄 Attempting to subscribe to ${symbol.toUpperCase()}@kline_${interval}`);
 
-      // Проверяем, не пытаемся ли мы подписаться на ту же подписку
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, не пытаемся ли мы подписаться на ту же подписку
+      // Это защищает от React.StrictMode двойного рендера в development
       if (this.currentSubscription && 
           this.currentSubscription.symbol === symbol.toLowerCase() && 
-          this.currentSubscription.interval === interval &&
-          this.isConnected) {
-        console.log(`[WebSocket] ℹ️ Already subscribed to ${symbol.toUpperCase()}@kline_${interval}, skipping`);
+          this.currentSubscription.interval === interval) {
+        if (this.isConnected) {
+          console.log(`[WebSocket] ℹ️ Already subscribed to ${symbol.toUpperCase()}@kline_${interval}, skipping`);
+          return Result.ok();
+        } else {
+          console.log(`[WebSocket] ⚠️ Found existing subscription but not connected, cleaning up and reconnecting`);
+          // Принудительно очищаем старое состояние
+          await this.forceCloseAllConnections();
+        }
+      }
+
+      // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: Проверяем, не пытается ли кто-то еще подписаться на ту же подписку
+      // Это защищает от множественных вызовов subscribeToKlineData
+      if (this.messageHandlers.length > 0 && this.isConnected) {
+        console.log(`[WebSocket] ⚠️ Multiple subscription attempts detected, adding handler to existing connection`);
+        // Добавляем новый обработчик к существующему соединению
+        this.messageHandlers.push(onData);
         return Result.ok();
       }
 
@@ -410,6 +425,13 @@ export class BinanceWebSocketService extends ExternalService {
       return;
     }
 
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, что подписка все еще актуальна
+    // Если подписка была изменена (смена монеты), НЕ переподключаемся
+    if (!this.currentSubscription) {
+      console.log(`[WebSocket] ℹ️ No active subscription, skipping reconnection`);
+      return;
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.warn(`[WebSocket] ⚠️ Max reconnection attempts reached for ${this.currentSubscription?.symbol}@${this.currentSubscription?.interval}`);
       return;
@@ -421,6 +443,7 @@ export class BinanceWebSocketService extends ExternalService {
     console.log(`[WebSocket] 🔄 Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts} for ${this.currentSubscription?.symbol}@${this.currentSubscription?.interval} in ${delay}ms`);
 
     setTimeout(async () => {
+      // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Убеждаемся, что подписка все еще актуальна
       if (this.currentSubscription && !this.isConnected) {
         try {
           await this.connect();
@@ -428,6 +451,8 @@ export class BinanceWebSocketService extends ExternalService {
           console.warn(`[WebSocket] ⚠️ Reconnection failed, will retry:`, error);
           this.handleReconnection();
         }
+      } else {
+        console.log(`[WebSocket] ℹ️ Subscription changed or already connected, stopping reconnection`);
       }
     }, delay);
   }

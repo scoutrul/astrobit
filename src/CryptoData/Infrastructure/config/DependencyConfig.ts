@@ -26,8 +26,13 @@ export class CryptoDataDependencyConfig {
       return new GetCryptoDataUseCase(repository);
     });
 
+    // SubscribeToRealTimeDataUseCase должен быть синглтоном для предотвращения дублирования WebSocket
+    let subscribeUseCaseInstance: SubscribeToRealTimeDataUseCase | null = null;
     container.register<SubscribeToRealTimeDataUseCase>('SubscribeToRealTimeDataUseCase', () => {
-      return new SubscribeToRealTimeDataUseCase();
+      if (!subscribeUseCaseInstance) {
+        subscribeUseCaseInstance = new SubscribeToRealTimeDataUseCase();
+      }
+      return subscribeUseCaseInstance;
     });
   }
 } 

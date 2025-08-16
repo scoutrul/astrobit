@@ -44,6 +44,16 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
   const subscribe = useCallback(async (symbol: string, timeframe: string) => {
     try {
       setError(null);
+      
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, не пытаемся ли мы подписаться на ту же подписку
+      // Это предотвращает создание дублирующих WebSocket соединений
+      if (currentSubscription && 
+          currentSubscription.symbol === symbol && 
+          currentSubscription.interval === timeframe) {
+        console.log(`[useRealTimeCryptoData] ℹ️ Already subscribed to ${symbol}@${timeframe}, skipping duplicate subscription`);
+        return;
+      }
+      
       const useCase = getUseCase();
       
       const result = await useCase.execute({

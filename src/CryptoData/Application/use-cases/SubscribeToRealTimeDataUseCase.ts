@@ -44,6 +44,19 @@ export class SubscribeToRealTimeDataUseCase extends UseCase<SubscribeToRealTimeD
         return Result.fail(validationResult.error);
       }
 
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, не пытаемся ли мы подписаться на ту же подписку
+      // Это предотвращает создание дублирующих WebSocket соединений
+      const currentSubscription = this.webSocketService.getCurrentSubscription();
+      if (currentSubscription && 
+          currentSubscription.symbol.toLowerCase() === request.symbol.toString().toLowerCase() && 
+          currentSubscription.interval === request.timeframe.toString()) {
+        console.log(`[RealTime] ℹ️ Already subscribed to ${request.symbol.toString()}@${request.timeframe.toString()}, skipping duplicate subscription`);
+        return Result.ok({
+          success: true,
+          message: `Уже подписаны на ${request.symbol.toString()}@${request.timeframe.toString()}`
+        });
+      }
+
       // Для недельных и месячных таймфреймов WebSocket обновления не имеют смысла
       // так как свечи обновляются крайне редко
       const timeframeValue = request.timeframe.value;
