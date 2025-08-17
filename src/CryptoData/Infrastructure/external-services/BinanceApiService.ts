@@ -49,9 +49,6 @@ export class BinanceApiService extends ExternalService {
 
   constructor() {
     super();
-    
-    // Логируем выбранный URL для отладки
-    console.log(`[BinanceApiService] 🔗 API URL: ${this.baseUrl} (${import.meta.env.DEV ? 'DEV' : 'PROD'} mode)`);
   }
 
   static getInstance(): BinanceApiService {
@@ -113,7 +110,6 @@ export class BinanceApiService extends ExternalService {
 
       return Result.ok(klineData);
     } catch (error) {
-      console.error(`[BinanceApiService] Error fetching kline data for ${symbol}:`, error);
       return Result.fail(`Failed to fetch kline data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -149,7 +145,6 @@ export class BinanceApiService extends ExternalService {
 
       return Result.ok(symbols);
     } catch (error) {
-      console.error('[BinanceApiService] Error fetching symbols:', error);
       return Result.fail(`Failed to fetch symbols: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

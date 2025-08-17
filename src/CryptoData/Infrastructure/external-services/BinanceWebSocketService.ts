@@ -69,9 +69,6 @@ export class BinanceWebSocketService extends ExternalService {
 
   private constructor() {
     super();
-    
-    // Логируем режим работы для отладки
-    console.log(`[BinanceWebSocketService] 🔌 WebSocket mode: ${import.meta.env.DEV ? 'DEV (proxy)' : 'PROD (direct)'}`);
   }
 
   static getInstance(): BinanceWebSocketService {
@@ -106,11 +103,9 @@ export class BinanceWebSocketService extends ExternalService {
         if (existingHandlerIndex >= 0) {
           // Заменяем существующий обработчик
           handlers[existingHandlerIndex].callback = onData;
-          console.log(`[WebSocket] 🔄 Обновлен обработчик для ${streamKey}`);
         } else {
           // Добавляем новый обработчик
           handlers.push({ id: handlerId, callback: onData });
-          console.log(`[WebSocket] ➕ Добавлен обработчик для ${streamKey} (всего: ${handlers.length})`);
         }
         
         // Если есть кэшированные данные, отправляем их новому подписчику
@@ -119,7 +114,7 @@ export class BinanceWebSocketService extends ExternalService {
           try {
             onData(cachedData);
           } catch (error) {
-            console.error(`[WebSocket] ❌ Ошибка отправки кэшированных данных:`, error);
+            // Ошибка отправки кэшированных данных
           }
         }
         
@@ -128,7 +123,6 @@ export class BinanceWebSocketService extends ExternalService {
 
       // Проверяем, не пытаемся ли мы создать дублирующую подписку
       if (this.activeStream === streamKey && this.subscriptions.size > 0) {
-        console.log(`[WebSocket] ⚠️ Попытка создать дублирующую подписку на ${streamKey}, игнорируем`);
         return Result.fail('Subscription already exists for this stream');
       }
 
@@ -140,10 +134,8 @@ export class BinanceWebSocketService extends ExternalService {
         await this.switchToStream(streamKey);
       }
 
-      console.log(`[WebSocket] ✅ Создана подписка на ${streamKey}`);
       return Result.ok();
     } catch (error) {
-      console.error(`[WebSocket] ❌ Ошибка подписки:`, error);
       return Result.fail(`Failed to subscribe: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -161,13 +153,11 @@ export class BinanceWebSocketService extends ExternalService {
         if (handlerIndex >= 0) {
           handlers.splice(handlerIndex, 1);
           found = true;
-          console.log(`[WebSocket] 🗑️ Удален обработчик ${subscriberId} для ${streamKey}`);
           
           // Если больше нет обработчиков для этого потока, удаляем подписку
           if (handlers.length === 0) {
             this.subscriptions.delete(streamKey);
             this.lastDataCache.delete(streamKey);
-            console.log(`[WebSocket] 🗑️ Удалена подписка на ${streamKey}`);
             
             // Если это был активный поток и больше нет подписок, закрываем соединение
             if (this.activeStream === streamKey && this.subscriptions.size === 0) {
@@ -192,7 +182,6 @@ export class BinanceWebSocketService extends ExternalService {
       await this.disconnect();
       this.subscriptions.clear();
       this.lastDataCache.clear();
-      console.log(`[WebSocket] 🗑️ Все подписки удалены`);
       return Result.ok();
     } catch (error) {
       return Result.fail(`Failed to unsubscribe: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -205,17 +194,13 @@ export class BinanceWebSocketService extends ExternalService {
   private async switchToStream(streamKey: string): Promise<void> {
     // Если уже подключены к нужному потоку, не переключаемся
     if (this.activeStream === streamKey && this.isConnected) {
-      console.log(`[WebSocket] ⚡ Уже подключены к ${streamKey}, переключение не требуется`);
       return;
     }
-
-    console.log(`[WebSocket] 🔄 Переключение с ${this.activeStream} на ${streamKey}`);
 
     // Закрываем существующее соединение только если оно отличается
     if (this.ws && this.activeStream !== streamKey) {
       // Очищаем подписки старого потока
       this.subscriptions.clear();
-      console.log(`[WebSocket] 🧹 Очищены подписки старого потока ${this.activeStream}`);
       
       this.ws.close();
       this.ws = null;
@@ -245,8 +230,6 @@ export class BinanceWebSocketService extends ExternalService {
       ? `ws://localhost:5173/binance-ws/ws/${this.activeStream}`  // Прокси в dev режиме
       : `wss://stream.binance.com:9443/ws/${this.activeStream}`; // Внешний WebSocket в production
 
-    console.log(`[WebSocket] 🔌 Подключение к ${wsUrl}`);
-
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(wsUrl);
@@ -254,7 +237,6 @@ export class BinanceWebSocketService extends ExternalService {
         this.ws.onopen = () => {
           this.isConnected = true;
           this.reconnectAttempts = 0;
-          console.log(`[WebSocket] ✅ Подключено к ${this.activeStream}`);
           resolve();
         };
 
@@ -263,18 +245,16 @@ export class BinanceWebSocketService extends ExternalService {
             const message = JSON.parse(event.data);
             this.handleMessage(message);
           } catch (error) {
-            console.error('[WebSocket] ❌ Ошибка парсинга сообщения:', error);
+            // Ошибка парсинга сообщения
           }
         };
 
         this.ws.onerror = (error) => {
-          console.error('[WebSocket] ❌ Ошибка WebSocket:', error);
           reject(error);
         };
 
-        this.ws.onclose = (event) => {
+        this.ws.onclose = () => {
           this.isConnected = false;
-          console.log(`[WebSocket] 🔌 Соединение закрыто (код: ${event.code})`);
           
           // Переподключаемся только если есть активные подписки
           if (this.subscriptions.size > 0) {
@@ -283,7 +263,6 @@ export class BinanceWebSocketService extends ExternalService {
         };
 
       } catch (error) {
-        console.error('[WebSocket] ❌ Ошибка создания WebSocket:', error);
         reject(error);
       }
     });
@@ -381,7 +360,6 @@ export class BinanceWebSocketService extends ExternalService {
 
       // Отладочная информация для проверки данных (только для закрытых свечей)
       if (klineData.x) {
-        console.log(`[WebSocket] 🔍 Closed candle data: t=${klineData.t}, c=${klineData.c}`);
       }
 
       // Обновляем кэш последних данных (для всех свечей, не только закрытых)
@@ -392,22 +370,12 @@ export class BinanceWebSocketService extends ExternalService {
         try {
           handler.callback(data);
         } catch (error) {
-          console.error(`[WebSocket] ❌ Ошибка обработчика ${handler.id}:`, error);
+          // Ошибка обработчика
         }
       });
 
-      // Логируем только закрытые свечи, чтобы не спамить консоль
-      if (data.isClosed) {
-        console.log(`[WebSocket] 🕯️ Закрытая свеча: ${data.symbol}@${data.interval} - ${data.close}`);
-      } else {
-        // Логируем живые данные реже (каждую 10-ю)
-        if (Math.random() < 0.1) {
-          console.log(`[WebSocket] 📊 Живые данные: ${data.symbol}@${data.interval} - ${data.close}`);
-        }
-      }
-
     } catch (error) {
-      console.error('[WebSocket] ❌ Ошибка обработки kline данных:', error);
+      // Ошибка обработки kline данных
     }
   }
 
@@ -422,25 +390,19 @@ export class BinanceWebSocketService extends ExternalService {
     }
 
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error(`[WebSocket] ❌ Превышено максимальное количество попыток переподключения (${this.maxReconnectAttempts})`);
       return;
     }
 
     this.reconnectAttempts++;
     const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000); // Максимум 30 секунд
 
-    console.log(`[WebSocket] 🔄 Попытка переподключения ${this.reconnectAttempts}/${this.maxReconnectAttempts} через ${delay}мс`);
-
     this.reconnectTimeout = setTimeout(async () => {
       if (this.activeStream && this.subscriptions.size > 0) {
         try {
           await this.connect();
         } catch (error) {
-          console.error('[WebSocket] ❌ Ошибка переподключения:', error);
           this.handleReconnection();
         }
-      } else {
-        console.log(`[WebSocket] ℹ️ Subscription changed or already connected, stopping reconnection`);
       }
     }, delay);
   }
@@ -497,7 +459,6 @@ export class BinanceWebSocketService extends ExternalService {
    * Используется для экстренной очистки при смене монет
    */
   async forceCloseAllConnections(): Promise<void> {
-    console.log('[WebSocket] 🚨 Force closing all connections');
     
     if (this.ws) {
       try {
@@ -525,12 +486,10 @@ export class BinanceWebSocketService extends ExternalService {
         
         // Если WebSocket все еще не закрылся, принудительно обнуляем
         if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
-          console.warn(`[WebSocket] ⚠️ WebSocket not closed after ${attempts * 50}ms, forcing cleanup`);
           this.ws = null;
         }
         
       } catch (error) {
-        console.warn('[WebSocket] ⚠️ Error during force close:', error);
       } finally {
         this.ws = null;
       }
@@ -540,6 +499,5 @@ export class BinanceWebSocketService extends ExternalService {
     this.isConnected = false;
     this.reconnectAttempts = 0;
     
-    console.log('[WebSocket] ✅ All connections force closed');
   }
 } 

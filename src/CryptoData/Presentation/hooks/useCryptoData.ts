@@ -30,18 +30,13 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
 
     const fetchData = async () => {
       if (!symbol || !timeframe) {
-        console.warn(`[useCryptoData] ⚠️ Missing symbol or timeframe:`, { symbol, timeframe });
-        setLoading(false);
         return;
       }
       
-      console.log(`[useCryptoData] 🔄 Fetching data for:`, { symbol, timeframe });
-
       const requestKey = `${symbol}@${timeframe}`;
       
       // Предотвращаем дублирование запросов в React.StrictMode
       if (fetchInProgressRef.current === requestKey) {
-        console.log(`[useCryptoData] ⚠️ Дублирование запроса предотвращено для ${requestKey}`);
         return;
       }
       
@@ -58,8 +53,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         const container = DependencyContainer.getInstance();
         const getCryptoDataUseCase = container.resolve<GetCryptoDataUseCase>('GetCryptoDataUseCase');
         
-
-        
         // Выполняем use case
         const result = await getCryptoDataUseCase.execute({
           symbol: symbol,
@@ -70,7 +63,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         if (!isMounted) return;
 
         if (result.isSuccess) {
-          
           // Конвертируем доменные сущности в старый формат для обратной совместимости
           const legacyData: CryptoData[] = result.value.data.map(cryptoData => {
             // Убеждаемся, что timestamp в правильном формате
@@ -100,8 +92,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
               volume: cryptoData.volume
             };
           });
-
-
           
           setData(legacyData);
           setLastUpdated(new Date());
@@ -109,7 +99,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
           fetchInProgressRef.current = null; // Очищаем флаг
         } else {
           const errorMsg = `Ошибка загрузки данных: ${result.error}`;
-          console.error(`[useCryptoData] ❌ ${errorMsg}`);
           
           // Если ошибка связана с недоступностью API, пробуем повторить
           if (result.error.includes('not available') && retryCount < 3) {
@@ -131,7 +120,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         if (!isMounted) return;
         
         const errorMsg = err instanceof Error ? err.message : 'Ошибка сети';
-        console.error(`[useCryptoData] ❌ Исключение при загрузке:`, err);
         
         // Если ошибка связана с недоступностью API, пробуем повторить
         if (errorMsg.includes('not available') && retryCount < 3) {

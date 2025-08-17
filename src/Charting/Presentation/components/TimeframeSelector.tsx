@@ -33,14 +33,11 @@ function TimeframeSelector() {
   const { timeframe, setTimeframe } = useStore()
 
   const handleTimeframeChange = (newTimeframe: string) => {
-    console.log(`[TimeframeSelector] Изменение таймфрейма: ${timeframe} → ${newTimeframe}`);
-    setTimeframe(newTimeframe)
-    
-    // Принудительное обновление для отладки
-    setTimeout(() => {
-      console.log(`[TimeframeSelector] Таймфрейм установлен: ${useStore.getState().timeframe}`);
-    }, 100);
-  }
+    if (newTimeframe !== timeframe) {
+      setTimeframe(newTimeframe);
+      useStore.getState().setTimeframe(newTimeframe);
+    }
+  };
 
   return (
     <div className="flex flex-wrap gap-1 sm:gap-2 justify-center sm:justify-start">

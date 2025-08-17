@@ -63,7 +63,6 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
 
       return Result.ok(filteredData);
     } catch (error) {
-      console.error('[BinanceCryptoDataRepository] Error in findByCriteria:', error);
       return Result.fail(`Failed to find by criteria: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -80,7 +79,6 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
 
       return this.findByCriteria(criteria);
     } catch (error) {
-      console.error('[BinanceCryptoDataRepository] Error in findByPeriod:', error);
       return Result.fail(`Failed to find by period: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -93,7 +91,6 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
       }
       return Result.ok(dataResult.value[0] || null);
     } catch (error) {
-      console.error('[BinanceCryptoDataRepository] Error in getLatestData:', error);
       return Result.fail(`Failed to get latest data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -102,7 +99,6 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
     try {
       return this.getKlineData(symbol, timeframe, count);
     } catch (error) {
-      console.error('[BinanceCryptoDataRepository] Error in getRecentData:', error);
       return Result.fail(`Failed to get recent data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -119,7 +115,6 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
 
       return Result.fail('Failed to fetch symbols from Binance');
     } catch (error) {
-      console.error('[BinanceCryptoDataRepository] Error in getSymbols:', error);
       return Result.fail(`Failed to get symbols: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -132,7 +127,6 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
         .map(interval => TimeframeMapper.mapFromExternal(interval));
       return Result.ok(timeframes);
     } catch (error) {
-      console.error('[BinanceCryptoDataRepository] Error in getTimeframes:', error);
       return Result.fail(`Failed to get timeframes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -183,7 +177,6 @@ export class BinanceCryptoDataRepository implements ICryptoDataRepository {
 
       return Result.ok(cryptoDataArray);
     } catch (error) {
-      console.error('[BinanceCryptoDataRepository] Error converting kline data:', error);
       return Result.fail(`Failed to convert kline data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

@@ -362,31 +362,43 @@ export class AstronomicalEventUtils {
   }
 
   /**
-   * Находит все события на заданной временной метке
+   * Находит события в указанное время с группировкой по близости
    */
   static findEventsAtTime(
     events: AstronomicalEvent[],
-    timeInSeconds: number,
-    timeframe: string
-  ): AstronomicalEvent[] {
-    console.log('[AstronomicalEventUtils] 🔍 findEventsAtTime called:', {
-      eventsCount: events.length,
-      timeInSeconds,
-      timeISO: new Date(timeInSeconds * 1000).toISOString(),
-      timeframe
+    targetTime: number,
+    timeRange: number = 3600 // 1 час по умолчанию
+  ): { events: AstronomicalEvent[]; groups: AstronomicalEvent[][] } {
+    const eventsInRange = events.filter(event => {
+      const eventTime = Math.floor(event.timestamp / 1000);
+      const diff = Math.abs(eventTime - targetTime);
+      return diff <= timeRange;
     });
 
-    const groupedTime = this.getGroupedTime(timeInSeconds, timeframe);
-    const groupedEvents = this.groupEventsByTime(events, timeframe);
-    
-    console.log('[AstronomicalEventUtils] 📊 Grouping results:', {
-      groupedTime,
-      groupedTimeISO: new Date(groupedTime * 1000).toISOString(),
-      groupedEventsKeys: Array.from(groupedEvents.keys()).map(k => new Date(k * 1000).toISOString()),
-      foundEvents: groupedEvents.get(groupedTime) || []
+    // Группируем события по близости времени
+    const groups: AstronomicalEvent[][] = [];
+    const processedEvents = new Set<string>();
+
+    eventsInRange.forEach(event => {
+      if (processedEvents.has(event.name)) {
+        return;
+      }
+
+      const eventTime = Math.floor(event.timestamp / 1000);
+      const nearbyEvents = eventsInRange.filter(otherEvent => {
+        if (processedEvents.has(otherEvent.name)) return false;
+        const otherTime = Math.floor(otherEvent.timestamp / 1000);
+        const timeDiff = Math.abs(otherTime - eventTime);
+        return timeDiff <= 300; // 5 минут для группировки
+      });
+
+      if (nearbyEvents.length > 0) {
+        groups.push(nearbyEvents);
+        nearbyEvents.forEach(e => processedEvents.add(e.name));
+      }
     });
-    
-    return groupedEvents.get(groupedTime) || [];
+
+    return { events: eventsInRange, groups };
   }
 
   /**

@@ -24,15 +24,9 @@ export const usePriceWidget = ({
   const [priceState, setPriceState] = useState<PriceWidgetState | null>(null);
   const [isPriceLoading, setIsPriceLoading] = useState(true);
 
-  // Обновление цены из WebSocket данных
+  // Обновляем цену при получении real-time данных
   useEffect(() => {
     if (realTimeData && realTimeData.symbol === symbol) {
-      console.log(`[usePriceWidget] 💰 Live price update:`, {
-        symbol: realTimeData.symbol,
-        price: realTimeData.close,
-        timestamp: new Date(realTimeData.timestamp).toISOString()
-      });
-      
       setPriceState({
         price: realTimeData.close,
         symbol: realTimeData.symbol,

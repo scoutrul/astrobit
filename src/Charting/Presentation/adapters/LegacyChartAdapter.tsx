@@ -68,21 +68,8 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   const { 
     lastUpdate, 
     subscribe, 
-    unsubscribe,
-    isConnected,
-    currentSubscription,
-    error: wsError
+    unsubscribe
   } = useRealTimeCryptoData();
-
-  // Логирование WebSocket статуса
-  console.log(`[LegacyChartAdapter] 🔌 WebSocket status:`, {
-    symbol,
-    timeframe,
-    isConnected,
-    currentSubscription,
-    wsError,
-    lastUpdate: lastUpdate ? 'received' : 'none'
-  });
 
   // Ref для отслеживания изменений symbol/timeframe
   const prevSubscription = useRef<{ symbol: string; timeframe: string } | null>(null);
@@ -135,33 +122,19 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   const enhancedCryptoData = useMemo(() => {
     const historicalData = propCryptoData || hookCryptoData || [];
     
-    console.log(`[LegacyChartAdapter] 📊 Processing data for ${symbol}:`, {
-      symbol,
-      timeframe,
-      propDataLength: propCryptoData?.length || 0,
-      hookDataLength: hookCryptoData?.length || 0,
-      historicalDataLength: historicalData.length,
-      firstPrice: historicalData[0]?.close,
-      lastPrice: historicalData[historicalData.length - 1]?.close,
-      cryptoLoading
-    });
-    
     // ВАЖНО: Не обрабатываем данные пока они загружаются
     // Это предотвращает использование старых кешированных данных
     if (cryptoLoading) {
-      console.log(`[LegacyChartAdapter] ⏳ Data still loading for ${symbol}, waiting...`);
       return [];
     }
     
     if (historicalData.length === 0) {
-      console.log(`[LegacyChartAdapter] ⚠️ No data available for ${symbol}`);
       return [];
     }
 
     // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, что данные соответствуют текущему символу
     // Это предотвращает использование кешированных данных от предыдущего символа
     if (historicalData.length > 0 && historicalData[0].symbol !== symbol) {
-      console.warn(`[LegacyChartAdapter] ⚠️ Symbol mismatch: expected ${symbol}, got ${historicalData[0].symbol}`);
       return [];
     }
 
@@ -213,7 +186,6 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       prevSubscription.current.timeframe !== timeframe;
     
     if (hasChanged) {
-      console.log(`[LegacyChartAdapter] 🔄 Подписка изменилась: ${symbol}@${timeframe}`);
       
       // Подписываемся на новую подписку (старая автоматически отменится в хуке)
       subscribe(symbol, timeframe);
@@ -225,7 +197,6 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   useEffect(() => {
     return () => {
       if (prevSubscription.current) {
-        console.log(`[LegacyChartAdapter] 🧹 Очистка при размонтировании`);
         unsubscribe();
         prevSubscription.current = null;
       }
@@ -235,12 +206,12 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   // Логирование WebSocket данных для отладки
   useEffect(() => {
     if (lastUpdate) {
-      console.log(`[LegacyChartAdapter] 🔄 WebSocket data received:`, {
-        symbol: lastUpdate.symbol,
-        interval: lastUpdate.interval,
-        price: lastUpdate.close,
-        timestamp: new Date(lastUpdate.timestamp).toISOString()
-      });
+      // console.log(`[LegacyChartAdapter] 🔄 WebSocket data received:`, {
+      //   symbol: lastUpdate.symbol,
+      //   interval: lastUpdate.interval,
+      //   price: lastUpdate.close,
+      //   timestamp: new Date(lastUpdate.timestamp).toISOString()
+      // });
     }
   }, [lastUpdate]);
 

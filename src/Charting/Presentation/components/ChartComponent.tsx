@@ -314,7 +314,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         }
       };
     } catch (err) {
-      console.error('[ChartComponent] ❌ Chart initialization error:', err);
       setError(err instanceof Error ? err.message : 'Ошибка инициализации графика');
     }
   }, [chartKey, height]); // Зависим только от ключа и высоты
@@ -346,7 +345,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           savedRange = chartInstance.timeScale().getVisibleRange();
 
         } catch (err) {
-          console.warn('[Chart] ⚠️ Не удалось сохранить диапазон:', err);
+          // console.warn('[Chart] ⚠️ Не удалось сохранить диапазон:', err);
         }
       }
       
@@ -377,12 +376,12 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       
       if (processedData.length > 0) {
         // Простое логирование цен для проверки
-        console.log(`[ChartComponent] 💰 PRICE CHECK for ${symbol}:`, 
-          `First: $${processedData[0]?.close} | ` +
-          `Last: $${processedData[processedData.length - 1]?.close} | ` +
-          `Length: ${processedData.length} | ` +
-          `ChartKey: ${chartKey}`
-        );
+        // console.log(`[ChartComponent] 💰 PRICE CHECK for ${symbol}:`, 
+        //   `First: $${processedData[0]?.close} | ` +
+        //   `Last: $${processedData[processedData.length - 1]?.close} | ` +
+        //   `Length: ${processedData.length} | ` +
+        //   `ChartKey: ${chartKey}`
+        // );
         
         seriesInstance.setData(processedData as any);
 
@@ -392,7 +391,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           
           // Минимальное количество точек для установки диапазона
           if (totalDataPoints < 2) {
-            console.warn('[ChartComponent] ⚠️ Not enough data points for range setting:', totalDataPoints);
+            // console.warn('[ChartComponent] ⚠️ Not enough data points for range setting:', totalDataPoints);
             return;
           }
           
@@ -430,7 +429,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           
           // Дополнительная проверка валидности индексов
           if (startIndex >= totalDataPoints || endIndex >= totalDataPoints || startIndex < 0 || endIndex < 0) {
-            console.warn('[ChartComponent] ⚠️ Invalid indices:', { startIndex, endIndex, totalDataPoints });
+            // console.warn('[ChartComponent] ⚠️ Invalid indices:', { startIndex, endIndex, totalDataPoints });
             return;
           }
           
@@ -445,7 +444,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
               chartInstance.timeScale().setVisibleRange(savedRange as any);
 
             } catch (err) {
-              console.warn('[Chart] ⚠️ Не удалось восстановить диапазон, применяем дефолтный');
+              // console.warn('[Chart] ⚠️ Не удалось восстановить диапазон, применяем дефолтный');
               // Применяем дефолтный диапазон при ошибке
               isProgrammaticRangeChangeRef.current = true;
               const range = { from: firstTime as Time, to: lastTime as Time };
@@ -461,11 +460,11 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         }
       }
     } catch (err) {
-      console.error('[ChartComponent] ❌ Error updating crypto data:', err);
+      // console.error('[ChartComponent] ❌ Error updating crypto data:', err);
       
       // Сбрасываем флаг, чтобы попытаться снова при следующем обновлении
       if (err instanceof Error && err.message.includes('right should be >= left')) {
-        console.warn('[ChartComponent] 🔄 Resetting range flags due to range error');
+        // console.warn('[ChartComponent] 🔄 Resetting range flags due to range error');
         initialRangeAppliedRef.current = false;
       }
     }
@@ -495,7 +494,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         seriesInstance.setMarkers([]);
       }
     } catch (err) {
-      console.error('[ChartComponent] ❌ Error updating astronomical events:', err);
+      // console.error('[ChartComponent] ❌ Error updating astronomical events:', err);
     }
   }, [seriesInstance, stableAstronomicalEvents, activeEventFilters]);
 
@@ -509,7 +508,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     if (chartContainerRef.current) {
       const charts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
       if (charts.length > 1) {
-        console.warn('[Chart] ⚠️ Multiple charts in real-time update, skipping...');
+        // console.warn('[Chart] ⚠️ Multiple charts in real-time update, skipping...');
         return;
       }
     }
@@ -518,7 +517,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     try {
       const existingData = seriesInstance?.data();
       if (!existingData || existingData.length === 0) {
-        console.log('[ChartComponent] ⏳ График пустой, ждем исторические данные');
+        // console.log('[ChartComponent] ⏳ График пустой, ждем исторические данные');
         return; // Возвращаемся, чтобы не обновлять пустой график
       }
       
@@ -529,12 +528,12 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       if (realTimeData && lastCandle) {
         const realTimeSeconds = Math.floor(realTimeData.timestamp / 1000);
         if (realTimeSeconds < (lastCandle.time as number)) {
-          console.warn(`[ChartComponent] ⚠️ Real-time данные старше последней свечи: ${realTimeSeconds} < ${lastCandle.time}, пропускаем`);
+          // console.warn(`[ChartComponent] ⚠️ Real-time данные старше последней свечи: ${realTimeSeconds} < ${lastCandle.time}, пропускаем`);
           return;
         }
       }
     } catch (err) {
-      console.warn('[ChartComponent] ⚠️ Ошибка получения данных графика, пропускаем');
+      // console.warn('[ChartComponent] ⚠️ Ошибка получения данных графика, пропускаем');
       return;
     }
 
@@ -546,13 +545,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       
       // Проверяем валидность данных
       if (!realTimeData.open || !realTimeData.high || !realTimeData.low || !realTimeData.close) {
-        console.warn('[ChartComponent] ⚠️ Invalid real-time data received:', realTimeData);
+        // console.warn('[ChartComponent] ⚠️ Invalid real-time data received:', realTimeData);
         return;
       }
 
       // Отладочная информация (только для закрытых свечей)
       if (realTimeData.isClosed) {
-        console.log(`[ChartComponent] 🔍 Processing closed candle: timestamp=${realTimeData.timestamp}, timeInSeconds=${timeInSeconds}, close=${realTimeData.close}`);
+        // console.log(`[ChartComponent] 🔍 Processing closed candle: timestamp=${realTimeData.timestamp}, timeInSeconds=${timeInSeconds}, close=${realTimeData.close}`);
       }
 
       // Создаем обновленную свечу с правильным форматом времени
@@ -567,7 +566,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       // Простое обновление - LightweightCharts сам разберется
       seriesInstance.update(updatedCandle);
       
-      console.log(`[ChartComponent] 📈 Real-time update: ${realTimeData.symbol}@${realTimeData.interval} - Close: ${realTimeData.close} (${realTimeData.isClosed ? 'closed' : 'live'}) at ${new Date(realTimeData.timestamp).toLocaleTimeString()}`);
+      // console.log(`[ChartComponent] 📈 Real-time update: ${realTimeData.symbol}@${realTimeData.interval} - Close: ${realTimeData.close} (${realTimeData.isClosed ? 'closed' : 'live'}) at ${new Date(realTimeData.timestamp).toLocaleTimeString()}`);
 
       // Автоматически скроллим к последней свече только если пользователь не взаимодействовал с графиком
       // и только для живых данных (не закрытых свечей)
@@ -576,7 +575,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         timeScale.scrollToPosition(0, false);
       }
     } catch (err) {
-      console.error('[ChartComponent] ❌ Error updating real-time data:', err);
+      // console.error('[ChartComponent] ❌ Error updating real-time data:', err);
     }
   }, [realTimeData, seriesInstance, chartInstance, cryptoData]);
 

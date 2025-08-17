@@ -162,7 +162,7 @@ export class AstronomicalEventsService {
       });
 
     } catch (error) {
-      console.error('[AstronomicalEvents] Ошибка расчета лунных фаз:', error);
+      // Ошибка расчета лунных фаз
     }
 
     return events;
@@ -588,7 +588,6 @@ export class AstronomicalEventsService {
       return '🌘 Убывающая луна';
       
     } catch (error) {
-      console.error('[AstronomicalEvents] Ошибка определения фазы луны:', error);
       return '🌙 Неизвестно';
     }
   }

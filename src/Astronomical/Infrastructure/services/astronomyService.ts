@@ -51,9 +51,7 @@ class AstronomyService {
         });
       }
       
-      console.log(`[Astronomy Service] Generated ${events.length} lunar phase events`);
     } catch (error) {
-      console.error('[Astronomy Service] Error calculating lunar phases:', error);
     }
     
     return events;
@@ -91,9 +89,7 @@ class AstronomyService {
         });
       }
       
-      console.log(`[Astronomy Service] Generated ${events.length} solar eclipse events`);
     } catch (error) {
-      console.error('[Astronomy Service] Error calculating solar eclipses:', error);
     }
     
     return events;
@@ -138,9 +134,7 @@ class AstronomyService {
         }
       });
       
-      console.log(`[Astronomy Service] Generated ${events.length} planetary aspect events`);
     } catch (error) {
-      console.error('[Astronomy Service] Error calculating planetary aspects:', error);
     }
     
     return events;
@@ -150,29 +144,23 @@ class AstronomyService {
    * Get astronomical events for a date range
    */
   async getAstronomicalEvents(startDate: Date, endDate: Date): Promise<AstroEvent[]> {
-    const allEvents: AstroEvent[] = [];
-    
     try {
-      console.log(`[Astronomy Service] Calculating events from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      // Генерируем события лунных фаз
+      const lunarEvents = this.calculateLunarPhases(startDate, endDate);
       
-      // Calculate different types of astronomical events
-      const lunarPhases = this.calculateLunarPhases(startDate, endDate);
-      const solarEclipses = this.calculateSolarEclipses(startDate, endDate);
-      const planetaryAspects = this.calculatePlanetaryAspects(startDate, endDate);
+      // Генерируем события солнечных затмений
+      const solarEvents = this.calculateSolarEclipses(startDate, endDate);
       
-      // Combine all events
-      allEvents.push(...lunarPhases, ...solarEclipses, ...planetaryAspects);
+      // Генерируем события планетарных аспектов
+      const planetaryEvents = this.calculatePlanetaryAspects(startDate, endDate);
       
-      // Sort events by timestamp
-      allEvents.sort((a, b) => a.timestamp - b.timestamp);
+      // Объединяем все события
+      const allEvents = [...lunarEvents, ...solarEvents, ...planetaryEvents];
       
-      console.log(`[Astronomy Service] Generated total of ${allEvents.length} astronomical events`);
-      
+      return allEvents;
     } catch (error) {
-      console.error('[Astronomy Service] Error in getAstronomicalEvents:', error);
+      throw new Error(`Failed to generate astronomical events: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    return allEvents;
   }
 }
 

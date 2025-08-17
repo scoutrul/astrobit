@@ -62,9 +62,7 @@ export function useAstronomicalEvents(
         setCurrentMoonPhase(moonPhase);
 
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Ошибка расчета астрономических событий';
-        console.error('[useAstronomicalEvents] ❌ Ошибка:', err);
-        setError(errorMsg);
+        setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setLoading(false);
       }

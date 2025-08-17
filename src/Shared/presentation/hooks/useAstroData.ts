@@ -27,15 +27,12 @@ export function useAstroData() {
       const startDate = new Date(chartRange.from);
       const endDate = new Date(chartRange.to);
       
-      console.log(`[useAstroData] Fetching events from ${startDate.toISOString()} to ${endDate.toISOString()}`);
-      
       const events = await astronomyService.getAstronomicalEvents(startDate, endDate);
       
       setAstroEvents(events);
-      
-      console.log(`[useAstroData] Loaded ${events.length} astronomical events`);
+      // Ошибка загрузки астрономических данных
     } catch (error) {
-      console.error('[useAstroData] Error fetching astronomical data:', error);
+      // Ошибка загрузки астрономических данных
     }
   }, [chartRange.from, chartRange.to, setAstroEvents]);
   

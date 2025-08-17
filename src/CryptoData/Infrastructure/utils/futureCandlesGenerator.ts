@@ -85,13 +85,23 @@ export function generateFutureCandles(
   timeframe: string,
   count: number = 50
 ): CryptoData[] {
+  // Проверяем, что у нас есть исторические данные
   if (historicalData.length === 0) {
-    console.warn('[FutureCandlesGenerator] Нет исторических данных для генерации будущих свечей');
     return [];
   }
 
-  const lastCandle = historicalData[historicalData.length - 1];
-  const lastTime = new Date(lastCandle.time);
+  // Получаем последнюю историческую свечу
+  const lastHistoricalCandle = historicalData[historicalData.length - 1];
+  const lastTime = new Date(lastHistoricalCandle.time);
+  
+  // Проверяем, что последняя свеча не слишком далеко в будущем
+  const maxFutureTime = new Date();
+  maxFutureTime.setDate(maxFutureTime.getDate() + 90); // Максимум 90 дней вперед
+  
+  if (lastTime > maxFutureTime) {
+    // Ограничиваем время последней свечи
+    lastTime.setTime(maxFutureTime.getTime());
+  }
 
   const futureCandles: CryptoData[] = [];
   
@@ -99,12 +109,12 @@ export function generateFutureCandles(
     const futureTime = calculateFutureTime(lastTime, timeframe, i);
     
     const futureCandle: CryptoData = {
-      symbol: lastCandle.symbol,
+      symbol: lastHistoricalCandle.symbol,
       time: futureTime.toISOString(),
-      open: lastCandle.close, // Используем последнюю цену как открытие
-      high: lastCandle.close, // Все цены одинаковые
-      low: lastCandle.close,
-      close: lastCandle.close,
+      open: lastHistoricalCandle.close, // Используем последнюю цену как открытие
+      high: lastHistoricalCandle.close, // Все цены одинаковые
+      low: lastHistoricalCandle.close,
+      close: lastHistoricalCandle.close,
       volume: 0, // Нулевой объем для будущих свечей
       // Делаем будущие свечи ПОЛНОСТЬЮ ПРОЗРАЧНЫМИ для отображения событий
       color: 'rgba(0, 0, 0, 0)', // Полностью прозрачный цвет
@@ -180,7 +190,6 @@ export function combineHistoricalAndFutureCandles(
   const maxFutureDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 3 месяца
   
   if (lastTime > maxFutureDate) {
-    console.warn(`[FutureCandlesGenerator] Последняя свеча слишком далеко в будущем: ${lastTime.toISOString()}, ограничиваем`);
     requiredCandles = Math.min(requiredCandles, 30); // Максимум 30 свечей
   }
   
