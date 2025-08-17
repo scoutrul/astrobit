@@ -42,7 +42,7 @@ export interface BinanceTickerData {
 
 export class BinanceApiService extends ExternalService {
   private static instance: BinanceApiService | null = null;
-  private readonly baseUrl = '/binance-api/api/v3';
+  private readonly baseUrl = 'https://api.binance.com/api/v3';
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
 
@@ -154,56 +154,6 @@ export class BinanceApiService extends ExternalService {
     }
   }
 
-  async getTicker(symbol: string): Promise<Result<BinanceTickerData>> {
-    try {
-      // Ждем завершения инициализации
-      if (this.initializationPromise) {
-        await this.initializationPromise;
-      }
-
-      if (!this.isInitialized) {
-        return Result.fail('Binance API service is not available');
-      }
-
-      const url = `${this.baseUrl}/ticker/24hr?symbol=${symbol}`;
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        return Result.fail(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const ticker: BinanceTickerData = await response.json();
-      return Result.ok(ticker);
-    } catch (error) {
-      console.error(`[BinanceApiService] Error fetching ticker for ${symbol}:`, error);
-      return Result.fail(`Failed to fetch ticker: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  async getCurrentPrice(symbol: string): Promise<Result<number>> {
-    try {
-      // Ждем завершения инициализации
-      if (this.initializationPromise) {
-        await this.initializationPromise;
-      }
-
-      if (!this.isInitialized) {
-        return Result.fail('Binance API service is not available');
-      }
-
-      const tickerResult = await this.getTicker(symbol);
-      if (tickerResult.isFailure) {
-        return Result.fail(tickerResult.error);
-      }
-
-      const price = parseFloat(tickerResult.value.lastPrice);
-      return Result.ok(price);
-    } catch (error) {
-      console.error(`[BinanceApiService] Error fetching current price for ${symbol}:`, error);
-      return Result.fail(`Failed to fetch current price: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
   async getSupportedIntervals(): Promise<string[]> {
     return [
       '1m', '3m', '5m', '15m', '30m',
@@ -212,55 +162,4 @@ export class BinanceApiService extends ExternalService {
     ];
   }
 
-  async getOrderBook(symbol: string, limit: number = 20): Promise<Result<any>> {
-    try {
-      // Ждем завершения инициализации
-      if (this.initializationPromise) {
-        await this.initializationPromise;
-      }
-
-      if (!this.isInitialized) {
-        return Result.fail('Binance API service is not available');
-      }
-
-      const url = `${this.baseUrl}/depth?symbol=${symbol}&limit=${limit}`;
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        return Result.fail(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const orderBook = await response.json();
-      return Result.ok(orderBook);
-    } catch (error) {
-      console.error(`[BinanceApiService] Error fetching order book for ${symbol}:`, error);
-      return Result.fail(`Failed to fetch order book: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  async getRecentTrades(symbol: string, limit: number = 50): Promise<Result<any[]>> {
-    try {
-      // Ждем завершения инициализации
-      if (this.initializationPromise) {
-        await this.initializationPromise;
-      }
-
-      if (!this.isInitialized) {
-        return Result.fail('Binance API service is not available');
-      }
-
-      const url = `${this.baseUrl}/trades?symbol=${symbol}&limit=${limit}`;
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        return Result.fail(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const trades = await response.json();
-      return Result.ok(trades);
-    } catch (error) {
-      console.error(`[BinanceApiService] Error fetching recent trades for ${symbol}:`, error);
-      return Result.fail(`Failed to fetch recent trades: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
 } 
