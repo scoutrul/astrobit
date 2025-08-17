@@ -101,6 +101,20 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       } else {
         timeInSeconds = Math.floor(param.time / 1000); // Конвертируем из миллисекунд
       }
+    } else if (param.point && param.point.x) {
+      // Если нет времени, но есть позиция курсора, показываем тултип в позиции мыши
+      setTooltip({
+        x: param.point.x,
+        y: param.point.y - 60,
+        events: stableAstronomicalEvents.filter(event => {
+          const eventTimeInSeconds = Math.floor(event.timestamp / 1000);
+          const currentTime = Math.floor(Date.now() / 1000);
+          const diff = Math.abs(eventTimeInSeconds - currentTime);
+          return diff <= 86400; // Показываем события за последние 24 часа
+        }),
+        visible: true
+      });
+      return;
     } else {
       setTooltip(prev => ({ ...prev, visible: false }));
       return;
@@ -211,17 +225,29 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           horzLines: { color: '#1e293b' }
         },
         crosshair: {
-          mode: 1,
+          mode: 0,
           vertLine: {
             color: '#f7931a',
             width: 1,
-            style: 2
+            style: 2,
+            visible: true,
+            labelVisible: true
           },
           horzLine: {
             color: '#f7931a',
             width: 1,
-            style: 2
+            style: 2,
+            visible: true,
+            labelVisible: true
           }
+        },
+        handleScroll: {
+          mouseWheel: true,
+          pressedMouseMove: true
+        },
+        handleScale: {
+          mouseWheel: true,
+          pinch: true
         },
         rightPriceScale: {
           borderColor: '#334155',
@@ -542,11 +568,60 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       handleCrosshairMove(param);
     };
 
+    // Обработчик движения мыши для показа кроссшеира
+    const handleMouseMoveOnChart = (event: MouseEvent) => {
+      if (chartInstance && chartContainerRef.current) {
+        const rect = chartContainerRef.current.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        // Показываем кроссшеир в позиции курсора
+        const time = chartInstance.timeScale().coordinateToTime(x);
+        if (time !== null) {
+          chartInstance.setCrosshairPosition(x, y, time as any);
+        }
+      }
+    };
+
     // Подписываемся на движение курсора для тултипов
     chartInstance.subscribeCrosshairMove(handleMouseMove);
 
+    // Включаем кроссшеир при наведении мыши
+    const handleMouseEnter = () => {
+      if (chartInstance) {
+        chartInstance.applyOptions({
+          crosshair: {
+            mode: 0
+          }
+        });
+      }
+    };
+
+    // Отключаем кроссшеир при уходе мыши
+    const handleMouseLeave = () => {
+      if (chartInstance) {
+        chartInstance.applyOptions({
+          crosshair: {
+            mode: 0
+          }
+        });
+      }
+    };
+
+    // Добавляем обработчики событий мыши
+    if (chartContainerRef.current) {
+      chartContainerRef.current.addEventListener('mouseenter', handleMouseEnter);
+      chartContainerRef.current.addEventListener('mouseleave', handleMouseLeave);
+      chartContainerRef.current.addEventListener('mousemove', handleMouseMoveOnChart);
+    }
+
     return () => {
       chartInstance.unsubscribeCrosshairMove(handleMouseMove);
+      if (chartContainerRef.current) {
+        chartContainerRef.current.removeEventListener('mouseenter', handleMouseEnter);
+        chartContainerRef.current.removeEventListener('mouseleave', handleMouseLeave);
+        chartContainerRef.current.removeEventListener('mousemove', handleMouseMoveOnChart);
+      }
     };
   }, [chartInstance, handleCrosshairMove]);
 
