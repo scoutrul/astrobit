@@ -105,7 +105,8 @@ export function generateFutureCandles(
       high: lastCandle.close, // Все цены одинаковые
       low: lastCandle.close,
       close: lastCandle.close,
-      volume: 0 // Нулевой объем для будущих свечей
+      volume: 0, // Нулевой объем для будущих свечей
+      visible: false // Делаем будущие свечи невидимыми
     };
     
     futureCandles.push(futureCandle);

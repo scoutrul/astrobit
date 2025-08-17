@@ -8,6 +8,7 @@ export interface CryptoData {
   low: number;
   close: number;
   volume: number;
+  visible?: boolean; // Флаг видимости свечи (по умолчанию true)
 }
 
 export interface ApiResponse<T> {

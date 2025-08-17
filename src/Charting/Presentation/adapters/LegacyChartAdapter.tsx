@@ -19,6 +19,7 @@ interface LegacyChartAdapterProps {
     low: number;
     close: number;
     volume: number;
+    visible?: boolean;
   }>;
   astronomicalEvents?: NewAstronomicalEvent[];
   eventFilters?: {
@@ -113,19 +114,26 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       return historicalData;
     }
 
+    // Добавляем флаг visible: true для исторических данных
+    const historicalDataWithVisibility = historicalData.map(item => ({
+      ...item,
+      visible: true
+    }));
+
     // Объединяем исторические данные с адаптивными будущими свечами
     let combinedData = combineHistoricalAndFutureCandles(
-      historicalData,
+      historicalDataWithVisibility,
       timeframe,
       eventsForGenerator
     );
 
     // Если есть real-time данные, обновляем будущие свечи на основе последней цены
     if (lastUpdate && combinedData.length > 0) {
-      const lastHistoricalIndex = historicalData.length - 1;
+      // Находим индекс последней видимой (исторической) свечи
+      const lastHistoricalIndex = historicalDataWithVisibility.length - 1;
       const currentPrice = lastUpdate.close;
       
-      // Обновляем все будущие свечи (после исторических) на текущую цену
+      // Обновляем все будущие свечи (после исторических) на текущую цену, сохраняя невидимость
       combinedData = combinedData.map((candle, index) => {
         if (index > lastHistoricalIndex) {
           return {
@@ -133,7 +141,9 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
             open: currentPrice,
             high: currentPrice,
             low: currentPrice,
-            close: currentPrice
+            close: currentPrice,
+            visible: false, // Сохраняем невидимость будущих свечей
+            volume: 0 // Нулевой объем для будущих свечей
           };
         }
         return candle;
