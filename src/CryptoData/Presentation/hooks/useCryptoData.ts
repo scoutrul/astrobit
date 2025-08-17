@@ -18,6 +18,7 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchInProgressRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -36,6 +37,19 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
       
       console.log(`[useCryptoData] 🔄 Fetching data for:`, { symbol, timeframe });
 
+      const requestKey = `${symbol}@${timeframe}`;
+      
+      // Предотвращаем дублирование запросов в React.StrictMode
+      if (fetchInProgressRef.current === requestKey) {
+        console.log(`[useCryptoData] ⚠️ Дублирование запроса предотвращено для ${requestKey}`);
+        return;
+      }
+      
+      // Очищаем предыдущие данные при новом запросе
+      setData([]);
+      setError(null);
+      fetchInProgressRef.current = requestKey;
+
       try {
         setLoading(true);
         setError(null);
@@ -43,6 +57,8 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         // Получаем use case из DI контейнера
         const container = DependencyContainer.getInstance();
         const getCryptoDataUseCase = container.resolve<GetCryptoDataUseCase>('GetCryptoDataUseCase');
+        
+
         
         // Выполняем use case
         const result = await getCryptoDataUseCase.execute({
@@ -54,6 +70,7 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
         if (!isMounted) return;
 
         if (result.isSuccess) {
+          
           // Конвертируем доменные сущности в старый формат для обратной совместимости
           const legacyData: CryptoData[] = result.value.data.map(cryptoData => {
             // Убеждаемся, что timestamp в правильном формате
@@ -89,6 +106,7 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
           setData(legacyData);
           setLastUpdated(new Date());
           setRetryCount(0); // Сбрасываем счетчик попыток при успехе
+          fetchInProgressRef.current = null; // Очищаем флаг
         } else {
           const errorMsg = `Ошибка загрузки данных: ${result.error}`;
           console.error(`[useCryptoData] ❌ ${errorMsg}`);
@@ -133,6 +151,7 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
       } finally {
         if (isMounted) {
           setLoading(false);
+          fetchInProgressRef.current = null; // Очищаем флаг в любом случае
         }
       }
     };
@@ -149,6 +168,11 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
       }
     };
   }, [symbol, timeframe, retryCount]); // Добавляем retryCount в зависимости
+
+  // Принудительно очищаем кэш при смене symbol/timeframe
+  useEffect(() => {
+    fetchInProgressRef.current = null;
+  }, [symbol, timeframe]);
 
   // Стабилизируем данные криптовалют, чтобы избежать лишних обновлений
   const stableData = useMemo(() => data, [data]);

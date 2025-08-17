@@ -40,6 +40,15 @@ export interface BinanceWebSocketMessage {
   };
 }
 
+interface SubscriptionHandler {
+  id: string;
+  callback: (data: BinanceKlineWebSocketData) => void;
+}
+
+/**
+ * Оптимизированный WebSocket сервис для Binance API
+ * Поддерживает единое соединение с множественными подписками
+ */
 export class BinanceWebSocketService extends ExternalService {
   private static instance: BinanceWebSocketService | null = null;
   private ws: WebSocket | null = null;
@@ -47,8 +56,16 @@ export class BinanceWebSocketService extends ExternalService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
-  private currentSubscription: { symbol: string; interval: string } | null = null;
-  private messageHandlers: ((data: BinanceKlineWebSocketData) => void)[] = [];
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  
+  // Активные подписки: ключ = "symbol@interval", значение = массив обработчиков
+  private subscriptions = new Map<string, SubscriptionHandler[]>();
+  
+  // Текущее активное соединение
+  private activeStream: string | null = null;
+  
+  // Последние полученные данные для каждого потока
+  private lastDataCache = new Map<string, BinanceKlineWebSocketData>();
 
   private constructor() {
     super();
@@ -63,147 +80,165 @@ export class BinanceWebSocketService extends ExternalService {
 
   /**
    * Подписывается на kline данные для указанного символа и таймфрейма
+   * Оптимизировано для предотвращения дублирования соединений
    */
-    async subscribeToKlineData(
-    symbol: string,
-    interval: string,
-    onData: (data: BinanceKlineWebSocketData) => void
+  async subscribeToKlineData(
+    symbol: string, 
+    interval: string, 
+    onData: (data: BinanceKlineWebSocketData) => void,
+    subscriberId?: string
   ): Promise<Result<void>> {
     try {
-      // Для недельных и месячных таймфреймов WebSocket обновления могут быть менее частыми
-      // Логируем попытку подключения
-      console.log(`[WebSocket] 🔄 Attempting to subscribe to ${symbol.toUpperCase()}@kline_${interval}`);
+      const normalizedSymbol = symbol.toLowerCase();
+      const streamKey = `${normalizedSymbol}@kline_${interval}`;
+      const handlerId = subscriberId || `handler_${Date.now()}_${Math.random()}`;
 
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, не пытаемся ли мы подписаться на ту же подписку
-      // Это защищает от React.StrictMode двойного рендера в development
-      if (this.currentSubscription && 
-          this.currentSubscription.symbol === symbol.toLowerCase() && 
-          this.currentSubscription.interval === interval) {
-        if (this.isConnected) {
-          console.log(`[WebSocket] ℹ️ Already subscribed to ${symbol.toUpperCase()}@kline_${interval}, skipping`);
-          return Result.ok();
+      // Проверяем, есть ли уже активная подписка на этот поток
+      if (this.subscriptions.has(streamKey)) {
+        // Добавляем новый обработчик к существующей подписке
+        const handlers = this.subscriptions.get(streamKey)!;
+        
+        // Проверяем, не существует ли уже обработчик с таким ID
+        const existingHandlerIndex = handlers.findIndex(h => h.id === handlerId);
+        if (existingHandlerIndex >= 0) {
+          // Заменяем существующий обработчик
+          handlers[existingHandlerIndex].callback = onData;
+          console.log(`[WebSocket] 🔄 Обновлен обработчик для ${streamKey}`);
         } else {
-          console.log(`[WebSocket] ⚠️ Found existing subscription but not connected, cleaning up and reconnecting`);
-          // Принудительно очищаем старое состояние
-          await this.forceCloseAllConnections();
+          // Добавляем новый обработчик
+          handlers.push({ id: handlerId, callback: onData });
+          console.log(`[WebSocket] ➕ Добавлен обработчик для ${streamKey} (всего: ${handlers.length})`);
         }
-      }
-
-      // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: Проверяем, не пытается ли кто-то еще подписаться на ту же подписку
-      // Это защищает от множественных вызовов subscribeToKlineData
-      if (this.messageHandlers.length > 0 && this.isConnected) {
-        console.log(`[WebSocket] ⚠️ Multiple subscription attempts detected, adding handler to existing connection`);
-        // Добавляем новый обработчик к существующему соединению
-        this.messageHandlers.push(onData);
+        
+        // Если есть кэшированные данные, отправляем их новому подписчику
+        const cachedData = this.lastDataCache.get(streamKey);
+        if (cachedData) {
+          try {
+            onData(cachedData);
+          } catch (error) {
+            console.error(`[WebSocket] ❌ Ошибка отправки кэшированных данных:`, error);
+          }
+        }
+        
         return Result.ok();
       }
 
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно закрываем все соединения
-      // Это гарантирует, что старые WebSocket соединения полностью прекратят работу
-      await this.forceCloseAllConnections();
-      
-      // Небольшая задержка для корректного закрытия предыдущего соединения
-      await new Promise(resolve => setTimeout(resolve, 150));
-
-      // Сохраняем обработчик
-      this.messageHandlers = [onData];
+      // Проверяем, не пытаемся ли мы создать дублирующую подписку
+      if (this.activeStream === streamKey && this.subscriptions.size > 0) {
+        console.log(`[WebSocket] ⚠️ Попытка создать дублирующую подписку на ${streamKey}, игнорируем`);
+        return Result.fail('Subscription already exists for this stream');
+      }
 
       // Создаем новую подписку
-      this.currentSubscription = { symbol: symbol.toLowerCase(), interval };
-      
-      // Подключаемся к WebSocket
-      await this.connect();
+      this.subscriptions.set(streamKey, [{ id: handlerId, callback: onData }]);
 
-      console.log(`[WebSocket] ✅ Successfully subscribed to ${symbol.toUpperCase()}@kline_${interval}`);
+      // Если это первая подписка или нужно сменить поток
+      if (!this.activeStream || this.activeStream !== streamKey) {
+        await this.switchToStream(streamKey);
+      }
+
+      console.log(`[WebSocket] ✅ Создана подписка на ${streamKey}`);
       return Result.ok();
     } catch (error) {
-      console.error(`[WebSocket] ❌ Failed to subscribe to ${symbol.toUpperCase()}@kline_${interval}:`, error);
+      console.error(`[WebSocket] ❌ Ошибка подписки:`, error);
       return Result.fail(`Failed to subscribe: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
-   * Отписывается от текущей подписки
+   * Отписывается от конкретного обработчика
+   */
+  async unsubscribeHandler(subscriberId: string): Promise<Result<void>> {
+    try {
+      let found = false;
+      
+      // Ищем и удаляем обработчик по ID
+      for (const [streamKey, handlers] of this.subscriptions.entries()) {
+        const handlerIndex = handlers.findIndex(h => h.id === subscriberId);
+        if (handlerIndex >= 0) {
+          handlers.splice(handlerIndex, 1);
+          found = true;
+          console.log(`[WebSocket] 🗑️ Удален обработчик ${subscriberId} для ${streamKey}`);
+          
+          // Если больше нет обработчиков для этого потока, удаляем подписку
+          if (handlers.length === 0) {
+            this.subscriptions.delete(streamKey);
+            this.lastDataCache.delete(streamKey);
+            console.log(`[WebSocket] 🗑️ Удалена подписка на ${streamKey}`);
+            
+            // Если это был активный поток и больше нет подписок, закрываем соединение
+            if (this.activeStream === streamKey && this.subscriptions.size === 0) {
+              await this.disconnect();
+            }
+          }
+          break;
+        }
+      }
+      
+      return found ? Result.ok() : Result.fail(`Subscription not found: ${subscriberId}`);
+    } catch (error) {
+      return Result.fail(`Failed to unsubscribe: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Отписывается от всех подписок (legacy метод)
    */
   async unsubscribe(): Promise<Result<void>> {
     try {
-      console.log(`[WebSocket] 🔌 Unsubscribing from:`, {
-        currentSubscription: this.currentSubscription,
-        wsState: this.ws?.readyState,
-        isConnected: this.isConnected
-      });
-
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно отключаем обработчики сообщений
-      // Это предотвращает получение сообщений от старых соединений
-      this.messageHandlers = [];
-      
-      // Закрываем WebSocket соединение принудительно
-      if (this.ws) {
-        try {
-          // Убираем все обработчики событий перед закрытием
-          this.ws.onopen = null;
-          this.ws.onmessage = null;
-          this.ws.onerror = null;
-          this.ws.onclose = null;
-          
-          // Принудительно закрываем соединение
-          if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
-            this.ws.close(1000, 'Unsubscribing'); // Код 1000 = нормальное закрытие
-          }
-          
-          // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Ждем полного закрытия соединения
-          // или принудительно обнуляем WebSocket через таймаут
-          let attempts = 0;
-          const maxAttempts = 10; // Максимум 500мс
-          
-          while (this.ws && this.ws.readyState !== WebSocket.CLOSED && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 50));
-            attempts++;
-          }
-          
-          // Если WebSocket все еще не закрылся, принудительно обнуляем
-          if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
-            console.warn(`[WebSocket] ⚠️ WebSocket not closed after ${attempts * 50}ms, forcing cleanup`);
-            this.ws = null;
-          }
-          
-        } catch (closeError) {
-          console.warn('[WebSocket] ⚠️ Error during WebSocket close:', closeError);
-        } finally {
-          this.ws = null;
-        }
-      }
-
-      // Очищаем состояние
-      this.isConnected = false;
-      this.currentSubscription = null;
-      
-      console.log(`[WebSocket] ✅ Successfully unsubscribed`);
+      await this.disconnect();
+      this.subscriptions.clear();
+      this.lastDataCache.clear();
+      console.log(`[WebSocket] 🗑️ Все подписки удалены`);
       return Result.ok();
     } catch (error) {
-      console.warn('[WebSocket] ⚠️ Error during unsubscribe (continuing anyway):', error);
+      return Result.fail(`Failed to unsubscribe: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Переключается на новый поток данных
+   */
+  private async switchToStream(streamKey: string): Promise<void> {
+    // Если уже подключены к нужному потоку, не переключаемся
+    if (this.activeStream === streamKey && this.isConnected) {
+      console.log(`[WebSocket] ⚡ Уже подключены к ${streamKey}, переключение не требуется`);
+      return;
+    }
+
+    console.log(`[WebSocket] 🔄 Переключение с ${this.activeStream} на ${streamKey}`);
+
+    // Закрываем существующее соединение только если оно отличается
+    if (this.ws && this.activeStream !== streamKey) {
+      // Очищаем подписки старого потока
+      this.subscriptions.clear();
+      console.log(`[WebSocket] 🧹 Очищены подписки старого потока ${this.activeStream}`);
       
-      // Принудительно очищаем состояние даже при ошибке
+      this.ws.close();
       this.ws = null;
       this.isConnected = false;
-      this.currentSubscription = null;
-      this.messageHandlers = [];
-      
-      return Result.ok();
     }
+
+    // Очищаем таймаут переподключения
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
+    this.activeStream = streamKey;
+    await this.connect();
   }
 
   /**
    * Подключается к Binance WebSocket API
    */
   private async connect(): Promise<void> {
-    if (!this.currentSubscription) {
-      throw new Error('No subscription configured');
+    if (!this.activeStream) {
+      throw new Error('No active stream configured');
     }
 
-    const { symbol, interval } = this.currentSubscription;
-    const streamName = `${symbol}@kline_${interval}`;
-    const wsUrl = `wss://stream.binance.com:9443/ws/${streamName}`;
+    const wsUrl = `wss://stream.binance.com:9443/ws/${this.activeStream}`;
+    console.log(`[WebSocket] 🔌 Подключение к ${wsUrl}`);
 
     return new Promise((resolve, reject) => {
       try {
@@ -212,6 +247,7 @@ export class BinanceWebSocketService extends ExternalService {
         this.ws.onopen = () => {
           this.isConnected = true;
           this.reconnectAttempts = 0;
+          console.log(`[WebSocket] ✅ Подключено к ${this.activeStream}`);
           resolve();
         };
 
@@ -220,80 +256,55 @@ export class BinanceWebSocketService extends ExternalService {
             const message = JSON.parse(event.data);
             this.handleMessage(message);
           } catch (error) {
-            console.error('[WebSocket] ❌ Message parsing error:', error);
+            console.error('[WebSocket] ❌ Ошибка парсинга сообщения:', error);
           }
         };
 
         this.ws.onerror = (error) => {
-          console.warn(`[WebSocket] ⚠️ WebSocket error for ${symbol}@${interval}:`, {
-            error: error,
-            readyState: this.ws?.readyState,
-            url: this.ws?.url
-          });
-          
-          // Не отклоняем промис при ошибке - WebSocket может восстановиться
-          // reject(error);
+          console.error('[WebSocket] ❌ Ошибка WebSocket:', error);
+          reject(error);
         };
 
-        this.ws.onclose = () => {
+        this.ws.onclose = (event) => {
           this.isConnected = false;
-          this.handleReconnection();
+          console.log(`[WebSocket] 🔌 Соединение закрыто (код: ${event.code})`);
+          
+          // Переподключаемся только если есть активные подписки
+          if (this.subscriptions.size > 0) {
+            this.handleReconnection();
+          }
         };
 
       } catch (error) {
-        console.error('[BinanceWebSocketService] Ошибка создания WebSocket:', error);
+        console.error('[WebSocket] ❌ Ошибка создания WebSocket:', error);
         reject(error);
       }
     });
   }
 
   /**
+   * Закрывает соединение
+   */
+  private async disconnect(): Promise<void> {
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+
+    this.isConnected = false;
+    this.activeStream = null;
+    this.reconnectAttempts = 0;
+  }
+
+  /**
    * Обрабатывает входящие WebSocket сообщения
    */
   private handleMessage(message: any): void {
-    // КРИТИЧЕСКАЯ ПРОВЕРКА: Обрабатываем сообщения только если есть активная подписка
-    if (!this.currentSubscription || !this.isConnected) {
-      console.log(`[WebSocket] ⚠️ Ignoring message - no active subscription or not connected:`, {
-        hasSubscription: !!this.currentSubscription,
-        isConnected: this.isConnected,
-        messageType: message?.e || 'unknown'
-      });
-      return;
-    }
-
-    // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: Проверяем, что WebSocket все еще соответствует текущей подписке
-    if (this.ws && this.currentSubscription) {
-      const expectedStream = `${this.currentSubscription.symbol}@kline_${this.currentSubscription.interval}`;
-      const currentUrl = this.ws.url;
-      
-      if (currentUrl && !currentUrl.includes(expectedStream)) {
-        console.warn(`[WebSocket] ⚠️ Ignoring message - WebSocket URL mismatch:`, {
-          expected: expectedStream,
-          current: currentUrl,
-          messageType: message?.e || 'unknown'
-        });
-        return;
-      }
-    }
-
-    // КРИТИЧЕСКАЯ ЗАЩИТА: Если WebSocket не соответствует текущей подписке, принудительно закрываем
-    if (this.ws && this.currentSubscription && this.ws.url) {
-      const expectedStream = `${this.currentSubscription.symbol}@kline_${this.currentSubscription.interval}`;
-      const currentUrl = this.ws.url;
-      
-      if (!currentUrl.includes(expectedStream)) {
-        console.warn(`[WebSocket] 🚨 WebSocket URL mismatch detected, forcing cleanup:`, {
-          expected: expectedStream,
-          current: currentUrl
-        });
-        
-        // Принудительно закрываем несоответствующее соединение
-        this.forceCloseAllConnections();
-        return;
-      }
-    }
-
-    // Проверяем структуру сообщения
     if (!message || typeof message !== 'object') {
       return;
     }
@@ -319,7 +330,7 @@ export class BinanceWebSocketService extends ExternalService {
       return;
     }
 
-    this.handleKlineData(message.data.k);
+    this.handleKlineData(message.data.k, message.stream);
   }
 
   /**
@@ -327,66 +338,25 @@ export class BinanceWebSocketService extends ExternalService {
    */
   private handleKlineMessage(message: any): void {
     if (message.k) {
-      this.handleKlineData(message.k);
+      const streamKey = `${message.k.s.toLowerCase()}@kline_${message.k.i}`;
+      this.handleKlineData(message.k, streamKey);
     }
   }
 
   /**
-   * Обрабатывает kline данные
+   * Обрабатывает kline данные и обновляет кэш
    */
-  private handleKlineData(klineData: any): void {
-    // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Обрабатываем данные только если есть активная подписка
-    if (!this.currentSubscription || !this.isConnected) {
-      console.log(`[WebSocket] ⚠️ Ignoring kline data - no active subscription:`, {
-        hasSubscription: !!this.currentSubscription,
-        isConnected: this.isConnected,
-        symbol: klineData?.s,
-        interval: klineData?.i
-      });
-      return;
-    }
-
-    // Проверяем структуру kline данных
+  private handleKlineData(klineData: any, streamKey?: string): void {
     if (!klineData || typeof klineData !== 'object') {
       return;
     }
 
-    // ВРЕМЕННО ОТКЛЮЧАЕМ ПРОВЕРКУ для отладки
-    console.log(`[WebSocket] 🔍 DEBUG: Received kline data:`, {
-      symbol: klineData.s,
-      interval: klineData.i,
-      expectedSymbol: this.currentSubscription.symbol,
-      expectedInterval: this.currentSubscription.interval,
-      price: klineData.c,
-      volume: klineData.v,
-      timestamp: klineData.t
-    });
-
-    // Проверяем соответствие текущей подписке с нормализацией
-    const normalizedReceivedSymbol = klineData.s?.toLowerCase();
-    const normalizedExpectedSymbol = this.currentSubscription.symbol?.toLowerCase();
-    const normalizedReceivedInterval = klineData.i?.toLowerCase();
-    const normalizedExpectedInterval = this.currentSubscription.interval?.toLowerCase();
+    const inferredStreamKey = streamKey || `${klineData.s.toLowerCase()}@kline_${klineData.i}`;
     
-    if (normalizedReceivedSymbol !== normalizedExpectedSymbol || 
-        normalizedReceivedInterval !== normalizedExpectedInterval) {
-      console.log(`[WebSocket] ⚠️ Ignoring kline data - symbol/interval mismatch:`, {
-        expected: `${this.currentSubscription.symbol}@${this.currentSubscription.interval}`,
-        received: `${klineData.s}@${klineData.i}`,
-        normalizedExpected: `${normalizedExpectedSymbol}@${normalizedExpectedInterval}`,
-        normalizedReceived: `${normalizedReceivedSymbol}@${normalizedReceivedInterval}`
-      });
-      return; // Игнорируем данные не для текущей подписки
-    }
-
-    // ВРЕМЕННО ОТКЛЮЧАЕМ ПРОВЕРКУ закрытых свечей для демонстрации live обновлений
-    if (!klineData.x) {
-      console.log(`[WebSocket] ℹ️ Skipping open candle:`, {
-        symbol: klineData.s,
-        interval: klineData.i,
-        isClosed: klineData.x
-      });
-      // return; // ВРЕМЕННО ОТКЛЮЧАЕМ для демонстрации
+    // Проверяем, есть ли подписчики на этот поток
+    const handlers = this.subscriptions.get(inferredStreamKey);
+    if (!handlers || handlers.length === 0) {
+      return;
     }
 
     try {
@@ -402,16 +372,35 @@ export class BinanceWebSocketService extends ExternalService {
         isClosed: klineData.x
       };
 
-      // Вызываем все обработчики
-      this.messageHandlers.forEach(handler => {
+      // Отладочная информация для проверки данных (только для закрытых свечей)
+      if (klineData.x) {
+        console.log(`[WebSocket] 🔍 Closed candle data: t=${klineData.t}, c=${klineData.c}`);
+      }
+
+      // Обновляем кэш последних данных (для всех свечей, не только закрытых)
+      this.lastDataCache.set(inferredStreamKey, data);
+
+      // Отправляем данные всем подписчикам (как закрытые, так и живые свечи)
+      handlers.forEach(handler => {
         try {
-          handler(data);
+          handler.callback(data);
         } catch (error) {
-          console.error('[WebSocket] ❌ Handler error:', error);
+          console.error(`[WebSocket] ❌ Ошибка обработчика ${handler.id}:`, error);
         }
       });
+
+      // Логируем только закрытые свечи, чтобы не спамить консоль
+      if (data.isClosed) {
+        console.log(`[WebSocket] 🕯️ Закрытая свеча: ${data.symbol}@${data.interval} - ${data.close}`);
+      } else {
+        // Логируем живые данные реже (каждую 10-ю)
+        if (Math.random() < 0.1) {
+          console.log(`[WebSocket] 📊 Живые данные: ${data.symbol}@${data.interval} - ${data.close}`);
+        }
+      }
+
     } catch (error) {
-      console.error('[BinanceWebSocketService] Ошибка обработки kline данных:', error);
+      console.error('[WebSocket] ❌ Ошибка обработки kline данных:', error);
     }
   }
 
@@ -425,30 +414,22 @@ export class BinanceWebSocketService extends ExternalService {
       return;
     }
 
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, что подписка все еще актуальна
-    // Если подписка была изменена (смена монеты), НЕ переподключаемся
-    if (!this.currentSubscription) {
-      console.log(`[WebSocket] ℹ️ No active subscription, skipping reconnection`);
-      return;
-    }
-
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.warn(`[WebSocket] ⚠️ Max reconnection attempts reached for ${this.currentSubscription?.symbol}@${this.currentSubscription?.interval}`);
+      console.error(`[WebSocket] ❌ Превышено максимальное количество попыток переподключения (${this.maxReconnectAttempts})`);
       return;
     }
 
     this.reconnectAttempts++;
     const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000); // Максимум 30 секунд
 
-    console.log(`[WebSocket] 🔄 Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts} for ${this.currentSubscription?.symbol}@${this.currentSubscription?.interval} in ${delay}ms`);
+    console.log(`[WebSocket] 🔄 Попытка переподключения ${this.reconnectAttempts}/${this.maxReconnectAttempts} через ${delay}мс`);
 
-    setTimeout(async () => {
-      // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Убеждаемся, что подписка все еще актуальна
-      if (this.currentSubscription && !this.isConnected) {
+    this.reconnectTimeout = setTimeout(async () => {
+      if (this.activeStream && this.subscriptions.size > 0) {
         try {
           await this.connect();
         } catch (error) {
-          console.warn(`[WebSocket] ⚠️ Reconnection failed, will retry:`, error);
+          console.error('[WebSocket] ❌ Ошибка переподключения:', error);
           this.handleReconnection();
         }
       } else {
@@ -465,10 +446,43 @@ export class BinanceWebSocketService extends ExternalService {
   }
 
   /**
-   * Получает текущую подписку
+   * Получает информацию о текущих подписках
+   */
+  getSubscriptionsInfo(): { activeStream: string | null; subscriptionsCount: number; handlersCount: number } {
+    const handlersCount = Array.from(this.subscriptions.values()).reduce((total, handlers) => total + handlers.length, 0);
+    
+    return {
+      activeStream: this.activeStream,
+      subscriptionsCount: this.subscriptions.size,
+      handlersCount
+    };
+  }
+
+  /**
+   * Получает текущую подписку (legacy метод для совместимости)
    */
   getCurrentSubscription(): { symbol: string; interval: string } | null {
-    return this.currentSubscription;
+    if (!this.activeStream) {
+      return null;
+    }
+
+    const match = this.activeStream.match(/^(.+)@kline_(.+)$/);
+    if (match) {
+      return {
+        symbol: match[1].toUpperCase(),
+        interval: match[2]
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Получает последние данные для потока
+   */
+  getLastData(symbol: string, interval: string): BinanceKlineWebSocketData | null {
+    const streamKey = `${symbol.toLowerCase()}@kline_${interval}`;
+    return this.lastDataCache.get(streamKey) || null;
   }
 
   /**
@@ -517,8 +531,6 @@ export class BinanceWebSocketService extends ExternalService {
     
     // Очищаем состояние
     this.isConnected = false;
-    this.currentSubscription = null;
-    this.messageHandlers = [];
     this.reconnectAttempts = 0;
     
     console.log('[WebSocket] ✅ All connections force closed');

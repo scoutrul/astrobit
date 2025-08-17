@@ -1,18 +1,16 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { createChart, IChartApi, ISeriesApi, Time } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts';
 import { TimeframeUtils } from '../../Infrastructure/utils/TimeframeUtils';
 import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
-import { CryptoData } from '../../../CryptoData/Domain/types';
-import { PriceWidget } from './PriceWidget';
-import { usePriceWidget } from '../hooks/usePriceWidget';
+import { LivePriceWidget } from './LivePriceWidget';
 
 interface ChartComponentProps {
   symbol: string;
   timeframe: string;
   height?: number;
   className?: string;
-  cryptoData?: CryptoData[];
+  cryptoData?: any[];
   astronomicalEvents?: AstronomicalEvent[];
   eventFilters?: {
     lunar?: boolean;
@@ -56,17 +54,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     visible: false
   });
   
-  // Состояние загрузки графика
-  const [isChartLoading, setIsChartLoading] = useState(true);
-
-  // Используем хук для виджета цены
-  const { price, isLive, isPriceLoading } = usePriceWidget({
-    symbol,
-    realTimeData,
-    initialPrice: cryptoData.length > 0 ? cryptoData[cryptoData.length - 1]?.close : undefined,
-    isLoading
-  });
-
   // Флаги и refs для управления зумом/скроллом без сбросов
   const hasUserInteractedRef = useRef(false);
   const isProgrammaticRangeChangeRef = useRef(false);
@@ -352,6 +339,17 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
 
     try {
+      // Сохраняем текущий диапазон перед обновлением данных
+      let savedRange = null;
+      if (chartInstance && hasUserInteractedRef.current) {
+        try {
+          savedRange = chartInstance.timeScale().getVisibleRange();
+
+        } catch (err) {
+          console.warn('[Chart] ⚠️ Не удалось сохранить диапазон:', err);
+        }
+      }
+      
       // Конвертируем данные в формат Lightweight Charts
       const chartData = stableCryptoData.map(item => {
         const timeInSeconds = TimeframeUtils.convertTimestampToSeconds(item.time);
@@ -439,62 +437,26 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           const firstTime = processedData[startIndex].time as number;
           const lastTime = processedData[endIndex].time as number;
           
-          // Валидация диапазона времени
-          if (firstTime >= lastTime) {
-            console.warn('[ChartComponent] ⚠️ Invalid time range: firstTime >= lastTime', { firstTime, lastTime });
-            return;
-          }
-          
-          // Применяем начальный видимый диапазон только один раз, чтобы не сбрасывать зум пользователя при обновлениях
-          if (!initialRangeAppliedRef.current) {
+          // Восстанавливаем сохраненный диапазон или применяем начальный
+          if (savedRange && hasUserInteractedRef.current) {
+            // Восстанавливаем пользовательский диапазон
+            try {
+              isProgrammaticRangeChangeRef.current = true;
+              chartInstance.timeScale().setVisibleRange(savedRange as any);
+
+            } catch (err) {
+              console.warn('[Chart] ⚠️ Не удалось восстановить диапазон, применяем дефолтный');
+              // Применяем дефолтный диапазон при ошибке
+              isProgrammaticRangeChangeRef.current = true;
+              const range = { from: firstTime as Time, to: lastTime as Time };
+              chartInstance.timeScale().setVisibleRange(range as any);
+            }
+          } else if (!initialRangeAppliedRef.current) {
+            // Применяем начальный диапазон только один раз
             isProgrammaticRangeChangeRef.current = true;
             const range = { from: firstTime as Time, to: lastTime as Time };
-            
-            try {
-              chartInstance.timeScale().setVisibleRange(range as any);
-              initialRangeAppliedRef.current = true;
-            } catch (rangeError) {
-              console.error('[ChartComponent] ❌ Error setting visible range:', rangeError, { range });
-            }
-          } else {
-            // Если зум уже был применен, проверяем, не нужно ли его скорректировать
-            const currentRange = chartInstance.timeScale().getVisibleRange();
-            if (currentRange && typeof currentRange.from === 'number' && typeof currentRange.to === 'number') {
-              // Проверяем, не выходит ли текущий зум за пределы данных
-              const currentFrom = currentRange.from as number;
-              const currentTo = currentRange.to as number;
-              
-              if (currentFrom < firstTime || currentTo > lastTime) {
-                // Корректируем зум, чтобы он не выходил за пределы данных
-                // Но только если границы данных корректны
-                if (firstTime < lastTime) {
-                  let correctedFrom = currentFrom;
-                  let correctedTo = currentTo;
-                  
-                  // Корректируем только если выходим за границы
-                  if (currentFrom < firstTime) {
-                    correctedFrom = firstTime;
-                  }
-                  if (currentTo > lastTime) {
-                    correctedTo = lastTime;
-                  }
-                  
-                  // Дополнительная проверка: убеждаемся что диапазон корректен
-                  if (correctedFrom < correctedTo && (correctedFrom !== currentFrom || correctedTo !== currentTo)) {
-                    isProgrammaticRangeChangeRef.current = true;
-                    const correctedRange = { from: correctedFrom as Time, to: correctedTo as Time };
-                    
-                    try {
-                      chartInstance.timeScale().setVisibleRange(correctedRange as any);
-                    } catch (rangeError) {
-                      console.error('[ChartComponent] ❌ Error setting corrected range:', rangeError, { correctedRange });
-                    }
-                  }
-                } else {
-                  console.warn('[ChartComponent] ⚠️ Skipping range correction due to invalid data bounds', { firstTime, lastTime });
-                }
-              }
-            }
+            chartInstance.timeScale().setVisibleRange(range as any);
+            initialRangeAppliedRef.current = true;
           }
         }
       }
@@ -540,9 +502,83 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   // Установка загрузки графика
   useEffect(() => {
     if (cryptoData.length > 0) {
-      setIsChartLoading(false); // График загружен
+      // График загружен
     }
-  }, [cryptoData]);
+
+    // Проверяем, что в контейнере только один график
+    if (chartContainerRef.current) {
+      const charts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
+      if (charts.length > 1) {
+        console.warn('[Chart] ⚠️ Multiple charts in real-time update, skipping...');
+        return;
+      }
+    }
+
+    // Проверяем, что график готов к обновлению
+    try {
+      const existingData = seriesInstance?.data();
+      if (!existingData || existingData.length === 0) {
+        console.log('[ChartComponent] ⏳ График пустой, ждем исторические данные');
+        return; // Возвращаемся, чтобы не обновлять пустой график
+      }
+      
+      // Проверяем последнюю свечу для валидации времени
+      const lastCandle = existingData[existingData.length - 1];
+      
+      // Проверяем, что real-time данные не старше последней свечи
+      if (realTimeData && lastCandle) {
+        const realTimeSeconds = Math.floor(realTimeData.timestamp / 1000);
+        if (realTimeSeconds < (lastCandle.time as number)) {
+          console.warn(`[ChartComponent] ⚠️ Real-time данные старше последней свечи: ${realTimeSeconds} < ${lastCandle.time}, пропускаем`);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[ChartComponent] ⚠️ Ошибка получения данных графика, пропускаем');
+      return;
+    }
+
+    try {
+      if (!realTimeData || !seriesInstance) return;
+      
+      // Конвертируем WebSocket данные в формат для графика
+      const timeInSeconds = Math.floor(realTimeData.timestamp / 1000);
+      
+      // Проверяем валидность данных
+      if (!realTimeData.open || !realTimeData.high || !realTimeData.low || !realTimeData.close) {
+        console.warn('[ChartComponent] ⚠️ Invalid real-time data received:', realTimeData);
+        return;
+      }
+
+      // Отладочная информация (только для закрытых свечей)
+      if (realTimeData.isClosed) {
+        console.log(`[ChartComponent] 🔍 Processing closed candle: timestamp=${realTimeData.timestamp}, timeInSeconds=${timeInSeconds}, close=${realTimeData.close}`);
+      }
+
+      // Создаем обновленную свечу с правильным форматом времени
+      const updatedCandle = {
+        time: timeInSeconds as UTCTimestamp, // Правильный тип для LightweightCharts
+        open: realTimeData.open,
+        high: realTimeData.high,
+        low: realTimeData.low,
+        close: realTimeData.close
+      };
+
+      // Простое обновление - LightweightCharts сам разберется
+      seriesInstance.update(updatedCandle);
+      
+      console.log(`[ChartComponent] 📈 Real-time update: ${realTimeData.symbol}@${realTimeData.interval} - Close: ${realTimeData.close} (${realTimeData.isClosed ? 'closed' : 'live'}) at ${new Date(realTimeData.timestamp).toLocaleTimeString()}`);
+
+      // Автоматически скроллим к последней свече только если пользователь не взаимодействовал с графиком
+      // и только для живых данных (не закрытых свечей)
+      if (chartInstance && !hasUserInteractedRef.current && !realTimeData.isClosed) {
+        const timeScale = chartInstance.timeScale();
+        timeScale.scrollToPosition(0, false);
+      }
+    } catch (err) {
+      console.error('[ChartComponent] ❌ Error updating real-time data:', err);
+    }
+  }, [realTimeData, seriesInstance, chartInstance, cryptoData]);
 
   // Обработчик событий графика (тултип при ховере)
   useEffect(() => {
@@ -577,12 +613,11 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         className="w-full"
       />
 
-      {/* Виджет текущей цены */}
-      <PriceWidget
+      {/* Live Price Widget */}
+      <LivePriceWidget 
         symbol={symbol}
-        price={price}
-        isLive={isLive}
-        isLoading={isPriceLoading || isChartLoading}
+        realTimeData={realTimeData}
+        isLoading={isLoading}
       />
 
       {/* Индикатор загрузки */}

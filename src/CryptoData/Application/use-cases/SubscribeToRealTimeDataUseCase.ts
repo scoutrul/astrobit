@@ -10,6 +10,10 @@ export interface SubscribeToRealTimeDataRequest {
   onDataUpdate: (data: BinanceKlineWebSocketData) => void;
 }
 
+export interface SubscribeToRealTimeDataWithIdRequest extends SubscribeToRealTimeDataRequest {
+  subscriberId: string;
+}
+
 export interface SubscribeToRealTimeDataResponse {
   success: boolean;
   message: string;
@@ -36,6 +40,17 @@ export class SubscribeToRealTimeDataUseCase extends UseCase<SubscribeToRealTimeD
     return Result.ok(request);
   }
 
+  protected validateRequestWithId(request: SubscribeToRealTimeDataWithIdRequest): Result<SubscribeToRealTimeDataWithIdRequest> {
+    const baseValidation = this.validateRequest(request);
+    if (!baseValidation.isSuccess) {
+      return Result.fail(baseValidation.error);
+    }
+    if (!request.subscriberId) {
+      return Result.fail('Subscriber ID is required');
+    }
+    return Result.ok(request);
+  }
+
   async execute(request: SubscribeToRealTimeDataRequest): Promise<Result<SubscribeToRealTimeDataResponse>> {
     try {
       // Валидация входных данных
@@ -44,31 +59,7 @@ export class SubscribeToRealTimeDataUseCase extends UseCase<SubscribeToRealTimeD
         return Result.fail(validationResult.error);
       }
 
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, не пытаемся ли мы подписаться на ту же подписку
-      // Это предотвращает создание дублирующих WebSocket соединений
-      const currentSubscription = this.webSocketService.getCurrentSubscription();
-      if (currentSubscription && 
-          currentSubscription.symbol.toLowerCase() === request.symbol.toString().toLowerCase() && 
-          currentSubscription.interval === request.timeframe.toString()) {
-        console.log(`[RealTime] ℹ️ Already subscribed to ${request.symbol.toString()}@${request.timeframe.toString()}, skipping duplicate subscription`);
-        return Result.ok({
-          success: true,
-          message: `Уже подписаны на ${request.symbol.toString()}@${request.timeframe.toString()}`
-        });
-      }
-
-      // Для недельных и месячных таймфреймов WebSocket обновления не имеют смысла
-      // так как свечи обновляются крайне редко
-      const timeframeValue = request.timeframe.value;
-      if (timeframeValue === '1w' || timeframeValue === '1M') {
-        console.log(`[RealTime] ℹ️ Skipping WebSocket subscription for ${timeframeValue} timeframe (updates too infrequent)`);
-        return Result.ok({
-          success: true,
-          message: `WebSocket подписка пропущена для ${timeframeValue} (обновления слишком редкие)`
-        });
-      }
-
-      // Подписываемся на WebSocket данные
+      // Подписываемся на WebSocket данные (legacy метод)
       const result = await this.webSocketService.subscribeToKlineData(
         request.symbol.toString(),
         request.timeframe.toString(),
@@ -89,13 +80,59 @@ export class SubscribeToRealTimeDataUseCase extends UseCase<SubscribeToRealTimeD
   }
 
   /**
-   * Отписывается от текущей подписки
+   * Подписывается на real-time данные с уникальным идентификатором
+   */
+  async executeWithId(request: SubscribeToRealTimeDataWithIdRequest): Promise<Result<SubscribeToRealTimeDataResponse>> {
+    try {
+      // Валидация входных данных
+      const validationResult = this.validateRequestWithId(request);
+      if (!validationResult.isSuccess) {
+        return Result.fail(validationResult.error);
+      }
+
+      // Подписываемся на WebSocket данные с идентификатором
+      const result = await this.webSocketService.subscribeToKlineData(
+        request.symbol.toString(),
+        request.timeframe.toString(),
+        request.onDataUpdate,
+        request.subscriberId
+      );
+
+      if (result.isSuccess) {
+        return Result.ok({
+          success: true,
+          message: `Подписка на ${request.symbol.toString()}@${request.timeframe.toString()} установлена (ID: ${request.subscriberId})`
+        });
+      } else {
+        return Result.fail(result.error);
+      }
+    } catch (error) {
+      return Result.fail(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Отписывается от текущей подписки (legacy метод)
    */
   async unsubscribe(): Promise<Result<void>> {
     try {
       return await this.webSocketService.unsubscribe();
     } catch (error) {
       return Result.fail(`Failed to unsubscribe: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Отписывается от конкретного обработчика по ID
+   */
+  async unsubscribeHandler(subscriberId: string): Promise<Result<void>> {
+    try {
+      if (!subscriberId) {
+        return Result.fail('Subscriber ID is required');
+      }
+      return await this.webSocketService.unsubscribeHandler(subscriberId);
+    } catch (error) {
+      return Result.fail(`Failed to unsubscribe handler: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -111,5 +148,19 @@ export class SubscribeToRealTimeDataUseCase extends UseCase<SubscribeToRealTimeD
    */
   getCurrentSubscription(): { symbol: string; interval: string } | null {
     return this.webSocketService.getCurrentSubscription();
+  }
+
+  /**
+   * Получает экземпляр WebSocket сервиса для прямого доступа
+   */
+  getWebSocketService(): BinanceWebSocketService {
+    return this.webSocketService;
+  }
+
+  /**
+   * Получает информацию о подписках
+   */
+  getSubscriptionsInfo(): { activeStream: string | null; subscriptionsCount: number; handlersCount: number } {
+    return this.webSocketService.getSubscriptionsInfo();
   }
 } 

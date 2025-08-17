@@ -49,32 +49,6 @@ export interface ICryptoDataRepository {
   getTimeframes(): Promise<Result<Timeframe[]>>;
 
   /**
-   * Проверить доступность данных для символа
-   */
-  isDataAvailable(symbol: Symbol, timeframe: Timeframe): Promise<Result<boolean>>;
-
-  /**
-   * Получить статистику данных для символа
-   */
-  getDataStatistics(symbol: Symbol, timeframe: Timeframe): Promise<Result<{
-    totalRecords: number;
-    firstDate: Date | null;
-    lastDate: Date | null;
-    averageVolume: number;
-    averagePrice: number;
-  }>>;
-
-  /**
-   * Получить данные с агрегацией (например, для построения индикаторов)
-   */
-  getAggregatedData(
-    symbol: Symbol, 
-    timeframe: Timeframe, 
-    aggregationType: 'sma' | 'ema' | 'volume' | 'price',
-    period: number
-  ): Promise<Result<Array<{ timestamp: Date; value: number }>>>;
-
-  /**
    * Сохранить новые данные (для кэширования или локального хранения)
    */
   saveData(data: CryptoData[]): Promise<Result<void>>;
