@@ -10,10 +10,7 @@ export default defineConfig({
         target: 'https://api.binance.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/binance-api/, ''),
-        secure: true,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Astrobit/1.0)'
-        }
+        secure: true
       },
       '/binance-ws': {
         target: 'wss://stream.binance.com:9443',

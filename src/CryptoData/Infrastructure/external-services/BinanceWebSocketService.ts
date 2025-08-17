@@ -224,12 +224,9 @@ export class BinanceWebSocketService extends ExternalService {
     if (!this.activeStream) {
       throw new Error('No active stream configured');
     }
-
-    // Условный WebSocket URL в зависимости от режима
-    const wsUrl = import.meta.env.DEV
-      ? `ws://localhost:5173/binance-ws/ws/${this.activeStream}`  // Прокси в dev режиме
-      : `wss://stream.binance.com:9443/ws/${this.activeStream}`; // Внешний WebSocket в production
-
+    // В продакшене тоже используем относительный URL для избежания CORS
+    const wsUrl = `wss://${window.location.host}/binance-ws/ws/${this.activeStream}`;
+    
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(wsUrl);
