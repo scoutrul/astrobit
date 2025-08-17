@@ -14,6 +14,13 @@ export default defineConfig({
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; Astrobit/1.0)'
         }
+      },
+      '/binance-ws': {
+        target: 'wss://stream.binance.com:9443',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/binance-ws/, ''),
+        ws: true,
+        secure: true
       }
     }
   }

@@ -69,6 +69,9 @@ export class BinanceWebSocketService extends ExternalService {
 
   private constructor() {
     super();
+    
+    // Логируем режим работы для отладки
+    console.log(`[BinanceWebSocketService] 🔌 WebSocket mode: ${import.meta.env.DEV ? 'DEV (proxy)' : 'PROD (direct)'}`);
   }
 
   static getInstance(): BinanceWebSocketService {
@@ -237,7 +240,11 @@ export class BinanceWebSocketService extends ExternalService {
       throw new Error('No active stream configured');
     }
 
-    const wsUrl = `wss://stream.binance.com:9443/ws/${this.activeStream}`;
+    // Условный WebSocket URL в зависимости от режима
+    const wsUrl = import.meta.env.DEV
+      ? `ws://localhost:5173/binance-ws/ws/${this.activeStream}`  // Прокси в dev режиме
+      : `wss://stream.binance.com:9443/ws/${this.activeStream}`; // Внешний WebSocket в production
+
     console.log(`[WebSocket] 🔌 Подключение к ${wsUrl}`);
 
     return new Promise((resolve, reject) => {

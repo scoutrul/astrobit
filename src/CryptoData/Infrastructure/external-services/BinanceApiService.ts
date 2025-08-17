@@ -42,15 +42,16 @@ export interface BinanceTickerData {
 
 export class BinanceApiService extends ExternalService {
   private static instance: BinanceApiService | null = null;
-  // private readonly baseUrl = 'https://api.binance.com/api/v3';
-  private readonly baseUrl = '/binance-api/api/v3';
+  // Условный URL в зависимости от режима
+  private readonly baseUrl = import.meta.env.DEV 
+    ? '/binance-api/api/v3'  // Прокси в dev режиме
+    : 'https://api.binance.com/api/v3'; // Внешний API в production
 
-  private isInitialized = false;
-  private initializationPromise: Promise<void> | null = null;
-
-  private constructor() {
+  constructor() {
     super();
-    this.initializationPromise = this.initialize();
+    
+    // Логируем выбранный URL для отладки
+    console.log(`[BinanceApiService] 🔗 API URL: ${this.baseUrl} (${import.meta.env.DEV ? 'DEV' : 'PROD'} mode)`);
   }
 
   static getInstance(): BinanceApiService {
@@ -60,22 +61,12 @@ export class BinanceApiService extends ExternalService {
     return BinanceApiService.instance;
   }
 
-  private async initialize(): Promise<void> {
-    try {
-      // Для избежания CORS проблем, просто помечаем как инициализированный
-      // WebSocket соединение будет проверять доступность API
-      this.isInitialized = true;
-    } catch (error) {
-      throw new Error(`Failed to initialize Binance API: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
   async isAvailable(): Promise<boolean> {
     // Ждем завершения инициализации
-    if (this.initializationPromise) {
-      await this.initializationPromise;
-    }
-    return this.isInitialized;
+    // The initialization logic is removed, so this method is now effectively a placeholder.
+    // In a real scenario, you might check if the baseUrl is accessible or if there are
+    // other indicators of service availability.
+    return true; // Assuming availability for now, as initialization is removed.
   }
 
   async getKlineData(
@@ -85,11 +76,10 @@ export class BinanceApiService extends ExternalService {
   ): Promise<Result<BinanceKlineData[]>> {
     try {
       // Ждем завершения инициализации
-      if (this.initializationPromise) {
-        await this.initializationPromise;
-      }
-
-      if (!this.isInitialized) {
+      // The initialization logic is removed, so this method is now effectively a placeholder.
+      // In a real scenario, you might check if the baseUrl is accessible or if there are
+      // other indicators of service availability.
+      if (!this.isAvailable()) { // Assuming availability for now
         return Result.fail('Binance API service is not available');
       }
 
@@ -131,11 +121,10 @@ export class BinanceApiService extends ExternalService {
   async getSymbols(): Promise<Result<BinanceSymbolInfo[]>> {
     try {
       // Ждем завершения инициализации
-      if (this.initializationPromise) {
-        await this.initializationPromise;
-      }
-
-      if (!this.isInitialized) {
+      // The initialization logic is removed, so this method is now effectively a placeholder.
+      // In a real scenario, you might check if the baseUrl is accessible or if there are
+      // other indicators of service availability.
+      if (!this.isAvailable()) { // Assuming availability for now
         return Result.fail('Binance API service is not available');
       }
 
