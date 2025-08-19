@@ -27,7 +27,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({ className = '' }) =>
     <div className={`min-h-screen bg-slate-900 text-white flex flex-col ${className}`}>
       {/* Header - Two rows with logo, event filters, symbol and timeframe */}
       <header className="bg-gray-800 border-b border-gray-700 flex-shrink-0">
-        <div className="container-responsive py-2 sm:py-3">
+        <div className="container-fluid-responsive py-2 sm:py-3">
           {/* First row: Logo (left) + Event Filters (right) */}
           <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 md:gap-4 mb-2 sm:mb-3">
             {/* Logo - Left side */}

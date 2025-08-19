@@ -59,7 +59,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
 
   return (
     <div className={`w-full bg-gray-800 border-b border-gray-700 flex-shrink-0 ${className}`}>
-      <div className="container-responsive py-2 sm:py-3">
+      <div className="py-2 sm:py-3">
         <div className="flex flex-wrap items-center justify-start gap-2 sm:gap-3 md:gap-4">
           <span className="text-xs sm:text-sm text-gray-400 font-medium whitespace-nowrap hidden sm:inline">События:</span>
           

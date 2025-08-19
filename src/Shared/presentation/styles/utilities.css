@@ -8,14 +8,27 @@
   padding: 0 1rem;
 }
 
+/* Fluid container without max-width, but with responsive paddings */
+.container-fluid-responsive {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
 @media (min-width: 640px) {
   .container-responsive {
+    padding: 0 1.5rem;
+  }
+  .container-fluid-responsive {
     padding: 0 1.5rem;
   }
 }
 
 @media (min-width: 1024px) {
   .container-responsive {
+    padding: 0 2rem;
+  }
+  .container-fluid-responsive {
     padding: 0 2rem;
   }
 }

@@ -1039,7 +1039,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
       {/* Ближайшие события под графиком */}
       {upcomingEventCards.length > 0 && (
-        <div className="container-responsive mt-4">
+        <div className="container-fluid-responsive mt-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {upcomingEventCards.map(({ event, icon, color }, idx) => (
               <div
