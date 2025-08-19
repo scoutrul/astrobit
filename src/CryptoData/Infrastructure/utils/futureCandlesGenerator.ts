@@ -172,6 +172,19 @@ export function combineHistoricalAndFutureCandles(
 
   // Вычисляем требуемое количество будущих свечей
   let requiredCandles = calculateRequiredFutureCandles(lastTime, timeframe, astronomicalEvents);
+  // Ограничиваем горизонт будущих свечей по таймфреймам:
+  // - 1h: не дальше 1 суток (24 свечи)
+  // - 8h: не дальше 1 недели (21 свеча)
+  switch (timeframe) {
+    case '1h':
+      requiredCandles = Math.min(requiredCandles, 24);
+      break;
+    case '8h':
+      requiredCandles = Math.min(requiredCandles, 21);
+      break;
+    default:
+      break;
+  }
   
   // Ограничиваем будущие свечи до разумного предела (максимум 3 месяца в будущее)
   const now = new Date();

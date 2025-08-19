@@ -265,7 +265,7 @@ export class BinanceWebSocketService extends ExternalService {
           reject(error);
         };
 
-        this.ws.onclose = (event) => {
+        this.ws.onclose = () => {
           this.isConnected = false;
           
           

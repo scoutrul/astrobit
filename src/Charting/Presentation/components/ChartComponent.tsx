@@ -178,15 +178,21 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       }
     } else if (param.point && param.point.x) {
       // Если нет времени, но есть позиция курсора, показываем тултип в позиции мыши
+      // Применяем фильтры типов событий + временное окно
+      const filteredByType = AstronomicalEventUtils.filterEventsByType(
+        stableAstronomicalEvents,
+        activeEventFilters
+      );
+      const eventsForTooltip = filteredByType.filter(event => {
+        const eventTimeInSeconds = Math.floor(event.timestamp / 1000);
+        const currentTime = Math.floor(Date.now() / 1000);
+        const diff = Math.abs(eventTimeInSeconds - currentTime);
+        return diff <= 86400; // Показываем события за последние 24 часа
+      });
       setTooltip({
         x: param.point.x,
         y: param.point.y - 60,
-        events: stableAstronomicalEvents.filter(event => {
-          const eventTimeInSeconds = Math.floor(event.timestamp / 1000);
-          const currentTime = Math.floor(Date.now() / 1000);
-          const diff = Math.abs(eventTimeInSeconds - currentTime);
-          return diff <= 86400; // Показываем события за последние 24 часа
-        }),
+        events: eventsForTooltip,
         visible: true
       });
       return;
@@ -216,8 +222,14 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         break;
     }
     
-    // Поиск событий вблизи времени
-    const eventsNearTime = stableAstronomicalEvents.filter(event => {
+    // Применяем фильтры типов событий
+    const filteredByType = AstronomicalEventUtils.filterEventsByType(
+      stableAstronomicalEvents,
+      activeEventFilters
+    );
+
+    // Поиск событий вблизи времени среди отфильтрованных
+    const eventsNearTime = filteredByType.filter(event => {
       const eventTimeInSeconds = Math.floor(event.timestamp / 1000);
       const diff = Math.abs(eventTimeInSeconds - timeInSeconds);
       return diff <= timeRange;
@@ -248,7 +260,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       // Нет событий - скрываем ToolTip мгновенно
       setTooltip(prev => ({ ...prev, visible: false }));
     }
-  }, [timeframe, stableAstronomicalEvents]);
+  }, [timeframe, stableAstronomicalEvents, activeEventFilters]);
 
   // Инициализация графика
   useEffect(() => {
@@ -377,6 +389,10 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       // Подписка на изменение видимого диапазона для отслеживания пользовательского зума/скролла
       const timeScale = chart.timeScale();
       const handleVisibleRangeChange = (range: any) => {
+        // До первичного позиционирования игнорируем любые события
+        if (!initialRangeAppliedRef.current) {
+          return;
+        }
         // Игнорируем собственные программные изменения диапазона
         if (isProgrammaticRangeChangeRef.current) {
           // Сбрасываем флаг только после первого уведомления от чарт-а
@@ -433,23 +449,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         return;
       }
     }
-
-    // Проверяем, что график готов к обновлению (не в процессе инициализации)
-    if (!initialRangeAppliedRef.current) {
-      
-      
-      // Если у нас есть данные и серия, но график не инициализирован,
-      // принудительно устанавливаем флаг и продолжаем
-      if (cryptoData && cryptoData.length > 0) {
-        
-        initialRangeAppliedRef.current = true;
-      } else {
-        return;
-      }
-    }
-
-    // При смене symbol принудительно обновляем данные
-    
 
     // Дополнительная проверка - убеждаемся, что в контейнере только один график
     if (chartContainerRef.current) {
@@ -522,6 +521,8 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
               // processedData валидны, продолжаем
             }
             
+            // Помечаем изменение как программное, чтобы не ловить его как user-interaction
+            isProgrammaticRangeChangeRef.current = true;
             // Принудительно очищаем старые данные перед установкой новых
             seriesInstance.setData([]);
             // Устанавливаем новые данные
@@ -554,98 +555,99 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           }
         }
 
-        // Зум с показом области перехода от реальных к фейковым свечам
+        // Зум: 1h и 8h — максимальный zoom-out; остальные — окно вокруг «сегодня»
         if (chartInstance && processedData.length > 0) {
           const totalDataPoints = processedData.length;
-          
-          // Находим индекс последней реальной свечи с учетом таймфрейма
-          let lastRealCandleIndex = -1;
-          const currentTime = Date.now() / 1000; // текущее время в секундах
-          
-          // Определяем максимальный возраст свечи для разных таймфреймов
-          let maxCandleAge = 86400; // 1 день по умолчанию
-          switch (timeframe) {
-            case '1h':
-              maxCandleAge = 3600; // 1 час
-              break;
-            case '8h':
-              maxCandleAge = 28800; // 8 часов
-              break;
-            case '1d':
-              maxCandleAge = 86400; // 1 день
-              break;
-            case '1w':
-              maxCandleAge = 604800; // 1 неделя
-              break;
-            case '1M':
-              maxCandleAge = 2592000; // 1 месяц
-              break;
-          }
-          
-          // Ищем последнюю реальную свечу, которая не старше максимального возраста
-          for (let i = processedData.length - 1; i >= 0; i--) {
-            const candle = processedData[i] as any;
-            const candleTime = candle.time as number;
-            const candleAge = currentTime - candleTime;
-            
-            // Проверяем видимость свечи и её возраст
-            if (candle.visible !== false && candleAge <= maxCandleAge * 2) { // x2 для запаса
-              lastRealCandleIndex = i;
-              break;
-            }
-          }
-          
-          // Если не нашли подходящие свечи, используем последние 50 от конца
-          const realCandleIndex = lastRealCandleIndex >= 0 ? lastRealCandleIndex : Math.max(0, totalDataPoints - 50);
-          
-          // Показываем 200 свечей как требуется в техзадании
-          
-          // Находим индекс сегодняшней даты (последняя реальная свеча)
-          const todayIndex = realCandleIndex;
-          
-          // Вычисляем диапазон так, чтобы фокус был на сегодняшней дате
-          // Показываем 150 реальных свечей (история) + 50 фейковых (будущее для событий)
-          
-          // Начальный индекс - показываем историю (150 реальных свечей назад от сегодня)
-          const startIndex = Math.max(0, todayIndex - 150);
-          
-          // Конечный индекс - показываем фейковые свечи, но отодвигаем от края
-          // Берем только половину от общего количества фейковых свечей
-          const totalFakeCandles = totalDataPoints - todayIndex - 1; // общее количество фейковых свечей
-          const visibleFakeCandles = Math.min(50, Math.floor(totalFakeCandles / 2)); // показываем половину или максимум 50
-          const endIndex = Math.min(totalDataPoints - 1, todayIndex + visibleFakeCandles);
-          
-          // Логируем позиционирование для отладки
-          // Подсчет и преобразование дат были использованы только для логирования — удалены
-          
-          
-          const firstTime = processedData[startIndex].time as number;
-          const lastTime = processedData[endIndex].time as number;
-          
-          // Восстанавливаем сохраненный диапазон или применяем начальный
-          if (savedRange && hasUserInteractedRef.current) {
-            // Восстанавливаем пользовательский диапазон
-            try {
+
+          if (timeframe === '1h' || timeframe === '8h') {
+            // Максимальный zoom-out, как pinch/trackpad до упора
+            if (savedRange && hasUserInteractedRef.current) {
+              try {
+                isProgrammaticRangeChangeRef.current = true;
+                chartInstance.timeScale().setVisibleRange(savedRange as any);
+              } catch (err) {
+                isProgrammaticRangeChangeRef.current = true;
+                chartInstance.timeScale().fitContent();
+              }
+            } else if (!initialRangeAppliedRef.current) {
               isProgrammaticRangeChangeRef.current = true;
-              chartInstance.timeScale().setVisibleRange(savedRange as any);
-              
-            } catch (err) {
-              
-              // Применяем дефолтный диапазон при ошибке
-              isProgrammaticRangeChangeRef.current = true;
-              const range = { from: firstTime as Time, to: lastTime as Time };
-              chartInstance.timeScale().setVisibleRange(range as any);
+              try {
+                chartInstance.timeScale().fitContent();
+              } catch (err) {
+                // Fallback на весь доступный временной диапазон
+                const firstTimeAll = processedData[0].time as number;
+                const lastTimeAll = processedData[processedData.length - 1].time as number;
+                const range = { from: firstTimeAll as Time, to: lastTimeAll as Time };
+                chartInstance.timeScale().setVisibleRange(range as any);
+              }
+              initialRangeAppliedRef.current = true;
             }
-          } else if (!initialRangeAppliedRef.current) {
-            // Применяем начальный диапазон только при первой загрузке
-            isProgrammaticRangeChangeRef.current = true;
-            const range = { from: firstTime as Time, to: lastTime as Time };
-            chartInstance.timeScale().setVisibleRange(range as any);
-            
-            initialRangeAppliedRef.current = true;
           } else {
-            // После первой загрузки сохраняем текущую позицию пользователя
+            // Находим индекс последней реальной свечи с учетом таймфрейма
+            let lastRealCandleIndex = -1;
+            const currentTime = Date.now() / 1000; // текущее время в секундах
             
+            // Определяем максимальный возраст свечи для разных таймфреймов
+            let maxCandleAge = 86400; // 1 день по умолчанию
+            switch (timeframe) {
+              case '1h':
+                maxCandleAge = 3600; // 1 час
+                break;
+              case '8h':
+                maxCandleAge = 28800; // 8 часов
+                break;
+              case '1d':
+                maxCandleAge = 86400; // 1 день
+                break;
+              case '1w':
+                maxCandleAge = 604800; // 1 неделя
+                break;
+              case '1M':
+                maxCandleAge = 2592000; // 1 месяц
+                break;
+            }
+            
+            // Ищем последнюю реальную свечу, которая не старше максимального возраста
+            for (let i = processedData.length - 1; i >= 0; i--) {
+              const candle = processedData[i] as any;
+              const candleTime = candle.time as number;
+              const candleAge = currentTime - candleTime;
+              
+              // Проверяем видимость свечи и её возраст
+              if (candle.visible !== false && candleAge <= maxCandleAge * 2) { // x2 для запаса
+                lastRealCandleIndex = i;
+                break;
+              }
+            }
+            
+            // Если не нашли подходящие свечи, используем последние 50 от конца
+            const realCandleIndex = lastRealCandleIndex >= 0 ? lastRealCandleIndex : Math.max(0, totalDataPoints - 50);
+            
+            // Находим индекс сегодняшней даты (последняя реальная свеча)
+            const todayIndex = realCandleIndex;
+            
+            // Начальный индекс - показываем историю (150 реальных свечей назад от сегодня)
+            const startIndex = Math.max(0, todayIndex - 150);
+            
+            // Конечный индекс - показываем часть фейковых свечей, но отодвигаем от края
+            const totalFakeCandles = totalDataPoints - todayIndex - 1; // общее количество фейковых свечей
+            const visibleFakeCandles = Math.min(50, Math.floor(totalFakeCandles / 2)); // показываем половину или максимум 50
+            const endIndex = Math.min(totalDataPoints - 1, todayIndex + visibleFakeCandles);
+            
+            // Восстанавливаем сохраненный диапазон или применяем начальный (логический диапазон по индексам)
+            if (savedRange && hasUserInteractedRef.current) {
+              try {
+                isProgrammaticRangeChangeRef.current = true;
+                chartInstance.timeScale().setVisibleRange(savedRange as any);
+              } catch (err) {
+                isProgrammaticRangeChangeRef.current = true;
+                chartInstance.timeScale().setVisibleLogicalRange({ from: startIndex, to: endIndex } as any);
+              }
+            } else if (!initialRangeAppliedRef.current) {
+              isProgrammaticRangeChangeRef.current = true;
+              chartInstance.timeScale().setVisibleLogicalRange({ from: startIndex, to: endIndex } as any);
+              initialRangeAppliedRef.current = true;
+            }
           }
         }
       }
