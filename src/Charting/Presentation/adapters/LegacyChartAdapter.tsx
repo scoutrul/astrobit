@@ -127,8 +127,12 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       eventsForGenerator
     );
 
-    // Если есть real-time данные, обновляем будущие свечи на основе последней цены
-    if (lastUpdate && combinedData.length > 0) {
+    // Если есть real-time данные ТЕКУЩЕЙ подписки, обновляем будущие свечи на основе последней цены
+    const rtMatchesCurrent = !!lastUpdate &&
+      lastUpdate!.symbol.toLowerCase() === symbol.toLowerCase() &&
+      lastUpdate!.interval === timeframe;
+
+    if (rtMatchesCurrent && combinedData.length > 0) {
       // Находим индекс последней видимой (исторической) свечи
       const lastHistoricalIndex = historicalDataWithVisibility.length - 1;
       const currentPrice = lastUpdate.close;
@@ -152,7 +156,16 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
 
 
     return combinedData;
-  }, [propCryptoData, hookCryptoData, timeframe, eventsForGenerator.length, symbol, lastUpdate?.close]); // Добавляем lastUpdate
+  }, [
+    propCryptoData,
+    hookCryptoData,
+    timeframe,
+    eventsForGenerator.length,
+    symbol,
+    lastUpdate?.close,
+    lastUpdate?.symbol,
+    lastUpdate?.interval
+  ]);
 
   // Подписка на real-time данные при изменении symbol/timeframe
   useEffect(() => {

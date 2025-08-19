@@ -64,6 +64,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   const [chartInstance, setChartInstance] = useState<IChartApi | null>(null);
   const [seriesInstance, setSeriesInstance] = useState<ISeriesApi<"Candlestick"> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasData, setHasData] = useState<boolean>(false);
   const [tooltip, setTooltip] = useState<TooltipData>({
     x: 0,
     y: 0,
@@ -114,6 +115,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     isProgrammaticRangeChangeRef.current = false;
     initialRangeAppliedRef.current = false;
     lastManualRangeRef.current = null;
+    setHasData(false);
     
     // Принудительно удаляем старый график при смене монеты
     if (chartInstance) {
@@ -121,6 +123,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         // Очищаем данные серии перед удалением
         if (seriesInstance) {
           try {
+            // Сброс данных, включая фейковые свечи
             seriesInstance.setData([]);
           } catch (err) {
             
@@ -521,11 +524,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             
             // Принудительно очищаем старые данные перед установкой новых
             seriesInstance.setData([]);
-            
-            
             // Устанавливаем новые данные
             seriesInstance.setData(processedData as any);
-            
+            setHasData(true);
           } else {
             
             return;
@@ -920,7 +921,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           height: `${height}px`,
           minHeight: `${height}px`,
           width: '100%',
-          minWidth: '100%'
+          minWidth: '100%',
+          opacity: hasData ? 1 : 0,
+          transition: 'opacity 120ms ease-out'
         }}
         className="w-full"
       />
@@ -933,7 +936,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       />
 
       {/* Индикатор загрузки */}
-      {isLoading && (
+      {(isLoading) && (
         <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-30 bg-[#0a0b1e]/90 backdrop-blur-sm border border-[#334155] rounded-lg px-4 py-3 shadow-lg">
           <div className="text-[#e2e8f0] text-center flex items-center gap-3">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#f7931a]"></div>
