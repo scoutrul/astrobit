@@ -45,7 +45,7 @@ export class AstronomicalEventUtils {
   /**
    * Получает иконку и цвет для астрономического события
    */
-  private static getEventIconAndColor(event: AstronomicalEvent): { text: string; color: string } {
+  static getEventIconAndColor(event: AstronomicalEvent): { text: string; color: string } {
     let color = '#f7931a'; // Биткоин оранжевый по умолчанию
     let text = '';
     
