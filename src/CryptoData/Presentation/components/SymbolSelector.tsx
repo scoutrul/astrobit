@@ -112,7 +112,7 @@ function SymbolSelector() {
   }
 
   return (
-    <div className="relative flex items-center gap-2">
+    <div className="relative flex items-center gap-2 w-full">
       {/* Кнопка выбора из топ-20 */}
       <div className="relative">
         <button
@@ -163,8 +163,8 @@ function SymbolSelector() {
       </div>
 
       {/* Поле поиска монеты (USDT пара) */}
-      <div className="relative">
-        <div className="flex items-center bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 gap-2 min-w-[240px]">
+      <div className="relative flex-1 min-w-0">
+        <div className="flex items-center bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 gap-2 w-full min-w-0 sm:min-w-[240px]">
           <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z" />
           </svg>
