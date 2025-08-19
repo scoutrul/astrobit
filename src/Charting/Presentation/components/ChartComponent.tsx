@@ -1006,12 +1006,10 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
                     {event.name}
                   </div>
                   <div className="text-[#8b8f9b] text-xs mb-1">
-                    {new Date(event.timestamp).toLocaleString('ru-RU', {
+                    {new Date(event.timestamp).toLocaleDateString('ru-RU', {
                       year: 'numeric',
                       month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
+                      day: 'numeric'
                     })}
                   </div>
                   <div className="text-[#8b8f9b] text-xs">
@@ -1024,6 +1022,15 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             // Одно событие
             <>
               <div className="text-[#e2e8f0] font-semibold text-sm mb-1">{tooltip.title}</div>
+              <div className="text-[#8b8f9b] text-xs mb-1">
+                {(() => {
+                  const matched = (stableAstronomicalEvents || []).find(ev => ev.name === tooltip.title);
+                  const ts = matched?.timestamp;
+                  return ts
+                    ? new Date(ts).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' })
+                    : '';
+                })()}
+              </div>
               <div className="text-[#8b8f9b] text-xs">{tooltip.description}</div>
             </>
           )}
@@ -1032,29 +1039,31 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
       {/* Ближайшие события под графиком */}
       {upcomingEventCards.length > 0 && (
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {upcomingEventCards.map(({ event, icon, color }, idx) => (
-            <div
-              key={`${event.timestamp}-${idx}`}
-              className="rounded-lg border border-[#334155] bg-[#0a0b1e] p-3 flex items-start gap-3"
-              style={{ borderLeft: `3px solid ${color}` }}
-            >
-              <div className="text-lg" style={{ color }}>{icon}</div>
-              <div className="min-w-0">
-                <div className="text-[#e2e8f0] text-sm font-semibold truncate">{event.name}</div>
-                <div className="text-[#8b8f9b] text-xs">
-                  {new Date(event.timestamp).toLocaleString('ru-RU', {
-                    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                  })}
-                </div>
-                {event.description && (
-                  <div className="text-[#a3a8b5] text-xs mt-1 overflow-hidden text-ellipsis">
-                    {event.description}
+        <div className="container-responsive mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {upcomingEventCards.map(({ event, icon, color }, idx) => (
+              <div
+                key={`${event.timestamp}-${idx}`}
+                className="rounded-lg border border-[#334155] bg-[#0a0b1e] p-3 flex items-start gap-3"
+                style={{ borderLeft: `3px solid ${color}` }}
+              >
+                <div className="text-lg" style={{ color }}>{icon}</div>
+                <div className="min-w-0">
+                  <div className="text-[#e2e8f0] text-sm font-semibold truncate">{event.name}</div>
+                  <div className="text-[#8b8f9b] text-xs">
+                    {new Date(event.timestamp).toLocaleString('ru-RU', {
+                      year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    })}
                   </div>
-                )}
+                  {event.description && (
+                    <div className="text-[#a3a8b5] text-xs mt-1 overflow-hidden text-ellipsis">
+                      {event.description}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>

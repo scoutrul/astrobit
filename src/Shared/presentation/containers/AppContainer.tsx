@@ -24,7 +24,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({ className = '' }) =>
   }, []);
 
   return (
-    <div className={`h-screen bg-slate-900 text-white flex flex-col ${className}`}>
+    <div className={`min-h-screen bg-slate-900 text-white flex flex-col ${className}`}>
       {/* Header - Two rows with logo, event filters, symbol and timeframe */}
       <header className="bg-gray-800 border-b border-gray-700 flex-shrink-0">
         <div className="container-responsive py-2 sm:py-3">
@@ -50,10 +50,10 @@ export const AppContainer: React.FC<AppContainerProps> = ({ className = '' }) =>
         </div>
       </header>
 
-      {/* Chart - Full remaining space */}
-      <div className="flex-1 w-full overflow-hidden -mb-4">
+      {/* Chart + новости под ним: позволяем естественную высоту и скролл страницы */}
+      <div className="w-full">
         <LegacyChartAdapter 
-          className="w-full h-full" 
+          className="w-full" 
           eventFilters={eventFilters}
         />
       </div>
