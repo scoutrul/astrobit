@@ -160,8 +160,10 @@ export function combineHistoricalAndFutureCandles(
   // Создаем ключ кэша для объединения
   const lastCandle = historicalData[historicalData.length - 1];
   const lastTime = new Date(lastCandle.time);
+  const symbolKey = String(lastCandle.symbol || 'UNKNOWN');
   const eventsKey = astronomicalEvents.map(e => `${e.name}-${e.date.toISOString()}`).join('|');
-  const combinationCacheKey = `${lastTime.toISOString()}-${timeframe}-${historicalData.length}-${eventsKey}`;
+  // ВКЛЮЧАЕМ SYMBOL в ключ кэша, чтобы не смешивать данные разных монет
+  const combinationCacheKey = `${symbolKey}-${lastTime.toISOString()}-${timeframe}-${historicalData.length}-${eventsKey}`;
   
   // Проверяем кэш объединения
   if (combinationCache.has(combinationCacheKey)) {
