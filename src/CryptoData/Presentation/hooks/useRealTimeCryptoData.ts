@@ -67,7 +67,7 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
         if (activeSubscriptionRef.current && 
             activeSubscriptionRef.current.symbol === symbol && 
             activeSubscriptionRef.current.timeframe === timeframe) {
-          console.log(`[useRealTimeCryptoData] ⏭️ Подписка ${symbol}@${timeframe} уже активна`);
+          
           return;
         }
 
@@ -75,11 +75,11 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
         
         // Отписываемся от предыдущей подписки этого хука
         if (activeSubscriptionRef.current) {
-          console.log(`[useRealTimeCryptoData] 🔄 Переключение с ${activeSubscriptionRef.current.symbol}@${activeSubscriptionRef.current.timeframe} на ${symbol}@${timeframe}`);
+          
           try {
             await useCase.unsubscribeHandler(subscriberId.current);
           } catch (unsubError) {
-            console.warn(`[useRealTimeCryptoData] ⚠️ Ошибка отписки:`, unsubError);
+            
           }
         }
         
@@ -101,15 +101,15 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
             setLastUpdate(cachedData);
           }
           
-          console.log(`[useRealTimeCryptoData] ✅ Подписка создана: ${symbol}@${timeframe} (ID: ${subscriberId.current})`);
+          
         } else {
           setError(result.error);
-          console.error(`[useRealTimeCryptoData] ❌ Ошибка подписки:`, result.error);
+          
         }
       } catch (err) {
         const errorMsg = `Failed to subscribe: ${err instanceof Error ? err.message : 'Unknown error'}`;
         setError(errorMsg);
-        console.error(`[useRealTimeCryptoData] ❌ Исключение при подписке:`, err);
+        
       }
     }, 100); // 100ms debounce
   }, [getUseCase, handleDataUpdate]);
@@ -118,7 +118,7 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
   const unsubscribe = useCallback(async () => {
     try {
       if (!activeSubscriptionRef.current) {
-        console.log(`[useRealTimeCryptoData] ⏭️ Нет активной подписки для отмены`);
+        
         return;
       }
 
@@ -130,15 +130,15 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
         setIsConnected(false);
         setCurrentSubscription(null);
         setLastUpdate(null);
-        console.log(`[useRealTimeCryptoData] 🗑️ Подписка отменена (ID: ${subscriberId.current})`);
+        
       } else {
         setError(result.error);
-        console.error(`[useRealTimeCryptoData] ❌ Ошибка отписки:`, result.error);
+        
       }
     } catch (err) {
       const errorMsg = `Failed to unsubscribe: ${err instanceof Error ? err.message : 'Unknown error'}`;
       setError(errorMsg);
-      console.error(`[useRealTimeCryptoData] ❌ Исключение при отписке:`, err);
+      
     }
   }, [getUseCase]);
 
@@ -149,7 +149,7 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
       const webSocketService = useCase.getWebSocketService();
       return webSocketService.getSubscriptionsInfo();
     } catch (error) {
-      console.error('[useRealTimeCryptoData] ❌ Ошибка получения информации о подписках:', error);
+      
       return { activeStream: null, subscriptionsCount: 0, handlersCount: 0 };
     }
   }, [getUseCase]);
@@ -164,7 +164,7 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
         // Обновляем статус только если он изменился
         setIsConnected(prevConnected => {
           if (prevConnected !== connected) {
-            console.log(`[useRealTimeCryptoData] 🔌 Статус соединения изменился: ${connected}`);
+            
           }
           return connected;
         });
@@ -174,7 +174,7 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
           setCurrentSubscription(subscription);
         }
       } catch (error) {
-        console.error('[useRealTimeCryptoData] ❌ Ошибка проверки соединения:', error);
+        
         setIsConnected(false);
       }
     };
@@ -195,14 +195,14 @@ export function useRealTimeCryptoData(): UseRealTimeCryptoDataResult {
       }
 
       if (activeSubscriptionRef.current) {
-        console.log(`[useRealTimeCryptoData] 🧹 Очистка при размонтировании (ID: ${subscriberId.current})`);
+        
         // Асинхронная отписка при размонтировании
         const cleanup = async () => {
           try {
             const useCase = getUseCase();
             await useCase.unsubscribeHandler(subscriberId.current);
           } catch (error) {
-            console.error('[useRealTimeCryptoData] ❌ Ошибка очистки:', error);
+            
           }
         };
         cleanup();

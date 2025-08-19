@@ -169,7 +169,7 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       prevSubscription.current.timeframe !== timeframe;
     
     if (hasChanged) {
-      console.log(`[LegacyChartAdapter] 🔄 Подписка изменилась: ${symbol}@${timeframe}`);
+      
       
       // Подписываемся на новую подписку (старая автоматически отменится в хуке)
       subscribe(symbol, timeframe);
@@ -181,7 +181,7 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   useEffect(() => {
     return () => {
       if (prevSubscription.current) {
-        console.log(`[LegacyChartAdapter] 🧹 Очистка при размонтировании`);
+        
         unsubscribe();
         prevSubscription.current = null;
       }

@@ -5,6 +5,15 @@ import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
 import { LivePriceWidget } from './LivePriceWidget';
 
+// Глушим отладочные логи в консоли (оставляем только ошибки)
+const SILENCE_DEBUG_LOGS = true;
+if (SILENCE_DEBUG_LOGS && typeof window !== 'undefined') {
+  // @ts-ignore
+  console.log = () => {};
+  // @ts-ignore
+  console.warn = () => {};
+}
+
 interface ChartComponentProps {
   symbol: string;
   timeframe: string;
@@ -87,13 +96,11 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   // Добавляем timestamp для принудительного пересоздания
   const chartKey = useMemo(() => {
     const baseKey = `${symbol}-${timeframe}-${forceRecreateKey}`;
-    console.log(`[Chart] 🔑 Создан chartKey: ${baseKey}`);
     return baseKey;
   }, [symbol, timeframe, forceRecreateKey]);
   
   // Сброс флагов при смене symbol/timeframe
   useEffect(() => {
-    console.log(`[Chart] 🔄 Смена symbol/timeframe: ${symbol}@${timeframe}`);
     
     // Принудительно очищаем все данные и состояние
     setChartInstance(null);
@@ -115,21 +122,20 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         if (seriesInstance) {
           try {
             seriesInstance.setData([]);
-            console.log(`[Chart] 🧹 Данные серии очищены перед удалением`);
           } catch (err) {
-            console.warn(`[Chart] ⚠️ Не удалось очистить данные серии:`, err);
+            
           }
         }
         
         chartInstance.remove();
-        console.log(`[Chart] 🗑️ Удален старый график для ${symbol}`);
+        
       } catch (err) {
-        console.warn(`[Chart] ⚠️ Не удалось удалить старый график:`, err);
+        
       }
     }
     
     // Принудительно очищаем все данные из состояния
-    console.log(`[Chart] 🧹 Принудительная очистка всех данных при смене монеты`);
+    
     
     // Очищаем контейнер от всех графиков
     if (chartContainerRef.current) {
@@ -138,14 +144,14 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         try {
           chart.remove();
         } catch (err) {
-          console.warn('[Chart] ⚠️ Не удалось удалить существующий график:', err);
+          
         }
       });
-      console.log(`[Chart] 🧹 Контейнер очищен для ${symbol}`);
+      
     }
     
     // Принудительно вызываем пересоздание графика
-    console.log(`[Chart] 🔄 Готов к пересозданию графика для ${symbol}@${timeframe}`);
+    
   }, [symbol, timeframe]); // Убрал chartInstance из зависимостей
 
   // Обработчик движения курсора для ToolTip
@@ -243,10 +249,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
   // Инициализация графика
   useEffect(() => {
-    console.log(`[Chart] 🔍 useEffect инициализации сработал для ${chartKey}`);
     
     if (!chartContainerRef.current) {
-      console.log('[Chart] ❌ chartContainerRef.current не существует');
+      
       return;
     }
 
@@ -267,25 +272,25 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       try {
         chart.remove();
       } catch (err) {
-        console.warn('[Chart] ⚠️ Не удалось удалить существующий график:', err);
+        
       }
     });
 
     // Проверяем ширину контейнера
-    console.log(`[Chart] 📏 Размеры контейнера: width=${chartContainerRef.current.clientWidth}, height=${chartContainerRef.current.clientHeight}`);
+    
     
     if (chartContainerRef.current.clientWidth === 0) {
-      console.log('[Chart] ⏳ Контейнер не готов, ждем...');
+      
       const timer = setTimeout(() => {
         if (chartContainerRef.current) {
-          console.log('[Chart] ⏰ Таймер сработал, но контейнер все еще не готов');
+          
           setChartInstance(null);
         }
       }, 100);
       return () => clearTimeout(timer);
     }
 
-    console.log(`[Chart] 🚀 Создание нового графика для ${symbol}@${timeframe}`);
+    
 
     setError(null);
 
@@ -353,12 +358,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       setChartInstance(chart);
       setSeriesInstance(candlestickSeries);
       
-      console.log(`[Chart] ✅ График создан:`, {
-        chartInstance: !!chart,
-        seriesInstance: !!candlestickSeries,
-        containerWidth: chartContainerRef.current?.clientWidth,
-        containerHeight: chartContainerRef.current?.clientHeight
-      });
+      
 
       // Обработчик изменения размера
       const handleResize = () => {
@@ -409,23 +409,16 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
   // Обновление данных криптовалют
   useEffect(() => {
-    console.log(`[Chart] 🔍 useEffect обновления данных сработал:`, {
-      hasSeriesInstance: !!seriesInstance,
-      hasCryptoData: !!cryptoData.length,
-      cryptoDataLength: cryptoData.length,
-      symbol,
-      timeframe,
-      initialRangeApplied: initialRangeAppliedRef.current
-    });
+    
     
     if (!seriesInstance || !cryptoData.length) {
-      console.log('[Chart] ⚠️ Нет seriesInstance или cryptoData, пропускаем обновление');
+      
       return;
     }
 
     // Проверяем, что график и серия все еще существуют
     if (!chartInstance || !seriesInstance) {
-      console.log('[Chart] ⚠️ График или серия не существуют, пропускаем обновление данных');
+      
       return;
     }
 
@@ -433,19 +426,19 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     if (chartContainerRef.current) {
       const charts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
       if (charts.length === 0) {
-        console.log('[Chart] ⚠️ В контейнере нет графиков, пропускаем обновление данных');
+        
         return;
       }
     }
 
     // Проверяем, что график готов к обновлению (не в процессе инициализации)
     if (!initialRangeAppliedRef.current) {
-      console.log('[Chart] ⏳ График еще не инициализирован, ждем завершения инициализации');
+      
       
       // Если у нас есть данные и серия, но график не инициализирован,
       // принудительно устанавливаем флаг и продолжаем
       if (cryptoData && cryptoData.length > 0) {
-        console.log('[Chart] 🔧 Принудительно продолжаем инициализацию');
+        
         initialRangeAppliedRef.current = true;
       } else {
         return;
@@ -453,13 +446,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     }
 
     // При смене symbol принудительно обновляем данные
-    console.log(`[Chart] 🔄 Обновление данных для ${symbol}@${timeframe}, количество свечей: ${cryptoData.length}`);
+    
 
     // Дополнительная проверка - убеждаемся, что в контейнере только один график
     if (chartContainerRef.current) {
       const charts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
       if (charts.length > 1) {
-        console.warn('[Chart] ⚠️ Multiple charts detected, cleaning up...');
+        
         // Удаляем все кроме первого
         for (let i = 1; i < charts.length; i++) {
           charts[i].remove();
@@ -474,9 +467,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         try {
           // Используем последний сохраненный диапазон пользователя
           savedRange = lastManualRangeRef.current;
-          console.log('[Chart] 💾 Используем сохраненный диапазон пользователя');
+          
         } catch (err) {
-          console.warn('[Chart] ⚠️ Не удалось сохранить диапазон:', err);
+          
         }
       }
       
@@ -489,7 +482,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         if (filtered.length > 0) {
           sourceData = filtered;
         } else {
-          console.warn(`[Chart] ⚠️ Данные для ${symbol} не найдены по полю symbol, используем весь набор без фильтрации`);
+          
         }
       }
       // Конвертируем данные в формат Lightweight Charts, включая невидимые свечи как прозрачные
@@ -515,12 +508,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       const processedData = TimeframeUtils.processChartData(chartData);
       
       if (processedData.length > 0) {
-        console.log(`[Chart] 📊 Обновляем данные на графике:`, {
-          processedDataLength: processedData.length,
-          firstCandle: processedData[0],
-          lastCandle: processedData[processedData.length - 1],
-          seriesInstanceExists: !!seriesInstance
-        });
+        
         
         // Обновляем данные на графике
         try {
@@ -528,27 +516,25 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           if (chartContainerRef.current && chartContainerRef.current.querySelector('.tv-lightweight-charts')) {
             // processedData уже построены из symbolData → это точно текущий символ
             if (processedData.length > 0) {
-              const firstCandle = processedData[0];
-              console.log(`[Chart] 🔍 Проверка данных: первая свеча ${new Date((firstCandle.time as number) * 1000).toISOString()}, цена: ${firstCandle.close}`);
-              console.log(`[Chart] ✅ Данные принадлежат ${symbol}, продолжаем`);
+              // processedData валидны, продолжаем
             }
             
             // Принудительно очищаем старые данные перед установкой новых
             seriesInstance.setData([]);
-            console.log(`[Chart] 🧹 Старые данные очищены`);
+            
             
             // Устанавливаем новые данные
             seriesInstance.setData(processedData as any);
-            console.log(`[Chart] ✅ Данные успешно установлены на график для ${symbol}`);
+            
           } else {
-            console.log(`[Chart] ⚠️ График удален, пропускаем установку данных`);
+            
             return;
           }
         } catch (err) {
           console.error(`[Chart] ❌ Ошибка при установке данных:`, err);
           // Если произошла ошибка, возможно график удален
           if (err instanceof Error && err.message && err.message.includes('disposed')) {
-            console.log(`[Chart] 🔄 График удален, пропускаем обновление`);
+            
             return;
           }
         }
@@ -561,9 +547,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
               autoScale: true,
               scaleMargins: { top: 0.1, bottom: 0.1 }
             });
-            console.log(`[Chart] ✅ Масштаб ценовой шкалы обновлен для ${symbol}`);
+            
           } catch (err) {
-            console.warn('[Chart] ⚠️ Не удалось обновить масштаб ценовой шкалы:', err);
+            
           }
         }
 
@@ -629,14 +615,8 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           const endIndex = Math.min(totalDataPoints - 1, todayIndex + visibleFakeCandles);
           
           // Логируем позиционирование для отладки
-          const actualVisible = endIndex - startIndex + 1;
-          const todayDate = new Date(processedData[todayIndex].time as number * 1000);
-          console.log(`[Chart] 📍 Позиционирование для ${timeframe}:`);
-          console.log(`  - Сегодня: индекс=${todayIndex}, время=${todayDate.toLocaleString()}`);
-          console.log(`  - Всего свечей: ${totalDataPoints}`);
-          console.log(`  - Диапазон: ${startIndex}-${endIndex} (${actualVisible} свечей)`);
-          console.log(`  - Фейковых свечей: всего=${totalFakeCandles}, показываем=${visibleFakeCandles}`);
-          console.log(`  - Ожидается: 150 реальных + ${visibleFakeCandles} фейковых = ${actualVisible} свечей`);
+          // Подсчет и преобразование дат были использованы только для логирования — удалены
+          
           
           const firstTime = processedData[startIndex].time as number;
           const lastTime = processedData[endIndex].time as number;
@@ -647,9 +627,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             try {
               isProgrammaticRangeChangeRef.current = true;
               chartInstance.timeScale().setVisibleRange(savedRange as any);
-              console.log('[Chart] 🔄 Восстановлен пользовательский диапазон');
+              
             } catch (err) {
-              console.warn('[Chart] ⚠️ Не удалось восстановить диапазон, применяем дефолтный');
+              
               // Применяем дефолтный диапазон при ошибке
               isProgrammaticRangeChangeRef.current = true;
               const range = { from: firstTime as Time, to: lastTime as Time };
@@ -660,11 +640,11 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             isProgrammaticRangeChangeRef.current = true;
             const range = { from: firstTime as Time, to: lastTime as Time };
             chartInstance.timeScale().setVisibleRange(range as any);
-            console.log(`[Chart] 🎯 Применен начальный диапазон: ${new Date(firstTime * 1000).toLocaleDateString()} - ${new Date(lastTime * 1000).toLocaleDateString()}`);
+            
             initialRangeAppliedRef.current = true;
           } else {
             // После первой загрузки сохраняем текущую позицию пользователя
-            console.log(`[Chart] 🔒 Сохраняем текущую позицию пользователя`);
+            
           }
         }
       }
@@ -683,19 +663,19 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     if (chartContainerRef.current) {
       const charts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
       if (charts.length === 0) {
-        console.log('[Chart] ⚠️ В контейнере нет графиков, пропускаем обновление астрономических событий');
+        
         return;
       }
     }
 
     // При смене symbol принудительно обновляем астрономические события
-    console.log(`[Chart] 🔄 Обновление астрономических событий для ${symbol}@${timeframe}`);
+    
 
     // Проверяем, что в контейнере только один график
     if (chartContainerRef.current) {
       const charts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
       if (charts.length > 1) {
-        console.warn('[Chart] ⚠️ Multiple charts in astronomical events update, skipping...');
+        
         return;
       }
     }
@@ -715,9 +695,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           // Проверяем, что график все еще существует
           if (chartContainerRef.current && chartContainerRef.current.querySelector('.tv-lightweight-charts')) {
             seriesInstance.setMarkers(markers as any);
-            console.log(`[Chart] ✅ Астрономические события установлены: ${markers.length} маркеров`);
+            
           } else {
-            console.log(`[Chart] ⚠️ График удален, пропускаем установку астрономических событий`);
+            
           }
         } catch (err) {
           console.error(`[Chart] ❌ Ошибка при установке астрономических событий:`, err);
@@ -726,7 +706,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         try {
           if (chartContainerRef.current && chartContainerRef.current.querySelector('.tv-lightweight-charts')) {
             seriesInstance.setMarkers([]);
-            console.log(`[Chart] ✅ Астрономические события очищены`);
+            
           }
         } catch (err) {
           console.error(`[Chart] ❌ Ошибка при очистке астрономических событий:`, err);
@@ -747,19 +727,19 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     if (chartContainerRef.current) {
       const charts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
       if (charts.length === 0) {
-        console.log('[Chart] ⚠️ В контейнере нет графиков, пропускаем обновление real-time данных');
+        
         return;
       }
     }
 
     // При смене symbol принудительно обновляем real-time данные
-    console.log(`[Chart] 🔄 Обновление real-time данных для ${symbol}@${timeframe}`);
+    
 
     // Проверяем, что в контейнере только один график
     if (chartContainerRef.current) {
       const charts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
       if (charts.length > 1) {
-        console.warn('[Chart] ⚠️ Multiple charts in real-time update, skipping...');
+        
         return;
       }
     }
@@ -768,7 +748,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     try {
       const existingData = seriesInstance.data();
       if (!existingData || existingData.length === 0) {
-        console.log('[ChartComponent] ⏳ График пустой, ждем исторические данные');
+        
         return; // Возвращаемся, чтобы не обновлять пустой график
       }
       
@@ -783,32 +763,32 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       const timeTolerance = 5 * 60; // 5 минут в секундах
       
       if (lastCandle && realTimeSeconds < (lastCandleTime - timeTolerance)) {
-        console.warn(`[ChartComponent] ⚠️ Real-time данные слишком старые: ${realTimeSeconds} < ${lastCandleTime - timeTolerance}, пропускаем`);
+        
         return;
       }
       
       // Если данные немного старше, но в пределах допуска, все равно обновляем
       if (realTimeSeconds < lastCandleTime) {
-        console.log(`[ChartComponent] ℹ️ Real-time данные немного старше (в пределах допуска): ${realTimeSeconds} < ${lastCandleTime}, обновляем`);
+        
       }
       
       // Дополнительная проверка: не обновляем позицию если пользователь взаимодействовал с графиком
       if (hasUserInteractedRef.current) {
-        console.log('[ChartComponent] 🔒 Пользователь взаимодействовал с графиком, сохраняем позицию');
+        
         
         // Сохраняем текущую позицию перед обновлением
         try {
           const currentRange = chartInstance.timeScale().getVisibleRange();
           if (currentRange) {
             lastManualRangeRef.current = currentRange;
-            console.log('[ChartComponent] 💾 Сохранена текущая позиция пользователя');
+            
           }
         } catch (err) {
-          console.warn('[ChartComponent] ⚠️ Не удалось сохранить текущую позицию:', err);
+          
         }
       }
     } catch (err) {
-      console.warn('[ChartComponent] ⚠️ Ошибка получения данных графика, пропускаем');
+      
       return;
     }
 
@@ -820,13 +800,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       
       // Проверяем валидность данных
       if (!realTimeData.open || !realTimeData.high || !realTimeData.low || !realTimeData.close) {
-        console.warn('[ChartComponent] ⚠️ Invalid real-time data received:', realTimeData);
+        
         return;
       }
 
       // Отладочная информация (только для закрытых свечей)
       if (realTimeData.isClosed) {
-        console.log(`[ChartComponent] 🔍 Processing closed candle: timestamp=${realTimeData.timestamp}, timeInSeconds=${timeInSeconds}, close=${realTimeData.close}`);
+        
       }
 
       // Создаем обновленную свечу с правильным форматом времени
@@ -843,7 +823,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       // Простое обновление - LightweightCharts сам разберется
       seriesInstance.update(updatedCandle);
       
-      console.log(`[ChartComponent] 📈 Real-time update: ${realTimeData.symbol}@${realTimeData.interval} - Close: ${realTimeData.close} (${realTimeData.isClosed ? 'closed' : 'live'}) at ${new Date(realTimeData.timestamp).toLocaleTimeString()}`);
+      
 
       // НЕ автоматически скроллим при real-time обновлениях
       // Пользователь должен сам управлять позицией графика
@@ -861,7 +841,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     if (chartContainerRef.current) {
       const charts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
       if (charts.length > 1) {
-        console.warn('[Chart] ⚠️ Multiple charts in event handler setup, skipping...');
+        
         return;
       }
     }
@@ -971,60 +951,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           </div>
         </div>
       )}
-
-      {/* Кнопка для тестирования пересоздания графика */}
-      <button
-        onClick={() => {
-          console.log('[Chart] 🔧 Принудительное пересоздание графика');
-          
-          // Удаляем старый график
-          if (chartInstance) {
-            try {
-              chartInstance.remove();
-              console.log('[Chart] ✅ Старый график удален');
-            } catch (err) {
-              console.warn('[Chart] ⚠️ Не удалось удалить график:', err);
-            }
-          }
-          
-          // Сбрасываем состояние
-          setChartInstance(null);
-          setSeriesInstance(null);
-          initialRangeAppliedRef.current = false;
-          hasUserInteractedRef.current = false;
-          isProgrammaticRangeChangeRef.current = false;
-          lastManualRangeRef.current = null;
-          
-          // Очищаем контейнер
-          if (chartContainerRef.current) {
-            const existingCharts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
-            existingCharts.forEach(chart => {
-              try {
-                chart.remove();
-                console.log('[Chart] ✅ Существующий график удален из контейнера');
-              } catch (err) {
-                console.warn('[Chart] ⚠️ Не удалось удалить график из контейнера:', err);
-              }
-            });
-          }
-          
-          // Принудительно вызываем useEffect для инициализации
-          console.log('[Chart] 🔄 Готов к пересозданию графика');
-          
-          // Принудительно вызываем пересоздание графика
-          // Изменяем chartKey, чтобы useEffect для инициализации сработал
-          const newChartKey = `${symbol}-${timeframe}-${Date.now()}`;
-          console.log(`[Chart] 🔑 Новый chartKey: ${newChartKey}`);
-          
-          // Принудительно вызываем useEffect для инициализации
-          // Увеличиваем forceRecreateKey, чтобы chartKey изменился и useEffect сработал
-          setForceRecreateKey(prev => prev + 1);
-          console.log(`[Chart] 🔄 ForceRecreateKey увеличен, ожидаем пересоздания графика`);
-        }}
-        className="absolute top-4 right-4 z-20 bg-[#f7931a] hover:bg-[#e67e22] text-white px-3 py-1 rounded text-xs"
-      >
-        🔄 Пересоздать
-      </button>
 
       {/* Тултип для астрономических событий */}
       {tooltip.visible && (
