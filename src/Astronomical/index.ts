@@ -1,11 +1,14 @@
-// Domain Layer
+// Domain
 export * from './Domain';
 
-// Application Layer
+// Application
 export * from './Application';
 
-// Infrastructure Layer
+// Infrastructure
 export * from './Infrastructure';
 
-// Presentation Layer
-export * from './Presentation'; 
+// Presentation
+export * from './Presentation';
+
+// Данные
+export * from './Infrastructure/data'; 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { EventType } from '../../Domain/value-objects/EventType';
 
 interface EventFiltersProps {
   eventFilters?: {
@@ -29,6 +30,42 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
     meteor: eventFilters.meteor ?? true
   });
 
+  // Получаем категории событий из JSON
+  const [eventCategories, setEventCategories] = useState<Record<string, { name: string; color: string; description: string }>>({});
+
+  // Загружаем категории событий при монтировании компонента
+  useEffect(() => {
+    try {
+      const categories = EventType.getAllCategories();
+      setEventCategories(categories);
+    } catch (error) {
+      console.error('[EventFilters] Ошибка загрузки категорий:', error);
+      // Fallback на базовые категории
+      setEventCategories({
+        lunar: {
+          name: 'Лунные события',
+          color: '#fbbf24',
+          description: 'События, связанные с Луной'
+        },
+        solar: {
+          name: 'Солнечные события',
+          color: '#f59e0b',
+          description: 'События, связанные с Солнцем'
+        },
+        planetary: {
+          name: 'Планетарные события',
+          color: '#8b5cf6',
+          description: 'События, связанные с планетами'
+        },
+        cosmic: {
+          name: 'Космические события',
+          color: '#10b981',
+          description: 'Кометы, метеоры, астероиды'
+        }
+      });
+    }
+  }, []);
+
   // Синхронизируем локальное состояние с пропсами только при изменении пропсов
   useEffect(() => {
     const newFilters = {
@@ -57,6 +94,43 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
     onFiltersChange?.(newFilters);
   }, [localEventFilters, onFiltersChange]);
 
+  // Получаем иконки для категорий
+  const getCategoryIcon = (category: string): string => {
+    try {
+      const types = EventType.getAllTypes();
+      const categoryTypes = types.filter(type => {
+        const eventType = new EventType(type as any);
+        return eventType.getCategory() === category;
+      });
+      
+      if (categoryTypes.length > 0) {
+        const eventType = new EventType(categoryTypes[0] as any);
+        return eventType.getIcon();
+      }
+    } catch (error) {
+      console.error('[EventFilters] Ошибка получения иконки категории:', error);
+    }
+
+    // Fallback иконки по категориям
+    switch (category) {
+      case 'lunar': return '🌙';
+      case 'solar': return '☀️';
+      case 'planetary': return '🪐';
+      case 'cosmic': return '⭐';
+      default: return '🌙';
+    }
+  };
+
+  // Получаем цвет для категории
+  const getCategoryColor = (category: string): string => {
+    return eventCategories[category]?.color || '#6b7280';
+  };
+
+  // Получаем название для категории
+  const getCategoryName = (category: string): string => {
+    return eventCategories[category]?.name || category;
+  };
+
   return (
     <div className={`w-full bg-gray-800 border-b border-gray-700 flex-shrink-0 ${className}`}>
       <div className="py-2 sm:py-3">
@@ -68,12 +142,12 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             onClick={() => handleFilterChange('lunar')}
             className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none relative group ${
               localEventFilters.lunar
-                ? 'bg-[#fbbf24]/20 border border-[#fbbf24] text-[#fbbf24]'
+                ? `bg-[${getCategoryColor('lunar')}]/20 border border-[${getCategoryColor('lunar')}] text-[${getCategoryColor('lunar')}]`
                 : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#fbbf24]/50 hover:text-[#fbbf24]/70'
             }`}
           >
-            <span className="text-xs sm:text-sm">🌙</span>
-            <span className="text-xs font-medium hidden sm:inline">Лунные</span>
+            <span className="text-xs sm:text-sm">{getCategoryIcon('lunar')}</span>
+            <span className="text-xs font-medium hidden sm:inline">{getCategoryName('lunar')}</span>
             <span className="text-xs font-medium sm:hidden">Л</span>
           </button>
 
@@ -82,12 +156,12 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             onClick={() => handleFilterChange('solar')}
             className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none relative group ${
               localEventFilters.solar
-                ? 'bg-[#f59e0b]/20 border border-[#f59e0b] text-[#f59e0b]'
+                ? `bg-[${getCategoryColor('solar')}]/20 border border-[${getCategoryColor('solar')}] text-[${getCategoryColor('solar')}]`
                 : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#f59e0b]/50 hover:text-[#f59e0b]/70'
             }`}
           >
-            <span className="text-xs sm:text-sm">☀️</span>
-            <span className="text-xs font-medium hidden sm:inline">Солнечные</span>
+            <span className="text-xs sm:text-sm">{getCategoryIcon('solar')}</span>
+            <span className="text-xs font-medium hidden sm:inline">{getCategoryName('solar')}</span>
             <span className="text-xs font-medium sm:hidden">С</span>
           </button>
 
@@ -96,12 +170,12 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             onClick={() => handleFilterChange('planetary')}
             className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none relative group ${
               localEventFilters.planetary
-                ? 'bg-[#8b5cf6]/20 border border-[#8b5cf6] text-[#8b5cf6]'
+                ? `bg-[${getCategoryColor('planetary')}]/20 border border-[${getCategoryColor('planetary')}] text-[${getCategoryColor('planetary')}]`
                 : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#8b5cf6]/50 hover:text-[#8b5cf6]/70'
             }`}
           >
-            <span className="text-xs sm:text-sm">🪐</span>
-            <span className="text-xs font-medium hidden sm:inline">Планетарные</span>
+            <span className="text-xs sm:text-sm">{getCategoryIcon('planetary')}</span>
+            <span className="text-xs font-medium hidden sm:inline">{getCategoryName('planetary')}</span>
             <span className="text-xs font-medium sm:hidden">П</span>
           </button>
 
@@ -110,12 +184,12 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             onClick={() => handleFilterChange('meteor')}
             className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none relative group ${
               localEventFilters.meteor
-                ? 'bg-[#10b981]/20 border border-[#10b981] text-[#10b981]'
+                ? `bg-[${getCategoryColor('cosmic')}]/20 border border-[${getCategoryColor('cosmic')}] text-[${getCategoryColor('cosmic')}]`
                 : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#10b981]/50 hover:text-[#10b981]/70'
             }`}
           >
-            <span className="text-xs sm:text-sm">☄️</span>
-            <span className="text-xs font-medium hidden sm:inline">Метеоры</span>
+            <span className="text-xs sm:text-sm">{getCategoryIcon('cosmic')}</span>
+            <span className="text-xs font-medium hidden sm:inline">{getCategoryName('cosmic')}</span>
             <span className="text-xs font-medium sm:hidden">М</span>
           </button>
         </div>
