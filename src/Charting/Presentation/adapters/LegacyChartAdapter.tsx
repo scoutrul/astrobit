@@ -6,8 +6,7 @@ import { useStore } from '../../../Shared/presentation/store';
 import { ChartComponent } from '../components/ChartComponent';
 import { AstronomicalEvent as NewAstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { AstronomicalEvent as OldAstronomicalEvent } from '../../../Astronomical/Infrastructure/services/astronomicalEvents';
-import { combineHistoricalAndFutureCandles } from '../../../CryptoData/Infrastructure/utils/futureCandlesGenerator';
-import { getEarliestEventDate } from '../../../Astronomical/Infrastructure/utils/dateUtils';
+import { combineHistoricalAndFutureCandles, clearFutureCandlesCache } from '../../../CryptoData/Infrastructure/utils/futureCandlesGenerator';
 
 interface LegacyChartAdapterProps {
   height?: number;
@@ -58,6 +57,11 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   // Используем пропсы или данные из store
   const symbol = propSymbol || storeSymbol;
   const timeframe = propTimeframe || storeTimeframe;
+  
+  // Очищаем кэш при смене таймфрейма для применения новых ограничений
+  useEffect(() => {
+    clearFutureCandlesCache();
+  }, [timeframe]);
 
   // Real-time данные
   const { 
@@ -69,11 +73,11 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   // Ref для отслеживания изменений symbol/timeframe
   const prevSubscription = useRef<{ symbol: string; timeframe: string } | null>(null);
 
-  // Стабилизируем даты для useAstronomicalEvents
+  // Стабилизируем даты для useAstronomicalEvents - широкий диапазон для полноты данных
   const dateRange = useMemo(() => {
     const now = Date.now();
     return {
-      startDate: getEarliestEventDate(), // Динамически определяем начало от самого раннего события
+      startDate: new Date('2020-01-01'), // Покрываем все астрономические события с 2020 года
       endDate: new Date(now + 365 * 24 * 60 * 60 * 1000)    // 1 год вперед для будущих событий
     };
   }, []); // Пустой массив зависимостей - даты не должны меняться

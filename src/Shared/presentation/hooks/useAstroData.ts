@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { astronomyService } from '../../../Astronomical/Infrastructure/services/astronomyService';
 import { EventBinner, calculateOptimalBinSize } from '../../../Astronomical/Infrastructure/utils/eventBinning';
+import { getMaxFutureDateForTimeframe } from '../../../Astronomical/Infrastructure/utils/dateUtils';
 
 /**
  * Custom hook for managing astronomical data
@@ -13,6 +14,7 @@ export function useAstroData() {
     visibleEvents,
     timelineConfig,
     chartRange,
+    timeframe,
     setAstroEvents,
     // setChartRange - not used in this hook but available from store
   } = useStore();
@@ -25,19 +27,24 @@ export function useAstroData() {
     
     try {
       const startDate = new Date(chartRange.from);
-      const endDate = new Date(chartRange.to);
+      const requestedEndDate = new Date(chartRange.to);
+      
+      // Ограничиваем будущие события в зависимости от таймфрейма
+      const maxFutureDate = getMaxFutureDateForTimeframe(timeframe);
+      const endDate = requestedEndDate > maxFutureDate ? maxFutureDate : requestedEndDate;
       
       console.log(`[useAstroData] Fetching events from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      console.log(`[useAstroData] Timeframe: ${timeframe}, Max future date: ${maxFutureDate.toISOString()}`);
       
       const events = await astronomyService.getAstronomicalEvents(startDate, endDate);
       
       setAstroEvents(events);
       
-      console.log(`[useAstroData] Loaded ${events.length} astronomical events`);
+      console.log(`[useAstroData] Loaded ${events.length} astronomical events (limited by timeframe)`);
     } catch (error) {
       console.error('[useAstroData] Error fetching astronomical data:', error);
     }
-  }, [chartRange.from, chartRange.to, setAstroEvents]);
+  }, [chartRange.from, chartRange.to, timeframe, setAstroEvents]);
   
   /**
    * Create and manage event binner for collision resolution

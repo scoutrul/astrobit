@@ -5,9 +5,18 @@
 
 import { CryptoData } from '../../Domain/types';
 import { AstronomicalEvent } from '../../../Astronomical/Domain/types';
+import { getMaxFutureDateForTimeframe } from '../../../Astronomical/Infrastructure/utils/dateUtils';
 
 // Кэш для предотвращения повторных вычислений
 const combinationCache = new Map<string, CryptoData[]>();
+
+/**
+ * Очищает кэш (полезно при изменении логики генерации)
+ */
+export function clearFutureCandlesCache(): void {
+  combinationCache.clear();
+  console.log('[FutureCandlesGenerator] Cache cleared');
+}
 
 /**
  * Вычисляет требуемое количество будущих свечей для размещения всех событий
@@ -20,28 +29,42 @@ export function calculateRequiredFutureCandles(
   // Кэш для предотвращения повторных вычислений
   const calculationCache = new Map<string, number>();
 
-  // Если нет будущих событий, используем дефолтные 50 свечей
-  if (astronomicalEvents.length === 0) {
-    return 50;
-  }
-
   // Проверяем кэш
   const cacheKey = `${lastTime.toISOString()}-${timeframe}-${astronomicalEvents.length}`;
   if (calculationCache.has(cacheKey)) {
     return calculationCache.get(cacheKey)!;
   }
 
-  // Находим самое дальнее событие
+  // Получаем максимальную дату для данного таймфрейма
+  const maxFutureDate = getMaxFutureDateForTimeframe(timeframe);
+  
+  // Находим события, которые попадают в разрешенный диапазон
   const futureEvents = astronomicalEvents.filter(event => 
-    event.date > lastTime
+    event.date > lastTime && event.date <= maxFutureDate
   );
 
+  // Если нет событий в разрешенном диапазоне, используем минимальный буфер
   if (futureEvents.length === 0) {
-    return 50; // Дефолтное значение
+    // Минимальный буфер на основе таймфрейма
+    switch (timeframe) {
+      case '1h':
+      case '8h':
+        return 20; // Неделя 
+      case '1d':
+        return 14; // 2 недели
+      case '1w':
+        return 8;  // 2 месяца
+      case '1M':
+        return 12; // год
+      default:
+        return 14;
+    }
   }
 
+  // Вычисляем до самого дальнего события, но не дальше maxFutureDate
   const maxEventDate = new Date(Math.max(...futureEvents.map(e => e.date.getTime())));
-  const timeDifferenceMs = maxEventDate.getTime() - lastTime.getTime();
+  const limitedMaxDate = maxEventDate > maxFutureDate ? maxFutureDate : maxEventDate;
+  const timeDifferenceMs = limitedMaxDate.getTime() - lastTime.getTime();
   const timeDifferenceDays = Math.ceil(timeDifferenceMs / (1000 * 60 * 60 * 24));
 
   // Рассчитываем количество свечей в зависимости от таймфрейма
@@ -170,30 +193,10 @@ export function combineHistoricalAndFutureCandles(
     return combinationCache.get(combinationCacheKey)!;
   }
 
-  // Вычисляем требуемое количество будущих свечей
-  let requiredCandles = calculateRequiredFutureCandles(lastTime, timeframe, astronomicalEvents);
-  // Ограничиваем горизонт будущих свечей по таймфреймам:
-  // - 1h: не дальше 1 суток (24 свечи)
-  // - 8h: не дальше 1 недели (21 свеча)
-  switch (timeframe) {
-    case '1h':
-      requiredCandles = Math.min(requiredCandles, 24);
-      break;
-    case '8h':
-      requiredCandles = Math.min(requiredCandles, 21);
-      break;
-    default:
-      break;
-  }
+  // Вычисляем требуемое количество будущих свечей с учетом ограничений по таймфрейму
+  const requiredCandles = calculateRequiredFutureCandles(lastTime, timeframe, astronomicalEvents);
   
-  // Ограничиваем будущие свечи до разумного предела (максимум 3 месяца в будущее)
-  const now = new Date();
-  const maxFutureDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 3 месяца
-  
-  if (lastTime > maxFutureDate) {
-    console.warn(`[FutureCandlesGenerator] Последняя свеча слишком далеко в будущем: ${lastTime.toISOString()}, ограничиваем`);
-    requiredCandles = Math.min(requiredCandles, 30); // Максимум 30 свечей
-  }
+  console.log(`[FutureCandlesGenerator] Timeframe: ${timeframe}, Required candles: ${requiredCandles}, Events count: ${astronomicalEvents.length}`);
   
   // Генерируем будущие свечи
   const futureCandles = generateFutureCandles(historicalData, timeframe, requiredCandles);

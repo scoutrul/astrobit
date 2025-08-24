@@ -2,7 +2,7 @@ import { useCryptoData } from '../../../CryptoData/Presentation/hooks/useCryptoD
 import { useAstronomicalEvents } from '../../../Astronomical/Presentation/hooks/useAstronomicalEvents';
 import { useStore } from '../store';
 import { useMemo } from 'react';
-import { getEarliestEventDate } from '../../../Astronomical/Infrastructure/utils/dateUtils';
+import { getMaxFutureDateForTimeframe } from '../../../Astronomical/Infrastructure/utils/dateUtils';
 
 export function useLoadingStatus() {
   const { symbol, timeframe } = useStore();
@@ -11,10 +11,10 @@ export function useLoadingStatus() {
   const dateRange = useMemo(() => {
     const now = Date.now();
     return {
-      startDate: getEarliestEventDate(), // Динамически определяем начало от самого раннего события
-      endDate: new Date(now + 365 * 24 * 60 * 60 * 1000)    // 1 год вперед для будущих событий
+      startDate: new Date(now - 150 * 24 * 60 * 60 * 1000), // Последние 150 дней для фокуса на актуальных данных
+      endDate: getMaxFutureDateForTimeframe(timeframe)       // Ограничиваем будущие события по таймфрейму
   };
-  }, []); // Пустой массив зависимостей - даты не должны меняться
+  }, [timeframe]); // Теперь зависит от таймфрейма
 
   // Получаем криптоданные через хук
   const { loading: cryptoLoading } = useCryptoData(symbol, timeframe);

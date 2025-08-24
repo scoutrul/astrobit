@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { StoreState } from '../../domain/types'
-import { getEarliestEventDate } from '../../../Astronomical/Infrastructure/utils/dateUtils'
 
 export const useStore = create<StoreState>((set, get) => ({
   // Crypto data state
@@ -22,8 +21,8 @@ export const useStore = create<StoreState>((set, get) => ({
   
   // Chart interaction state
   chartRange: {
-    from: getEarliestEventDate().getTime(), // Динамически определяем начало от самого раннего события
-    to: Date.now() + 365 * 24 * 60 * 60 * 1000 // 1 год вперед для будущих событий
+    from: Date.now() - 150 * 24 * 60 * 60 * 1000, // Начинаем с последних 150 дней для фокуса на актуальных данных
+    to: Date.now() + 90 * 24 * 60 * 60 * 1000 // 90 дней вперед для будущих событий
   },
   
   // Actions

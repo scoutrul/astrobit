@@ -108,11 +108,33 @@ export function getLatestEventDate(): Date {
 }
 
 /**
- * Получает диапазон дат всех астрономических событий
+ * Вычисляет максимальную дату для отображения будущих событий в зависимости от таймфрейма
  */
-export function getEventDateRange(): { start: Date; end: Date } {
-  return {
-    start: getEarliestEventDate(),
-    end: getLatestEventDate()
-  };
+export function getMaxFutureDateForTimeframe(timeframe: string): Date {
+  const now = new Date();
+  
+  switch (timeframe) {
+    case '1h':
+    case '8h':
+      // 1 неделя вперед
+      return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    case '1d':
+      // 2 недели вперед  
+      return new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    
+    case '1w':
+      // 2 месяца вперед
+      return new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+    
+    case '1M':
+      // год вперед
+      return new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+    
+    default:
+      // По умолчанию 2 недели
+      return new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  }
 }
+
+
