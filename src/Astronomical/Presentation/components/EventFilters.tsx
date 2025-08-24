@@ -142,9 +142,14 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             onClick={() => handleFilterChange('lunar')}
             className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none relative group ${
               localEventFilters.lunar
-                ? `bg-[${getCategoryColor('lunar')}]/20 border border-[${getCategoryColor('lunar')}] text-[${getCategoryColor('lunar')}]`
-                : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#fbbf24]/50 hover:text-[#fbbf24]/70'
+                ? 'border-2'
+                : 'bg-slate-800 border border-slate-600 text-slate-400 hover:border-amber-400/50 hover:text-amber-400/70'
             }`}
+            style={localEventFilters.lunar ? {
+              backgroundColor: `${getCategoryColor('lunar')}20`,
+              borderColor: getCategoryColor('lunar'),
+              color: getCategoryColor('lunar')
+            } : {}}
           >
             <span className="text-xs sm:text-sm">{getCategoryIcon('lunar')}</span>
             <span className="text-xs font-medium hidden sm:inline">{getCategoryName('lunar')}</span>
@@ -156,9 +161,14 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             onClick={() => handleFilterChange('solar')}
             className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none relative group ${
               localEventFilters.solar
-                ? `bg-[${getCategoryColor('solar')}]/20 border border-[${getCategoryColor('solar')}] text-[${getCategoryColor('solar')}]`
-                : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#f59e0b]/50 hover:text-[#f59e0b]/70'
+                ? 'border-2'
+                : 'bg-slate-800 border border-slate-600 text-slate-400 hover:border-amber-500/50 hover:text-amber-500/70'
             }`}
+            style={localEventFilters.solar ? {
+              backgroundColor: `${getCategoryColor('solar')}20`,
+              borderColor: getCategoryColor('solar'),
+              color: getCategoryColor('solar')
+            } : {}}
           >
             <span className="text-xs sm:text-sm">{getCategoryIcon('solar')}</span>
             <span className="text-xs font-medium hidden sm:inline">{getCategoryName('solar')}</span>
@@ -170,9 +180,14 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             onClick={() => handleFilterChange('planetary')}
             className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none relative group ${
               localEventFilters.planetary
-                ? `bg-[${getCategoryColor('planetary')}]/20 border border-[${getCategoryColor('planetary')}] text-[${getCategoryColor('planetary')}]`
-                : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#8b5cf6]/50 hover:text-[#8b5cf6]/70'
+                ? 'border-2'
+                : 'bg-slate-800 border border-slate-600 text-slate-400 hover:border-violet-500/50 hover:text-violet-500/70'
             }`}
+            style={localEventFilters.planetary ? {
+              backgroundColor: `${getCategoryColor('planetary')}20`,
+              borderColor: getCategoryColor('planetary'),
+              color: getCategoryColor('planetary')
+            } : {}}
           >
             <span className="text-xs sm:text-sm">{getCategoryIcon('planetary')}</span>
             <span className="text-xs font-medium hidden sm:inline">{getCategoryName('planetary')}</span>
@@ -184,9 +199,14 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             onClick={() => handleFilterChange('meteor')}
             className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 rounded-md transition-all duration-200 focus:outline-none relative group ${
               localEventFilters.meteor
-                ? `bg-[${getCategoryColor('cosmic')}]/20 border border-[${getCategoryColor('cosmic')}] text-[${getCategoryColor('cosmic')}]`
-                : 'bg-[#1e293b] border border-[#334155] text-[#8b8f9b] hover:border-[#10b981]/50 hover:text-[#10b981]/70'
+                ? 'border-2'
+                : 'bg-slate-800 border border-slate-600 text-slate-400 hover:border-emerald-500/50 hover:text-emerald-500/70'
             }`}
+            style={localEventFilters.meteor ? {
+              backgroundColor: `${getCategoryColor('cosmic')}20`,
+              borderColor: getCategoryColor('cosmic'),
+              color: getCategoryColor('cosmic')
+            } : {}}
           >
             <span className="text-xs sm:text-sm">{getCategoryIcon('cosmic')}</span>
             <span className="text-xs font-medium hidden sm:inline">{getCategoryName('cosmic')}</span>
