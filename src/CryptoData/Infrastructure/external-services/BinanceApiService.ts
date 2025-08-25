@@ -48,7 +48,12 @@ export class BinanceApiService extends ExternalService {
 
   private constructor() {
     super();
-    this.initializationPromise = this.initialize();
+    try {
+      this.initializationPromise = this.initialize();
+    } catch (error) {
+      console.error('[BinanceApiService] Ошибка в конструкторе:', error);
+      this.initializationPromise = Promise.resolve();
+    }
   }
 
   static getInstance(): BinanceApiService {

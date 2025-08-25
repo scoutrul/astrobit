@@ -67,7 +67,29 @@ export class AstronomicalDataLoader {
    * Получить типы событий и их категории
    */
   static getEventTypes(): EventTypesMetadata {
-    return eventTypesData as EventTypesMetadata;
+    try {
+      return eventTypesData as EventTypesMetadata;
+    } catch (error) {
+      console.error('[AstronomicalDataLoader] Ошибка загрузки eventTypes:', error);
+      // Возвращаем fallback данные
+      return {
+        types: [
+          { value: 'moon_phase', label: 'Фаза луны', icon: '🌙', description: 'Фазы луны', category: 'lunar' },
+          { value: 'planet_aspect', label: 'Планетарный аспект', icon: '🪐', description: 'Аспекты планет', category: 'planetary' },
+          { value: 'solar_event', label: 'Солнечное событие', icon: '☀️', description: 'События Солнца', category: 'solar' },
+          { value: 'lunar_eclipse', label: 'Лунное затмение', icon: '🌑', description: 'Лунные затмения', category: 'lunar' },
+          { value: 'solar_eclipse', label: 'Солнечное затмение', icon: '🌞', description: 'Солнечные затмения', category: 'solar' },
+          { value: 'comet_event', label: 'Комета', icon: '☄️', description: 'Кометы', category: 'cosmic' },
+          { value: 'meteor_shower', label: 'Метеорный поток', icon: '⭐', description: 'Метеорные потоки', category: 'cosmic' }
+        ],
+        categories: {
+          lunar: { name: 'Лунные события', color: '#fbbf24', description: 'События, связанные с Луной' },
+          solar: { name: 'Солнечные события', color: '#f59e0b', description: 'События, связанные с Солнцем' },
+          planetary: { name: 'Планетарные события', color: '#8b5cf6', description: 'События, связанные с планетами' },
+          cosmic: { name: 'Космические события', color: '#10b981', description: 'Кометы, метеоры, астероиды' }
+        }
+      };
+    }
   }
 
   /**

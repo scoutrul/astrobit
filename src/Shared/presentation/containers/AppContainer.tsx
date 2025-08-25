@@ -52,10 +52,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({ className = '' }) =>
 
       {/* Chart + новости под ним: позволяем естественную высоту и скролл страницы */}
       <div className="w-full">
-        <LegacyChartAdapter 
-          className="w-full" 
-          eventFilters={eventFilters}
-        />
+        <LegacyChartAdapter />
       </div>
 
       {/* Shared components */}

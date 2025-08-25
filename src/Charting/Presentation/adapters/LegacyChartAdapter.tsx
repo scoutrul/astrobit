@@ -10,7 +10,6 @@ import { combineHistoricalAndFutureCandles, clearFutureCandlesCache } from '../.
 
 interface LegacyChartAdapterProps {
   height?: number;
-  className?: string;
   cryptoData?: Array<{
     symbol: string;
     time: string;
@@ -22,12 +21,6 @@ interface LegacyChartAdapterProps {
     visible?: boolean;
   }>;
   astronomicalEvents?: NewAstronomicalEvent[];
-  eventFilters?: {
-    lunar?: boolean;
-    solar?: boolean;
-    planetary?: boolean;
-    meteor?: boolean;
-  };
   symbol?: string;
   timeframe?: string;
 }
@@ -43,11 +36,9 @@ function convertAstronomicalEvents(oldEvents: OldAstronomicalEvent[]): NewAstron
 }
 
 export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
-  height = 500, // Увеличена высота с 400 до 500
-  className = '',
-  cryptoData: propCryptoData,
-  astronomicalEvents: propAstronomicalEvents,
-  eventFilters = { lunar: true, solar: true, planetary: true, meteor: true },
+  height = 400,
+  cryptoData: propCryptoData = [],
+  astronomicalEvents: propAstronomicalEvents = [],
   symbol: propSymbol,
   timeframe: propTimeframe
 }) => {
@@ -83,12 +74,10 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   }, []); // Пустой массив зависимостей - даты не должны меняться
 
   // Получаем криптоданные через хук
-  const { data: hookCryptoData, loading: cryptoLoading } = useCryptoData(symbol, timeframe);
-
-
+  const { data: hookCryptoData } = useCryptoData(symbol, timeframe);
   
   // Получаем астрономические события с стабилизированными датами
-  const { events: hookAstronomicalEvents, loading: astroLoading } = useAstronomicalEvents(
+  const { events: hookAstronomicalEvents } = useAstronomicalEvents(
     dateRange.startDate,
     dateRange.endDate
   );
@@ -99,34 +88,48 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   // Используем события из пропсов или из хука
   const astronomicalEvents = propAstronomicalEvents || convertedHookEvents || [];
 
-  // Конвертируем астрономические события для генератора будущих свечей
-  const eventsForGenerator = useMemo(() => {
-    return astronomicalEvents.map(event => ({
-      id: event.name,
-      name: event.name,
-      date: new Date(event.timestamp),
-      type: event.type,
-      description: event.description,
-      significance: 'medium'
-    }));
-  }, [astronomicalEvents.length]); // Используем только length вместо всего массива
-
-  // Генерируем адаптивные будущие свечи с учетом событий
-  const enhancedCryptoData = useMemo(() => {
-    const historicalData = propCryptoData || hookCryptoData || [];
+  // Комбинируем данные из пропсов и хука
+  const combinedCryptoData = useMemo(() => {
+    const propData = propCryptoData || [];
+    const hookData = hookCryptoData || [];
     
-    if (historicalData.length === 0) {
-      return historicalData;
-    }
+    // Объединяем данные, приоритет у пропсов
+    return propData.length > 0 ? propData : hookData;
+  }, [propCryptoData, hookCryptoData]);
 
-    // Добавляем флаг visible: true для исторических данных
-    const historicalDataWithVisibility = historicalData.map(item => ({
-      ...item,
+  // Генерируем будущие свечи на основе астрономических событий
+  const eventsForGenerator = useMemo(() => {
+    if (!astronomicalEvents || astronomicalEvents.length === 0) return [];
+    
+    return astronomicalEvents
+      .filter(event => {
+        const eventDate = new Date(event.timestamp);
+        const now = new Date();
+        const diffDays = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        
+        // События в ближайшие 30 дней
+        return diffDays >= 0 && diffDays <= 30;
+      })
+      .map(event => ({
+        id: event.name,
+        name: event.name,
+        date: new Date(event.timestamp),
+        type: event.type,
+        description: event.description,
+        significance: 'medium'
+      }));
+  }, [astronomicalEvents]);
+
+  // Комбинируем исторические и будущие свечи
+  const enhancedCryptoData = useMemo(() => {
+    if (!combinedCryptoData || combinedCryptoData.length === 0) return [];
+
+    const historicalDataWithVisibility = combinedCryptoData.map(candle => ({
+      ...candle,
       visible: true
     }));
 
-    // Объединяем исторические данные с адаптивными будущими свечами
-    let combinedData = combineHistoricalAndFutureCandles(
+    const combinedData = combineHistoricalAndFutureCandles(
       historicalDataWithVisibility,
       timeframe,
       eventsForGenerator
@@ -143,27 +146,21 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       const currentPrice = lastUpdate.close;
       
       // Обновляем все будущие свечи (после исторических) на текущую цену, сохраняя невидимость
-      combinedData = combinedData.map((candle, index) => {
+      combinedData.forEach((candle, index) => {
         if (index > lastHistoricalIndex) {
-          return {
-            ...candle,
-            open: currentPrice,
-            high: currentPrice,
-            low: currentPrice,
-            close: currentPrice,
-            visible: false, // Сохраняем невидимость будущих свечей
-            volume: 0 // Нулевой объем для будущих свечей
-          };
+          candle.open = currentPrice;
+          candle.high = currentPrice;
+          candle.low = currentPrice;
+          candle.close = currentPrice;
+          candle.visible = false; // Сохраняем невидимость будущих свечей
+          candle.volume = 0; // Нулевой объем для будущих свечей
         }
-        return candle;
       });
     }
 
-
     return combinedData;
   }, [
-    propCryptoData,
-    hookCryptoData,
+    combinedCryptoData,
     timeframe,
     eventsForGenerator.length,
     symbol,
@@ -187,8 +184,6 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
       prevSubscription.current.timeframe !== timeframe;
     
     if (hasChanged) {
-      
-      
       // Подписываемся на новую подписку (старая автоматически отменится в хуке)
       subscribe(symbol, timeframe);
       prevSubscription.current = currentSubscription;
@@ -199,32 +194,20 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   useEffect(() => {
     return () => {
       if (prevSubscription.current) {
-        
         unsubscribe();
         prevSubscription.current = null;
       }
     };
   }, [unsubscribe]);
 
-  // Логирование real-time обновлений
-  useEffect(() => {
-    if (lastUpdate) {
-      // Real-time обновления обрабатываются автоматически
-    }
-  }, [lastUpdate]);
-
-
   return (
     <ChartComponent
-      symbol={symbol}
-      timeframe={timeframe}
+      width={800}
       height={height}
-      className={className}
-      cryptoData={enhancedCryptoData}
-      astronomicalEvents={astronomicalEvents}
-      eventFilters={eventFilters}
-      isLoading={cryptoLoading || astroLoading}
-      realTimeData={lastUpdate}
+      data={enhancedCryptoData.map(candle => ({
+        timestamp: new Date(candle.time).getTime(),
+        close: candle.close
+      }))}
     />
   );
 }; 

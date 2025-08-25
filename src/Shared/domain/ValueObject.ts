@@ -15,7 +15,12 @@ export abstract class ValueObject<T> {
       return true;
     }
 
-    return JSON.stringify(this) === JSON.stringify(valueObject);
+    try {
+      return JSON.stringify(this) === JSON.stringify(valueObject);
+    } catch (error) {
+      console.warn('[ValueObject] Ошибка JSON.stringify при сравнении:', error);
+      return false;
+    }
   }
 
   /**

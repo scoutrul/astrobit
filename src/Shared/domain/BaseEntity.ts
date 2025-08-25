@@ -29,15 +29,20 @@ export abstract class BaseEntity<T> {
    * Проверяет равенство сущностей по ID
    */
   equals(entity?: BaseEntity<T>): boolean {
-    if (entity === null || entity === undefined) {
+    try {
+      if (entity === null || entity === undefined) {
+        return false;
+      }
+
+      if (this === entity) {
+        return true;
+      }
+
+      return this._id === entity._id;
+    } catch (error) {
+      console.warn('[BaseEntity] Ошибка сравнения сущностей:', error);
       return false;
     }
-
-    if (this === entity) {
-      return true;
-    }
-
-    return this._id === entity._id;
   }
 
   /**

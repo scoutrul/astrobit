@@ -48,20 +48,30 @@ export class Result<T> {
    * Возвращает значение (только для успешных результатов)
    */
   get value(): T {
-    if (!this._isSuccess) {
-      throw new Error('Нельзя получить значение из неуспешного результата');
+    try {
+      if (!this._isSuccess) {
+        throw new Error('Нельзя получить значение из неуспешного результата');
+      }
+      return this._value!;
+    } catch (error) {
+      console.error('[Result] Ошибка получения значения:', error);
+      throw error;
     }
-    return this._value!;
   }
 
   /**
    * Возвращает ошибку (только для неуспешных результатов)
    */
   get error(): string {
-    if (this._isSuccess) {
-      throw new Error('Нельзя получить ошибку из успешного результата');
+    try {
+      if (this._isSuccess) {
+        throw new Error('Нельзя получить ошибку из успешного результата');
+      }
+      return this._error!;
+    } catch (error) {
+      console.error('[Result] Ошибка получения ошибки:', error);
+      throw error;
     }
-    return this._error!;
   }
 
   /**

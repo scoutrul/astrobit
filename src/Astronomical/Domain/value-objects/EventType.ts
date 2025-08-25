@@ -41,6 +41,7 @@ export class EventType extends ValueObject<EventType> {
         throw new Error(`Неверный тип события: ${this._value}`);
       }
     } catch (error) {
+      console.warn('[EventType] Ошибка загрузки JSON данных, используем fallback:', error);
       // Fallback на старые валидные типы если JSON не загрузился
       const fallbackTypes: AstronomicalEventType[] = [
         'moon_phase',

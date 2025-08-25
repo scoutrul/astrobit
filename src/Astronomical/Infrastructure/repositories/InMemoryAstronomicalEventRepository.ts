@@ -15,7 +15,13 @@ export class InMemoryAstronomicalEventRepository implements IAstronomicalEventRe
   private events: AstronomicalEvent[] = [];
 
   constructor() {
-    this.initializeEvents();
+    try {
+      console.log('🔧 [InMemoryAstronomicalEventRepository] Инициализируем события...');
+      this.initializeEvents();
+      console.log('✅ [InMemoryAstronomicalEventRepository] События инициализированы');
+    } catch (error) {
+      console.error('❌ [InMemoryAstronomicalEventRepository] Ошибка инициализации событий:', error);
+    }
   }
 
   async findByCriteria(criteria: AstronomicalEventSearchCriteria): Promise<Result<AstronomicalEvent[]>> {
@@ -97,33 +103,56 @@ export class InMemoryAstronomicalEventRepository implements IAstronomicalEventRe
   }
 
   private initializeEvents(): void {
-    // Инициализация лунных фаз
-    this.initializeMoonPhases();
-    
-    // Инициализация других событий
-    // (здесь будет добавлен код из оригинального файла)
+    try {
+      console.log('🔧 [InMemoryAstronomicalEventRepository] Начинаем инициализацию событий...');
+      
+      // Инициализация лунных фаз
+      console.log('🔧 [InMemoryAstronomicalEventRepository] Инициализируем лунные фазы...');
+      this.initializeMoonPhases();
+      console.log('✅ [InMemoryAstronomicalEventRepository] Лунные фазы инициализированы');
+      
+      // Инициализация других событий
+      // (здесь будет добавлен код из оригинального файла)
+      
+      console.log('✅ [InMemoryAstronomicalEventRepository] Все события инициализированы');
+    } catch (error) {
+      console.error('❌ [InMemoryAstronomicalEventRepository] Ошибка инициализации событий:', error);
+    }
   }
 
   private initializeMoonPhases(): void {
-    const moonPhases = [
-      { date: new Date('2022-01-02'), phase: 'Новолуние', significance: 'high' as const },
-      { date: new Date('2022-01-17'), phase: 'Полнолуние', significance: 'high' as const },
-      { date: new Date('2022-02-01'), phase: 'Новолуние', significance: 'high' as const },
-      { date: new Date('2022-02-16'), phase: 'Полнолуние', significance: 'high' as const },
-      // Добавить остальные фазы из оригинального файла
-    ];
+    try {
+      console.log('🔧 [InMemoryAstronomicalEventRepository] Инициализируем лунные фазы...');
+      
+      const moonPhases = [
+        { date: new Date('2022-01-02'), phase: 'Новолуние', significance: 'high' as const },
+        { date: new Date('2022-01-17'), phase: 'Полнолуние', significance: 'high' as const },
+        { date: new Date('2022-02-01'), phase: 'Новолуние', significance: 'high' as const },
+        { date: new Date('2022-02-16'), phase: 'Полнолуние', significance: 'high' as const },
+        // Добавить остальные фазы из оригинального файла
+      ];
 
-    moonPhases.forEach(({ date, phase, significance }) => {
-      const event = new AstronomicalEvent(
-        `moon_phase_${date.getTime()}`,
-        date,
-        new EventType('moon_phase'),
-        phase,
-        `Фаза луны: ${phase}`,
-        new EventSignificance(significance)
-      );
-      this.events.push(event);
-    });
+      moonPhases.forEach(({ date, phase, significance }) => {
+        try {
+          const event = new AstronomicalEvent(
+            `moon_phase_${date.getTime()}`,
+            date,
+            new EventType('moon_phase'),
+            phase,
+            `Фаза луны: ${phase}`,
+            new EventSignificance(significance),
+            undefined // price
+          );
+          this.events.push(event);
+        } catch (error) {
+          console.error(`❌ [InMemoryAstronomicalEventRepository] Ошибка создания события ${phase}:`, error);
+        }
+      });
+      
+      console.log(`✅ [InMemoryAstronomicalEventRepository] Создано ${this.events.length} лунных фаз`);
+    } catch (error) {
+      console.error('❌ [InMemoryAstronomicalEventRepository] Ошибка инициализации лунных фаз:', error);
+    }
   }
 
   private calculateMoonPhaseForDate(date: Date): string {
