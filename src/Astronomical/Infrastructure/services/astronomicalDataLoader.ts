@@ -144,6 +144,25 @@ export class AstronomicalDataLoader {
   }
 
   /**
+   * Получить все события без ограничения по датам
+   */
+  static getAllEvents(): AstronomicalEventDataWithType[] {
+    return [
+      // Лунные фазы
+      ...this.getMoonPhases().map(event => ({ 
+        ...event, 
+        type: 'moon_phase'
+      })),
+      ...this.getMoonPhases().map(event => ({ ...event, type: 'planet_aspect' })),
+      ...this.getSolarEvents().map(event => ({ ...event, type: 'solar_event' })),
+      ...this.getLunarEclipses().map(event => ({ ...event, type: 'lunar_eclipse' })),
+      ...this.getSolarEclipses().map(event => ({ ...event, type: 'solar_eclipse' })),
+      ...this.getCometEvents().map(event => ({ ...event, type: 'comet_event' })),
+      ...this.getMeteorShowers().map(event => ({ ...event, type: 'meteor_shower' }))
+    ];
+  }
+
+  /**
    * Получить все события для определенного периода
    */
   static getEventsForPeriod(startDate: Date, endDate: Date): AstronomicalEventDataWithType[] {
@@ -161,10 +180,19 @@ export class AstronomicalDataLoader {
       ...this.getMeteorShowers().map(event => ({ ...event, type: 'meteor_shower' }))
     ];
 
-    return allEvents.filter(event => {
+    // Отладочная информация
+    console.log('[AstronomicalDataLoader] Всего событий загружено:', allEvents.length);
+    console.log('[AstronomicalDataLoader] Диапазон поиска:', startDate.toLocaleDateString(), 'до', endDate.toLocaleDateString());
+    
+    const filteredEvents = allEvents.filter(event => {
       const eventDate = new Date(event.date);
       return eventDate >= startDate && eventDate <= endDate;
     });
+    
+    console.log('[AstronomicalDataLoader] Событий в диапазоне:', filteredEvents.length);
+    console.log('[AstronomicalDataLoader] Первые 5 событий:', filteredEvents.slice(0, 5).map(e => ({ name: e.name, date: e.date, type: e.type })));
+    
+    return filteredEvents;
   }
 
   /**

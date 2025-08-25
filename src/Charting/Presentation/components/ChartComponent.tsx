@@ -4,6 +4,7 @@ import { TimeframeUtils } from '../../Infrastructure/utils/TimeframeUtils';
 import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
 import { LivePriceWidget } from './LivePriceWidget';
+import { UpcomingEvents } from '../../../Astronomical/Presentation/components/UpcomingEvents';
 
 // Глушим отладочные логи в консоли (оставляем только ошибки)
 const SILENCE_DEBUG_LOGS = true;
@@ -89,25 +90,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   // Стабилизируем астрономические события, чтобы избежать лишних обновлений
   const stableAstronomicalEvents = useMemo(() => astronomicalEvents, [astronomicalEvents]);
   
-  // Ближайшие 4 будущих события (с учетом активных фильтров)
-  const upcomingEventCards = useMemo(() => {
-    try {
-      const filteredByType = AstronomicalEventUtils.filterEventsByType(
-        stableAstronomicalEvents,
-        activeEventFilters
-      );
-      const nowMs = Date.now();
-      const futureOnly = filteredByType.filter(e => e.timestamp > nowMs);
-      const deduped = AstronomicalEventUtils.deduplicateEvents(futureOnly);
-      const sorted = deduped.sort((a, b) => a.timestamp - b.timestamp);
-      return sorted.slice(0, 4).map(e => {
-        const { text, color } = AstronomicalEventUtils.getEventIconAndColor(e);
-        return { event: e, icon: text, color };
-      });
-    } catch (_) {
-      return [] as Array<{ event: AstronomicalEvent; icon: string; color: string }>;
-    }
-  }, [stableAstronomicalEvents, activeEventFilters]);
+
 
 
   // Состояние для принудительного пересоздания графика
@@ -1038,34 +1021,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       )}
 
       {/* Ближайшие события под графиком */}
-      {upcomingEventCards.length > 0 && (
-        <div className="container-fluid-responsive mt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {upcomingEventCards.map(({ event, icon, color }, idx) => (
-              <div
-                key={`${event.timestamp}-${idx}`}
-                className="rounded-lg border border-[#334155] bg-[#0a0b1e] p-3 flex items-start gap-3"
-                style={{ borderLeft: `3px solid ${color}` }}
-              >
-                <div className="text-lg" style={{ color }}>{icon}</div>
-                <div className="min-w-0">
-                  <div className="text-[#e2e8f0] text-sm font-semibold truncate">{event.name}</div>
-                  <div className="text-[#8b8f9b] text-xs">
-                    {new Date(event.timestamp).toLocaleString('ru-RU', {
-                      year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                    })}
-                  </div>
-                  {event.description && (
-                    <div className="text-[#a3a8b5] text-xs mt-1 overflow-hidden text-ellipsis">
-                      {event.description}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <UpcomingEvents />
     </div>
   );
 }; 
