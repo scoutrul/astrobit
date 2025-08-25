@@ -162,12 +162,7 @@ export class InMemoryAstronomicalEventRepository implements IAstronomicalEventRe
     const phase = (dayOfYear % 29.5) / 29.5;
     
     if (phase < 0.125) return 'Новолуние';
-    if (phase < 0.375) return 'Растущая луна';
-    if (phase < 0.5) return 'Первая четверть';
-    if (phase < 0.625) return 'Растущая луна';
     if (phase < 0.875) return 'Полнолуние';
-    if (phase < 1) return 'Убывающая луна';
-    
     return 'Новолуние';
   }
 } 

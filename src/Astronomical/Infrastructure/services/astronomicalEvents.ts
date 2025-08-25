@@ -60,10 +60,9 @@ export class AstronomicalEventsService {
       const daysSinceNewMoon = (date.getTime() - knownNewMoon) / (1000 * 60 * 60 * 24);
       const phasePosition = (daysSinceNewMoon % lunarCycle) / lunarCycle;
       
-      if (phasePosition < 0.1 || phasePosition > 0.9) return '🌑 Новолуние';
-      if (phasePosition < 0.3) return '🌒 Растущая луна';
-      if (phasePosition < 0.6) return '🌕 Полнолуние';
-      return '🌘 Убывающая луна';
+      if (phasePosition < 0.125) return '🌑 Новолуние';
+      if (phasePosition < 0.875) return '🌕 Полнолуние';
+      return '🌑 Новолуние';
       
     } catch (error) {
       console.error('[AstronomicalEvents] Ошибка определения фазы луны:', error);

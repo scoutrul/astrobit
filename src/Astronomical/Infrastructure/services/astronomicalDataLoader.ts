@@ -78,7 +78,7 @@ export class AstronomicalDataLoader {
           { value: 'planet_aspect', label: 'Планетарный аспект', icon: '🪐', description: 'Аспекты планет', category: 'planetary' },
           { value: 'solar_event', label: 'Солнечное событие', icon: '☀️', description: 'События Солнца', category: 'solar' },
           { value: 'lunar_eclipse', label: 'Лунное затмение', icon: '🌑', description: 'Лунные затмения', category: 'lunar' },
-          { value: 'solar_eclipse', label: 'Солнечное затмение', icon: '🌞', description: 'Солнечные затмения', category: 'solar' },
+          { value: 'solar_eclipse', label: 'Солнечное затмение', icon: '☀️🌑', description: 'Солнечные затмения', category: 'solar' },
           { value: 'comet_event', label: 'Комета', icon: '☄️', description: 'Кометы', category: 'cosmic' },
           { value: 'meteor_shower', label: 'Метеорный поток', icon: '⭐', description: 'Метеорные потоки', category: 'cosmic' }
         ],
@@ -175,7 +175,8 @@ export class AstronomicalDataLoader {
         ...event, 
         type: 'moon_phase'
       })),
-      ...this.getMoonPhases().map(event => ({ ...event, type: 'planet_aspect' })),
+      // Планетарные события
+      ...this.getPlanetaryEvents().map(event => ({ ...event, type: 'planet_aspect' })),
       ...this.getSolarEvents().map(event => ({ ...event, type: 'solar_event' })),
       ...this.getLunarEclipses().map(event => ({ ...event, type: 'lunar_eclipse' })),
       ...this.getSolarEclipses().map(event => ({ ...event, type: 'solar_eclipse' })),

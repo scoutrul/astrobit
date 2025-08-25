@@ -22,15 +22,20 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
         const allEvents = AstronomicalDataLoader.getAllEvents();
         
         // Конвертируем в формат AstronomicalEvent
-        const events: AstronomicalEvent[] = allEvents.map((jsonEvent: any) => ({
-          timestamp: new Date(jsonEvent.date).getTime(),
-          type: mapJsonTypeToEventType(jsonEvent.type || ''),
-          name: jsonEvent.name || 'Неизвестное событие',
-          description: jsonEvent.description || '',
-          significance: (jsonEvent.significance as 'low' | 'medium' | 'high') || 'medium',
-          constellation: jsonEvent.constellation,
-          icon: jsonEvent.icon
-        }));
+        const events: AstronomicalEvent[] = allEvents.map((jsonEvent: any) => {
+          const mappedType = mapJsonTypeToEventType(jsonEvent.type || '');
+          console.log(`[UpcomingEvents] Маппинг типа: "${jsonEvent.type}" -> "${mappedType}" для события "${jsonEvent.name}"`);
+          
+          return {
+            timestamp: new Date(jsonEvent.date).getTime(),
+            type: mappedType,
+            name: jsonEvent.name || 'Неизвестное событие',
+            description: jsonEvent.description || '',
+            significance: (jsonEvent.significance as 'low' | 'medium' | 'high') || 'medium',
+            constellation: jsonEvent.constellation,
+            icon: jsonEvent.icon
+          };
+        });
         
         // Фильтруем только будущие события и сортируем по времени
         const futureEvents = events
@@ -42,7 +47,12 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
         console.log('[UpcomingEvents] Всего событий загружено:', allEvents.length);
         console.log('[UpcomingEvents] Будущих событий найдено:', events.filter(e => e.timestamp > now.getTime()).length);
         console.log('[UpcomingEvents] Отображаем событий:', futureEvents.length);
-        console.log('[UpcomingEvents] Первые 8 событий:', futureEvents.map(e => ({ name: e.name, date: new Date(e.timestamp).toLocaleDateString() })));
+        console.log('[UpcomingEvents] Первые 8 событий:', futureEvents.map(e => ({ 
+          name: e.name, 
+          date: new Date(e.timestamp).toLocaleDateString(),
+          type: e.type,
+          originalType: allEvents.find(ae => ae.name === e.name)?.type
+        })));
         
         setUpcomingEvents(futureEvents);
       } catch (error) {
@@ -76,26 +86,119 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
 
   // Получаем иконку и цвет для события
   const getEventIconAndColor = (event: AstronomicalEvent) => {
+    console.log(`[UpcomingEvents] Определяем иконку для события: "${event.name}" (тип: ${event.type})`);
+    
     // Если у события уже есть иконка из JSON, используем её
     if (event.icon) {
-      return { icon: event.icon, color: getColorBySignificance(event.significance) };
+      console.log(`[UpcomingEvents] Используем иконку из JSON: ${event.icon}`);
+      return { icon: event.icon, color: getColorByEventType(event) };
     }
 
-    // Иначе используем дефолтные иконки по типу
-    const iconMap: Record<AstronomicalEvent['type'], string> = {
-      moon_phase: '🌙',
-      planet_aspect: '🪐',
-      solar_event: '☀️',
-      lunar_eclipse: '🌑',
-      solar_eclipse: '🌘',
-      comet_event: '☄️',
-      meteor_shower: '⭐'
+    // Улучшенная система иконок по типу и названию события
+    const getIconByEventName = (name: string, type: AstronomicalEvent['type']): string => {
+      const lowerName = name.toLowerCase();
+      console.log(`[UpcomingEvents] Анализируем название: "${name}" -> "${lowerName}" (тип: ${type})`);
+      
+      // Лунные фазы
+      if (type === 'moon_phase') {
+        if (lowerName.includes('полнолуние') || lowerName.includes('полная луна')) {
+          console.log(`[UpcomingEvents] Найдено полнолуние -> 🌕`);
+          return '🌕';
+        }
+        if (lowerName.includes('новолуние') || lowerName.includes('новая луна')) {
+          console.log(`[UpcomingEvents] Найдено новолуние -> 🌑`);
+          return '🌑';
+        }
+        console.log(`[UpcomingEvents] Дефолтная иконка для лунных фаз -> 🌙`);
+        return '🌙'; // дефолтная иконка для лунных фаз
+      }
+      
+      // Солнечные события
+      if (type === 'solar_event') {
+        if (lowerName.includes('равноденствие')) return '🌍';
+        if (lowerName.includes('солнцестояние')) return '☀️';
+        if (lowerName.includes('апогей') || lowerName.includes('перигей')) return '🌞';
+        return '☀️'; // дефолтная иконка для солнечных событий
+      }
+      
+      // Лунные затмения
+      if (type === 'lunar_eclipse') {
+        if (lowerName.includes('полное')) return '🌑';
+        if (lowerName.includes('частичное')) return '🌓';
+        if (lowerName.includes('полутеневое')) return '🌗';
+        return '🌑'; // дефолтная иконка для лунных затмений
+      }
+      
+      // Солнечные затмения
+      if (type === 'solar_eclipse') {
+        if (lowerName.includes('полное')) return '☀️🌑';
+        if (lowerName.includes('кольцевое')) return '💍';
+        if (lowerName.includes('частичное')) return '☀️🌘';
+        return '☀️🌑'; // дефолтная иконка для солнечных затмений
+      }
+      
+      // Планетарные аспекты
+      if (type === 'planet_aspect') {
+        if (lowerName.includes('ретроград')) return '🔄';
+        if (lowerName.includes('соединение') || lowerName.includes('парад')) return '🪐';
+        if (lowerName.includes('оппозиция')) return '⚖️';
+        if (lowerName.includes('тригон') || lowerName.includes('трин')) return '🔺';
+        if (lowerName.includes('квадрат')) return '⬜';
+        if (lowerName.includes('меркурий')) return '☿';
+        if (lowerName.includes('венера')) return '♀️';
+        if (lowerName.includes('марс')) return '♂️';
+        if (lowerName.includes('юпитер')) return '♃';
+        if (lowerName.includes('сатурн')) return '♄';
+        if (lowerName.includes('уран')) return '♅';
+        if (lowerName.includes('нептун')) return '♆';
+        if (lowerName.includes('плутон')) return '♇';
+        return '🪐'; // дефолтная иконка для планетарных событий
+      }
+      
+      // Кометы
+      if (type === 'comet_event') {
+        if (lowerName.includes('комета')) return '☄️';
+        if (lowerName.includes('астероид')) return '🪨';
+        return '☄️'; // дефолтная иконка для комет
+      }
+      
+      // Метеорные потоки
+      if (type === 'meteor_shower') {
+        if (lowerName.includes('лириды') || lowerName.includes('лира')) return '🎵';
+        if (lowerName.includes('леониды') || lowerName.includes('лев')) return '🦁';
+        if (lowerName.includes('ориониды') || lowerName.includes('орион')) return '🏹';
+        if (lowerName.includes('аквариды') || lowerName.includes('водолей')) return '🌊';
+        if (lowerName.includes('дракониды') || lowerName.includes('дракон')) return '🐉';
+        if (lowerName.includes('геминиды') || lowerName.includes('близнецы')) return '💎';
+        if (lowerName.includes('квадрантиды') || lowerName.includes('квадрант')) return '⭐';
+        if (lowerName.includes('каприкорниды') || lowerName.includes('козерог')) return '🐐';
+        if (lowerName.includes('урсиды') || lowerName.includes('малая медведица')) return '🐻';
+        return '⭐'; // дефолтная иконка для метеорных потоков
+      }
+      
+      // Дефолтные иконки по типу
+      const iconMap: Record<AstronomicalEvent['type'], string> = {
+        moon_phase: '🌙',
+        planet_aspect: '🪐',
+        solar_event: '☀️',
+        lunar_eclipse: '🌑',
+        solar_eclipse: '☀️🌑',
+        comet_event: '☄️',
+        meteor_shower: '⭐'
+      };
+      
+      const defaultIcon = iconMap[type] || '🌟';
+      console.log(`[UpcomingEvents] Дефолтная иконка по типу ${type} -> ${defaultIcon}`);
+      return defaultIcon;
     };
 
-    return {
-      icon: iconMap[event.type] || '🌟',
-      color: getColorBySignificance(event.significance)
+    const result = {
+      icon: getIconByEventName(event.name, event.type),
+      color: getColorByEventType(event)
     };
+    
+    console.log(`[UpcomingEvents] Результат для "${event.name}": иконка=${result.icon}, цвет=${result.color}`);
+    return result;
   };
 
   // Получаем цвет по значимости события
@@ -106,6 +209,21 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
       case 'low': return '#10b981'; // emerald-500
       default: return '#6b7280'; // gray-500
     }
+  };
+
+  // Получаем цвет по типу события (приоритет над значимостью)
+  const getColorByEventType = (event: AstronomicalEvent): string => {
+    const typeColors: Record<AstronomicalEvent['type'], string> = {
+      moon_phase: '#fbbf24',      // yellow-400 - лунные фазы
+      planet_aspect: '#8b5cf6',   // violet-500 - планетарные аспекты
+      solar_event: '#f59e0b',     // amber-500 - солнечные события
+      lunar_eclipse: '#dc2626',   // red-600 - лунные затмения
+      solar_eclipse: '#ea580c',   // orange-600 - солнечные затмения
+      comet_event: '#10b981',     // emerald-500 - кометы
+      meteor_shower: '#3b82f6'    // blue-500 - метеорные потоки
+    };
+    
+    return typeColors[event.type] || getColorBySignificance(event.significance);
   };
 
   if (loading) {
@@ -146,9 +264,6 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
         <h3 className="text-[#e2e8f0] text-lg font-semibold">
           🌟 Ближайшие астрономические события
         </h3>
-        <p className="text-[#8b8f9b] text-sm">
-          Следующие 8 ближайших астрономических событий
-        </p>
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
