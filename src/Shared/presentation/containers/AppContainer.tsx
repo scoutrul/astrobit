@@ -4,6 +4,7 @@ import { CryptoDataContainer } from '../../../CryptoData/Presentation/containers
 import { ChartingContainer } from '../../../Charting/Presentation/containers/ChartingContainer';
 import { AstronomicalContainer } from '../../../Astronomical/Presentation/containers/AstronomicalContainer';
 import { SharedContainer } from './SharedContainer';
+import { AdminStatus } from '../components/AdminStatus';
 
 interface AppContainerProps {
   className?: string;
@@ -60,6 +61,9 @@ export const AppContainer: React.FC<AppContainerProps> = ({ className = '' }) =>
 
       {/* Shared components */}
       <SharedContainer />
+      
+      {/* Admin status indicator (dev mode only) */}
+      <AdminStatus />
     </div>
   );
 };
