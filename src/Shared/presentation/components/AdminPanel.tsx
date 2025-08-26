@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAdminAccess } from '../hooks/useAdminAccess';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 
 interface AdminPanelProps {
   children: React.ReactNode;
@@ -10,10 +10,10 @@ interface AdminPanelProps {
  * Обертка для админской панели с кнопкой выхода
  */
 export const AdminPanel: React.FC<AdminPanelProps> = ({ children, title = 'Панель администратора' }) => {
-  const { logout } = useAdminAccess();
+  const { logout, user } = useFirebaseAuth();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     window.location.href = '/';
   };
 
@@ -56,7 +56,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ children, title = 'Па�
               {/* Статус админа */}
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-white/80 text-sm">Админ активен</span>
+                <span className="text-white/80 text-sm">
+                  {user?.email || 'Админ активен'}
+                </span>
               </div>
 
               {/* Кнопка выхода */}

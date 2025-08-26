@@ -2,7 +2,7 @@ import { UseCase } from '../../../Shared/application/UseCase';
 import { Result } from '../../../Shared/domain/Result';
 import { Post, PostMetadata } from '../../Domain/entities/Post';
 import { IPostRepository } from '../../Domain/repositories/IPostRepository';
-import { logger } from '../../../Shared/infrastructure/Logger';
+
 
 export interface CreatePostRequest {
   title: string;
@@ -37,7 +37,7 @@ export class CreatePostUseCase extends UseCase<CreatePostRequest, Post> {
 
   async execute(request: CreatePostRequest): Promise<Result<Post>> {
     try {
-      logger.info('Создание нового поста...');
+      // Создание нового поста...
 
       const validationResult = this.validateRequest(request);
       if (!validationResult.isSuccess) {
@@ -71,11 +71,10 @@ export class CreatePostUseCase extends UseCase<CreatePostRequest, Post> {
         return Result.fail(`Ошибка сохранения поста: ${saveResult.error}`);
       }
 
-      logger.info(`Пост "${post.title}" успешно создан`);
+      // Пост успешно создан
       return Result.ok(post);
-    } catch (error) {
-      logger.exception('Ошибка создания поста', error);
-      return Result.fail('Ошибка создания поста');
-    }
+          } catch (error) {
+        return Result.fail('Ошибка создания поста');
+      }
   }
 }

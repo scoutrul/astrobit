@@ -1,7 +1,7 @@
 import { Post } from '../../Domain/entities/Post';
 import { IPostRepository } from '../../Domain/repositories/IPostRepository';
 import { MockTelegramBotService } from './MockTelegramBotService';
-import { logger } from '../../../Shared/infrastructure/Logger';
+
 
 export class MockSchedulerService {
   private intervalId: NodeJS.Timeout | null = null;
@@ -22,7 +22,7 @@ export class MockSchedulerService {
       this.processScheduledPosts();
     }, 5000); // Проверяем каждые 5 секунд
 
-    logger.info('Планировщик запущен');
+    // Планировщик запущен
   }
 
   stop(): void {
@@ -31,7 +31,7 @@ export class MockSchedulerService {
       this.intervalId = null;
     }
     this.isRunning = false;
-    logger.info('Планировщик остановлен');
+    // Планировщик остановлен
   }
 
   private async processScheduledPosts(): Promise<void> {
@@ -40,20 +40,20 @@ export class MockSchedulerService {
       const scheduledPosts = await this.postRepository.findScheduledPosts(now);
       
       if (scheduledPosts.isSuccess && scheduledPosts.value.length > 0) {
-        logger.info(`Найдено ${scheduledPosts.value.length} постов для публикации`);
+        // Найдено постов для публикации
         
         for (const post of scheduledPosts.value) {
           await this.publishPost(post);
         }
       }
     } catch (error) {
-      logger.exception('Ошибка в планировщике', error);
+      // Ошибка в планировщике
     }
   }
 
   private async publishPost(post: Post): Promise<void> {
     try {
-      logger.info(`Публикуем пост: ${post.title}`);
+                  // Публикуем пост
       
       // Отправляем в Telegram
       const telegramResult = await this.telegramService.sendPost(post);
@@ -66,12 +66,12 @@ export class MockSchedulerService {
         // Сохраняем обновленный пост
         await this.postRepository.save(post);
         
-        logger.info(`Пост "${post.title}" успешно опубликован`);
-      } else {
-        logger.error(`Ошибка отправки в Telegram: ${telegramResult.error}`);
+        // Пост успешно опубликован
+              } else {
+          // Ошибка отправки в Telegram
+        }
+      } catch (error) {
+        // Ошибка публикации поста
       }
-    } catch (error) {
-      logger.exception(`Ошибка публикации поста "${post.title}"`, error);
-    }
   }
 }

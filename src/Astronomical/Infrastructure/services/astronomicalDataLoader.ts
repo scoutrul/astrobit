@@ -203,17 +203,10 @@ export class AstronomicalDataLoader {
       ...this.getMeteorShowers().map(event => ({ ...event, type: 'meteor_shower' }))
     ];
 
-    // Отладочная информация
-    console.log('[AstronomicalDataLoader] Всего событий загружено:', allEvents.length);
-    console.log('[AstronomicalDataLoader] Диапазон поиска:', startDate.toLocaleDateString(), 'до', endDate.toLocaleDateString());
-    
     const filteredEvents = allEvents.filter(event => {
       const eventDate = new Date(event.date);
       return eventDate >= startDate && eventDate <= endDate;
     });
-    
-    console.log('[AstronomicalDataLoader] Событий в диапазоне:', filteredEvents.length);
-    console.log('[AstronomicalDataLoader] Первые 5 событий:', filteredEvents.slice(0, 5).map(e => ({ name: e.name, date: e.date, type: e.type })));
     
     return filteredEvents;
   }

@@ -2,7 +2,7 @@ import * as cron from 'node-cron';
 import { IPostRepository } from '../../Domain/repositories/IPostRepository';
 import { TelegramBotService } from './TelegramBotService';
 import { PostStatus } from '../../Domain/value-objects/PostStatus';
-import { logger } from '../../../Shared/infrastructure/Logger';
+
 
 export class SchedulerService {
   private isRunning = false;
@@ -21,12 +21,12 @@ export class SchedulerService {
     });
 
     this.isRunning = true;
-    logger.info('Планировщик запущен');
+    // Планировщик запущен
   }
 
   stop(): void {
     this.isRunning = false;
-    logger.info('Планировщик остановлен');
+    // Планировщик остановлен
   }
 
   private async processScheduledPosts(): Promise<void> {
@@ -35,14 +35,14 @@ export class SchedulerService {
       const result = await this.postRepository.findScheduledPosts(now);
 
       if (result.isSuccess && result.value.length > 0) {
-        logger.info(`Найдено ${result.value.length} постов для публикации`);
+        // Найдено постов для публикации
 
         for (const post of result.value) {
           await this.publishPost(post);
         }
       }
     } catch (error) {
-      logger.exception('Ошибка в планировщике', error);
+      // Ошибка в планировщике
     }
   }
 
@@ -58,15 +58,15 @@ export class SchedulerService {
       if (result.success) {
         post.updateStatus(PostStatus.PUBLISHED);
         post.telegramMessageId = result.messageId?.toString();
-        logger.info(`Пост "${post.title}" опубликован`);
+        // Пост опубликован
       } else {
         post.updateStatus(PostStatus.FAILED);
-        logger.error(`Ошибка публикации "${post.title}": ${result.error}`);
+        // Ошибка публикации
       }
 
       await this.postRepository.save(post);
     } catch (error) {
-      logger.exception(`Ошибка публикации поста "${post.title}"`, error);
+      // Ошибка публикации поста
       post.updateStatus(PostStatus.FAILED);
       await this.postRepository.save(post);
     }

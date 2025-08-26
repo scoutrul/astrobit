@@ -1,7 +1,7 @@
 import { Post } from '../../Domain/entities/Post';
 import { IPostRepository } from '../../Domain/repositories/IPostRepository';
 import { Result } from '../../../Shared/domain/Result';
-import { logger } from '../../../Shared/infrastructure/Logger';
+
 
 export class LocalStoragePostRepository implements IPostRepository {
   private readonly storageKey = 'astrobit_posts';
@@ -20,7 +20,6 @@ export class LocalStoragePostRepository implements IPostRepository {
       await this.savePosts(posts);
       return Result.ok(post);
     } catch (error) {
-      logger.exception('Ошибка сохранения поста', error);
       return Result.fail('Ошибка сохранения поста');
     }
   }
@@ -31,7 +30,6 @@ export class LocalStoragePostRepository implements IPostRepository {
       const post = posts.find(p => p.id === id);
       return Result.ok(post || null);
     } catch (error) {
-      logger.exception('Ошибка поиска поста по ID', error);
       return Result.fail('Ошибка поиска поста');
     }
   }
@@ -41,7 +39,6 @@ export class LocalStoragePostRepository implements IPostRepository {
       const posts = await this.loadPosts();
       return Result.ok(posts);
     } catch (error) {
-      logger.exception('Ошибка загрузки всех постов', error);
       return Result.fail('Ошибка загрузки постов');
     }
   }
@@ -52,7 +49,6 @@ export class LocalStoragePostRepository implements IPostRepository {
       const filteredPosts = posts.filter(post => post.status === status);
       return Result.ok(filteredPosts);
     } catch (error) {
-      logger.exception('Ошибка поиска постов по статусу', error);
       return Result.fail('Ошибка поиска постов по статусу');
     }
   }
@@ -63,7 +59,6 @@ export class LocalStoragePostRepository implements IPostRepository {
       const filteredPosts = posts.filter(post => post.type === type);
       return Result.ok(filteredPosts);
     } catch (error) {
-      logger.exception('Ошибка поиска постов по типу', error);
       return Result.fail('Ошибка поиска постов по типу');
     }
   }
@@ -76,7 +71,6 @@ export class LocalStoragePostRepository implements IPostRepository {
       );
       return Result.ok(scheduledPosts);
     } catch (error) {
-      logger.exception('Ошибка поиска запланированных постов', error);
       return Result.fail('Ошибка поиска запланированных постов');
     }
   }
@@ -93,7 +87,6 @@ export class LocalStoragePostRepository implements IPostRepository {
       await this.savePosts(filteredPosts);
       return Result.ok();
     } catch (error) {
-      logger.exception('Ошибка удаления поста', error);
       return Result.fail('Ошибка удаления поста');
     }
   }
@@ -124,14 +117,12 @@ export class LocalStoragePostRepository implements IPostRepository {
           );
           return post;
         } catch (error) {
-          logger.exception('Ошибка создания Post из raw данных', error);
           return null;
         }
       }).filter(Boolean) as Post[];
 
       return posts;
     } catch (error) {
-      logger.exception('Ошибка загрузки постов из localStorage', error);
       return [];
     }
   }
@@ -154,7 +145,6 @@ export class LocalStoragePostRepository implements IPostRepository {
       
       localStorage.setItem(this.storageKey, JSON.stringify(rawPosts));
     } catch (error) {
-      logger.exception('Ошибка сохранения постов в localStorage', error);
       throw error;
     }
   }

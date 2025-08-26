@@ -33,7 +33,6 @@ export function useCryptoData(symbol: string, timeframe: string): UseCryptoDataR
       
       // Предотвращаем дублирование запросов в React.StrictMode
       if (fetchInProgressRef.current === requestKey) {
-        console.log(`[useCryptoData] ⚠️ Дублирование запроса предотвращено для ${requestKey}`);
         return;
       }
       

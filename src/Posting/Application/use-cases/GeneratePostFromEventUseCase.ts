@@ -2,7 +2,7 @@ import { UseCase } from '../../../Shared/application/UseCase';
 import { Result } from '../../../Shared/domain/Result';
 import { Post, PostMetadata } from '../../Domain/entities/Post';
 import { IPostRepository } from '../../Domain/repositories/IPostRepository';
-import { logger } from '../../../Shared/infrastructure/Logger';
+
 
 export interface GeneratePostFromEventRequest {
   eventName: string;
@@ -35,7 +35,7 @@ export class GeneratePostFromEventUseCase extends UseCase<GeneratePostFromEventR
 
   async execute(request: GeneratePostFromEventRequest): Promise<Result<Post>> {
     try {
-      logger.info(`Генерация поста для события: ${request.eventName}`);
+      // Генерация поста для события
 
       const validationResult = this.validateRequest(request);
       if (!validationResult.isSuccess) {
@@ -79,12 +79,11 @@ export class GeneratePostFromEventUseCase extends UseCase<GeneratePostFromEventR
         return Result.fail(`Ошибка сохранения поста: ${saveResult.error}`);
       }
 
-      logger.info(`Пост для события "${request.eventName}" успешно создан`);
+      // Пост для события успешно создан
       return Result.ok(post);
-    } catch (error) {
-      logger.exception('Ошибка генерации поста из события', error);
-      return Result.fail('Ошибка генерации поста из события');
-    }
+          } catch (error) {
+        return Result.fail('Ошибка генерации поста из события');
+      }
   }
 
   private generateContent(request: GeneratePostFromEventRequest): string {

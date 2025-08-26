@@ -33,13 +33,7 @@ function TimeframeSelector() {
   const { timeframe, setTimeframe } = useStore()
 
   const handleTimeframeChange = (newTimeframe: string) => {
-    console.log(`[TimeframeSelector] Изменение таймфрейма: ${timeframe} → ${newTimeframe}`);
     setTimeframe(newTimeframe)
-    
-    // Принудительное обновление для отладки
-    setTimeout(() => {
-      console.log(`[TimeframeSelector] Таймфрейм установлен: ${useStore.getState().timeframe}`);
-    }, 100);
   }
 
   return (

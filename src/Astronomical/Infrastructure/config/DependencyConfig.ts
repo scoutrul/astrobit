@@ -13,18 +13,13 @@ import { InMemoryAstronomicalEventRepository } from '../repositories/InMemoryAst
 export class AstronomicalDependencyConfig {
     static configure(container: DependencyContainer): void {
     try {
-      console.log('🔧 [AstronomicalDependencyConfig] Начинаем конфигурацию...');
-      
       // Регистрация репозитория
-      console.log('🔧 [AstronomicalDependencyConfig] Регистрируем репозиторий...');
       container.register<IAstronomicalEventRepository>(
         'IAstronomicalEventRepository',
         () => new InMemoryAstronomicalEventRepository()
       );
-      console.log('✅ [AstronomicalDependencyConfig] Репозиторий зарегистрирован');
 
       // Регистрация use cases
-      console.log('🔧 [AstronomicalDependencyConfig] Регистрируем use cases...');
       container.register<GetAstronomicalEventsUseCase>(
         'GetAstronomicalEventsUseCase',
         () => new GetAstronomicalEventsUseCase(
@@ -45,11 +40,7 @@ export class AstronomicalDependencyConfig {
           container.resolve<IAstronomicalEventRepository>('IAstronomicalEventRepository')
         )
       );
-      
-      console.log('✅ [AstronomicalDependencyConfig] Use cases зарегистрированы');
-      console.log('✅ [AstronomicalDependencyConfig] Конфигурация завершена');
     } catch (error) {
-      console.error('❌ [AstronomicalDependencyConfig] Ошибка конфигурации:', error);
       throw error;
     }
   }

@@ -1,5 +1,5 @@
 import { Post } from '../../Domain/entities/Post';
-import { logger } from '../../../Shared/infrastructure/Logger';
+
 
 export interface TelegramConfig {
   token: string;
@@ -8,12 +8,12 @@ export interface TelegramConfig {
 
 export class MockTelegramBotService {
   constructor() {
-    logger.info('MockTelegramBotService инициализирован');
+    // MockTelegramBotService инициализирован
   }
 
-  async sendPost(post: Post): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  async sendPost(_post: Post): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      logger.info(`Отправляем пост в Telegram: ${post.title}`);
+      // Отправляем пост в Telegram
 
       // Имитируем задержку отправки
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -21,14 +21,13 @@ export class MockTelegramBotService {
       // Генерируем mock message ID
       const messageId = Math.floor(Math.random() * 1000000).toString();
 
-      logger.info(`Пост успешно отправлен в Telegram (mock), messageId: ${messageId}`);
+              // Пост успешно отправлен в Telegram (mock)
 
       return {
         success: true,
         messageId
       };
     } catch (error) {
-      logger.exception('Ошибка отправки в Telegram', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -36,8 +35,8 @@ export class MockTelegramBotService {
     }
   }
 
-  async sendPostWithImage(post: Post): Promise<{ success: boolean; messageId?: number; error?: string }> {
-    logger.info(`Отправляем пост с изображением: ${post.title}`);
+  async sendPostWithImage(_post: Post): Promise<{ success: boolean; messageId?: number; error?: string }> {
+    // Отправляем пост с изображением
 
     await new Promise(resolve => setTimeout(resolve, 1200));
 

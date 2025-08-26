@@ -4,12 +4,9 @@
  */
 export class Logger {
   private static instance: Logger;
-  private isDevelopment: boolean;
 
   private constructor() {
-    this.isDevelopment = process.env.NODE_ENV === 'development' || 
-                        import.meta.env?.MODE === 'development' ||
-                        window.location.hostname === 'localhost';
+    // Конструктор оставлен для совместимости
   }
 
   static getInstance(): Logger {
@@ -20,69 +17,52 @@ export class Logger {
   }
 
   // Основные методы логирования
-  info(message: string, ...args: any[]): void {
-    if (this.isDevelopment) {
-      console.info(`ℹ️ [INFO] ${message}`, ...args);
-    }
+  info(_message: string, ..._args: any[]): void {
+    // Логирование отключено
   }
 
-  warn(message: string, ...args: any[]): void {
-    if (this.isDevelopment) {
-      console.warn(`⚠️ [WARN] ${message}`, ...args);
-    }
+  warn(_message: string, ..._args: any[]): void {
+    // Логирование отключено
   }
 
-  error(message: string, ...args: any[]): void {
-    if (this.isDevelopment) {
-      console.error(`❌ [ERROR] ${message}`, ...args);
-    }
+  error(_message: string, ..._args: any[]): void {
+    // Логирование отключено
   }
 
-  debug(message: string, ...args: any[]): void {
-    if (this.isDevelopment) {
-      console.info(`🔍 [DEBUG] ${message}`, ...args);
-    }
+  debug(_message: string, ..._args: any[]): void {
+    // Логирование отключено
   }
 
   // Специальные методы для разных контекстов
-  component(componentName: string, message: string, ...args: any[]): void {
-    this.info(`[${componentName}] ${message}`, ...args);
+  component(_componentName: string, _message: string, ..._args: any[]): void {
+    // Логирование отключено
   }
 
-  repository(repoName: string, message: string, ...args: any[]): void {
-    this.info(`[${repoName}] ${message}`, ...args);
+  repository(_repoName: string, _message: string, ..._args: any[]): void {
+    // Логирование отключено
   }
 
-  service(serviceName: string, message: string, ...args: any[]): void {
-    this.info(`[${serviceName}] ${message}`, ...args);
+  service(_serviceName: string, _message: string, ..._args: any[]): void {
+    // Логирование отключено
   }
 
-  useCase(useCaseName: string, message: string, ...args: any[]): void {
-    this.info(`[${useCaseName}] ${message}`, ...args);
+  useCase(_useCaseName: string, _message: string, ..._args: any[]): void {
+    // Логирование отключено
   }
 
   // Метод для логирования объектов
-  object(label: string, obj: any): void {
-    if (this.isDevelopment) {
-      console.info(`📊 [OBJECT] ${label}:`, obj);
-    }
+  object(_label: string, _obj: any): void {
+    // Логирование отключено
   }
 
   // Метод для логирования массивов
-  array(label: string, arr: any[]): void {
-    if (this.isDevelopment) {
-      console.info(`📋 [ARRAY] ${label} (${arr.length} items):`, arr);
-    }
+  array(_label: string, _arr: any[]): void {
+    // Логирование отключено
   }
 
   // Метод для логирования ошибок
-  exception(message: string, error: any): void {
-    if (this.isDevelopment) {
-      console.error(`💥 [EXCEPTION] ${message}:`, error);
-      if (error.stack) {
-        console.error(`📚 Stack trace:`, error.stack);
-      }
-    }
+  exception(_message: string, _error: any): void {
+    // Логирование отключено
   }
 }
 

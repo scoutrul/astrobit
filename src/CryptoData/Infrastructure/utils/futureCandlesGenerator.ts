@@ -15,7 +15,6 @@ const combinationCache = new Map<string, CryptoData[]>();
  */
 export function clearFutureCandlesCache(): void {
   combinationCache.clear();
-  console.log('[FutureCandlesGenerator] Cache cleared');
 }
 
 /**
@@ -195,8 +194,6 @@ export function combineHistoricalAndFutureCandles(
 
   // Вычисляем требуемое количество будущих свечей с учетом ограничений по таймфрейму
   const requiredCandles = calculateRequiredFutureCandles(lastTime, timeframe, astronomicalEvents);
-  
-  console.log(`[FutureCandlesGenerator] Timeframe: ${timeframe}, Required candles: ${requiredCandles}, Events count: ${astronomicalEvents.length}`);
   
   // Генерируем будущие свечи
   const futureCandles = generateFutureCandles(historicalData, timeframe, requiredCandles);

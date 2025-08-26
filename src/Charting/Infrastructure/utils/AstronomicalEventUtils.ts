@@ -372,22 +372,8 @@ export class AstronomicalEventUtils {
     timeInSeconds: number,
     timeframe: string
   ): AstronomicalEvent[] {
-    console.log('[AstronomicalEventUtils] 🔍 findEventsAtTime called:', {
-      eventsCount: events.length,
-      timeInSeconds,
-      timeISO: new Date(timeInSeconds * 1000).toISOString(),
-      timeframe
-    });
-
     const groupedTime = this.getGroupedTime(timeInSeconds, timeframe);
     const groupedEvents = this.groupEventsByTime(events, timeframe);
-    
-    console.log('[AstronomicalEventUtils] 📊 Grouping results:', {
-      groupedTime,
-      groupedTimeISO: new Date(groupedTime * 1000).toISOString(),
-      groupedEventsKeys: Array.from(groupedEvents.keys()).map(k => new Date(k * 1000).toISOString()),
-      foundEvents: groupedEvents.get(groupedTime) || []
-    });
     
     return groupedEvents.get(groupedTime) || [];
   }

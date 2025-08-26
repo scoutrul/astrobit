@@ -4,7 +4,7 @@ import { PostCard } from '../components/PostCard';
 import { PostStats } from '../components/PostStats';
 import { LocalStoragePostRepository } from '../../Infrastructure/repositories/LocalStoragePostRepository';
 import { PostType } from '../../Domain/value-objects/PostType';
-import { logger } from '../../../Shared/infrastructure/Logger';
+
 
 export const PostingContainer: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -33,11 +33,8 @@ export const PostingContainer: React.FC = () => {
       // Проверяем, есть ли уже данные в localStorage
       const existingPosts = await repository.findAll();
       if (existingPosts.isSuccess && existingPosts.value.length > 0) {
-        logger.info('Sample данные уже загружены, пропускаем инициализацию');
         return;
       }
-
-      logger.info('Загружаем sample данные...');
       const response = await fetch('/src/Posting/Infrastructure/data/samplePosts.json');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -118,10 +115,9 @@ export const PostingContainer: React.FC = () => {
         await repository.save(post);
       }
       
-      logger.info(`Загружено ${uniquePosts.length} уникальных демо-постов`);
       await loadPosts();
     } catch (error) {
-      logger.exception('Ошибка инициализации sample данных', error);
+      // Ошибка инициализации sample данных
     }
   };
 
@@ -133,11 +129,9 @@ export const PostingContainer: React.FC = () => {
       if (result.isSuccess) {
         setPosts(result.value);
         applyFilter(result.value, selectedFilter);
-      } else {
-        logger.error('Ошибка загрузки постов:', result.error);
       }
     } catch (error) {
-      logger.exception('Исключение при загрузке постов', error);
+      // Ошибка загрузки постов
     } finally {
       setLoading(false);
     }
@@ -146,11 +140,9 @@ export const PostingContainer: React.FC = () => {
   const applyFilter = (postsToFilter: Post[], filter: string) => {
     if (filter === 'all') {
       setFilteredPosts(postsToFilter);
-      logger.info(`[FILTER] Фильтр "all": показано ${postsToFilter.length} постов`);
     } else {
       const filtered = postsToFilter.filter(post => post.status === filter);
       setFilteredPosts(filtered);
-      logger.info(`[FILTER] Фильтр "${filter}": показано ${filtered.length} из ${postsToFilter.length} постов`);
     }
   };
 
@@ -187,11 +179,9 @@ export const PostingContainer: React.FC = () => {
         setShowCreateForm(false);
         await loadPosts();
       } else {
-        logger.error('Ошибка создания поста:', result.error);
         alert(`Ошибка создания: ${result.error}`);
       }
     } catch (error) {
-      logger.exception('Исключение при создании поста', error);
       alert(`Ошибка создания: ${error}`);
     }
   };
@@ -199,7 +189,6 @@ export const PostingContainer: React.FC = () => {
   const handleUpdatePost = async (updatedData: any) => {
     try {
       if (!editingPost) {
-        logger.error('Нет поста для редактирования');
         return;
       }
 
@@ -229,13 +218,10 @@ export const PostingContainer: React.FC = () => {
         setPosts(updatedPosts);
         applyFilter(updatedPosts, selectedFilter);
         
-        logger.info(`Пост "${updatedPost.title}" обновлен`);
       } else {
-        logger.error('Ошибка обновления поста:', result.error);
         alert(`Ошибка обновления: ${result.error}`);
       }
     } catch (error) {
-      logger.exception('Исключение при обновлении поста', error);
       alert(`Ошибка обновления: ${error}`);
     }
   };
@@ -245,8 +231,6 @@ export const PostingContainer: React.FC = () => {
     if (postToEdit) {
       setEditingPost(postToEdit);
       setShowEditForm(true);
-    } else {
-      logger.error('Пост не найден для редактирования:', id);
     }
   };
 
@@ -254,14 +238,12 @@ export const PostingContainer: React.FC = () => {
     const postToDelete = posts.find(p => p.id === id);
 
     if (!postToDelete) {
-      logger.error('Пост не найден для удаления!');
       return;
     }
 
     const confirmed = window.confirm(`Вы уверены, что хотите удалить пост "${postToDelete.title}"?`);
 
     if (!confirmed) {
-      logger.warn('Удаление отменено пользователем');
       return;
     }
 
@@ -284,7 +266,6 @@ export const PostingContainer: React.FC = () => {
             setRemovingPostIds(new Set());
           }, 300);
         } else {
-          logger.error('Ошибка получения постов после удаления:', postsAfterDelete.error);
           // Fallback: обновляем локально
           const updatedPosts = posts.filter(p => p.id !== id);
           
@@ -297,13 +278,11 @@ export const PostingContainer: React.FC = () => {
       } else {
         // Если удаление не удалось, убираем анимацию
         setRemovingPostIds(new Set());
-        logger.error('Ошибка удаления поста:', result.error);
         alert(`Ошибка удаления: ${result.error}`);
       }
     } catch (error) {
       // Если произошла ошибка, убираем анимацию
       setRemovingPostIds(new Set());
-      logger.exception('Исключение при удалении поста', error);
       alert(`Ошибка удаления: ${error}`);
     }
   };
@@ -312,13 +291,11 @@ export const PostingContainer: React.FC = () => {
     try {
       const post = posts.find(p => p.id === id);
       if (!post) {
-        logger.error('Пост не найден для публикации:', id);
         return;
       }
 
       // Проверяем, что можно публиковать только черновики
       if (post.status !== 'draft') {
-        logger.warn(`Нельзя публиковать пост со статусом "${post.status}". Можно публиковать только черновики.`);
         alert(`Этот пост уже имеет статус "${post.status}". Можно публиковать только черновики.`);
         return;
       }
@@ -354,13 +331,11 @@ export const PostingContainer: React.FC = () => {
           setRemovingPostIds(new Set());
         }, 300);
         
-        logger.info(`Пост "${updatedPost.title}" переведен в статус "scheduled"`);
+        // Пост переведен в статус "scheduled"
       } else {
-        logger.error('Ошибка обновления поста:', result.error);
         alert(`Ошибка публикации: ${result.error}`);
       }
     } catch (error) {
-      logger.exception('Исключение при публикации поста', error);
       alert(`Ошибка публикации: ${error}`);
     }
   };
@@ -393,13 +368,12 @@ export const PostingContainer: React.FC = () => {
       setPosts([]);
       setFilteredPosts([]);
       
-      logger.info('Все посты удалены');
+      // Все посты удалены
       
       // Загружаем fresh sample данные
       await initializeSampleData();
       
     } catch (error) {
-      logger.exception('Ошибка очистки постов', error);
       alert('Ошибка при очистке данных');
     }
   };

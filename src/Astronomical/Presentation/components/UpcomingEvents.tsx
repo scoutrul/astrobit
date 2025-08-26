@@ -24,7 +24,6 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
         // Конвертируем в формат AstronomicalEvent
         const events: AstronomicalEvent[] = allEvents.map((jsonEvent: any) => {
           const mappedType = mapJsonTypeToEventType(jsonEvent.type || '');
-          console.log(`[UpcomingEvents] Маппинг типа: "${jsonEvent.type}" -> "${mappedType}" для события "${jsonEvent.name}"`);
           
           return {
             timestamp: new Date(jsonEvent.date).getTime(),
@@ -43,20 +42,9 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
           .sort((a, b) => a.timestamp - b.timestamp)
           .slice(0, 8); // Берем только 8 ближайших
         
-        // Отладочная информация
-        console.log('[UpcomingEvents] Всего событий загружено:', allEvents.length);
-        console.log('[UpcomingEvents] Будущих событий найдено:', events.filter(e => e.timestamp > now.getTime()).length);
-        console.log('[UpcomingEvents] Отображаем событий:', futureEvents.length);
-        console.log('[UpcomingEvents] Первые 8 событий:', futureEvents.map(e => ({ 
-          name: e.name, 
-          date: new Date(e.timestamp).toLocaleDateString(),
-          type: e.type,
-          originalType: allEvents.find(ae => ae.name === e.name)?.type
-        })));
-        
         setUpcomingEvents(futureEvents);
       } catch (error) {
-        console.error('[UpcomingEvents] Ошибка загрузки событий:', error);
+        // Ошибка загрузки событий
       } finally {
         setLoading(false);
       }
@@ -86,30 +74,23 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
 
   // Получаем иконку и цвет для события
   const getEventIconAndColor = (event: AstronomicalEvent) => {
-    console.log(`[UpcomingEvents] Определяем иконку для события: "${event.name}" (тип: ${event.type})`);
-    
     // Если у события уже есть иконка из JSON, используем её
     if (event.icon) {
-      console.log(`[UpcomingEvents] Используем иконку из JSON: ${event.icon}`);
       return { icon: event.icon, color: getColorByEventType(event) };
     }
 
     // Улучшенная система иконок по типу и названию события
     const getIconByEventName = (name: string, type: AstronomicalEvent['type']): string => {
       const lowerName = name.toLowerCase();
-      console.log(`[UpcomingEvents] Анализируем название: "${name}" -> "${lowerName}" (тип: ${type})`);
       
       // Лунные фазы
       if (type === 'moon_phase') {
         if (lowerName.includes('полнолуние') || lowerName.includes('полная луна')) {
-          console.log(`[UpcomingEvents] Найдено полнолуние -> 🌕`);
           return '🌕';
         }
         if (lowerName.includes('новолуние') || lowerName.includes('новая луна')) {
-          console.log(`[UpcomingEvents] Найдено новолуние -> 🌑`);
           return '🌑';
         }
-        console.log(`[UpcomingEvents] Дефолтная иконка для лунных фаз -> 🌙`);
         return '🌙'; // дефолтная иконка для лунных фаз
       }
       
@@ -188,7 +169,6 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
       };
       
       const defaultIcon = iconMap[type] || '🌟';
-      console.log(`[UpcomingEvents] Дефолтная иконка по типу ${type} -> ${defaultIcon}`);
       return defaultIcon;
     };
 
@@ -197,7 +177,6 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
       color: getColorByEventType(event)
     };
     
-    console.log(`[UpcomingEvents] Результат для "${event.name}": иконка=${result.icon}, цвет=${result.color}`);
     return result;
   };
 
