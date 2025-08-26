@@ -4,3 +4,6 @@ export { DependencyContainer } from './DependencyContainer';
 
 // Config
 export * from './config/AppDependencyConfig';
+
+// Utils
+export { DateTimeFormatter } from './utils/DateTimeFormatter';

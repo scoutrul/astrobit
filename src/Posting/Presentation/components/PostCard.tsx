@@ -1,5 +1,6 @@
 import React from 'react';
 import { Post } from '../../Domain/entities/Post';
+import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 
 interface PostCardProps {
   post: Post;
@@ -36,9 +37,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onEdit, onDelete, onPu
       </div>
 
       <div className="text-xs text-gray-500 mb-4">
-        <p>Запланировано: {post.scheduledAt.toLocaleDateString()}</p>
+        <p>Запланировано: {DateTimeFormatter.formatDateTime(post.scheduledAt)}</p>
         {post.publishedAt && (
-          <p>Опубликовано: {post.publishedAt.toLocaleDateString()}</p>
+          <p>Опубликовано: {DateTimeFormatter.formatDateTime(post.publishedAt)}</p>
         )}
       </div>
 

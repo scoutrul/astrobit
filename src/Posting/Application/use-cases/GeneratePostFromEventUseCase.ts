@@ -2,6 +2,7 @@ import { UseCase } from '../../../Shared/application/UseCase';
 import { Result } from '../../../Shared/domain/Result';
 import { Post, PostMetadata } from '../../Domain/entities/Post';
 import { IPostRepository } from '../../Domain/repositories/IPostRepository';
+import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 
 
 export interface GeneratePostFromEventRequest {
@@ -87,11 +88,7 @@ export class GeneratePostFromEventUseCase extends UseCase<GeneratePostFromEventR
   }
 
   private generateContent(request: GeneratePostFromEventRequest): string {
-    const dateStr = request.eventDate.toLocaleDateString('ru-RU', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const dateStr = DateTimeFormatter.formatDate(request.eventDate);
 
     return `📅 ${dateStr}\n\n${request.eventDescription}\n\n🔭 Тип события: ${request.eventType}\n\n#астрономия #${request.eventType.toLowerCase()}`;
   }

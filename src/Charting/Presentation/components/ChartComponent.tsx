@@ -5,6 +5,7 @@ import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
 import { LivePriceWidget } from './LivePriceWidget';
 import { UpcomingEvents } from '../../../Astronomical/Presentation/components/UpcomingEvents';
+import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 
 interface ChartComponentProps {
   symbol: string;
@@ -352,6 +353,12 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           secondsVisible: false,
           fixLeftEdge: true,
           fixRightEdge: true
+        },
+        localization: {
+          timeFormatter: (time: any) => {
+            // Используем централизованную утилиту для форматирования времени
+            return DateTimeFormatter.formatForChart(time);
+          }
         }
       });
 
@@ -976,11 +983,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
                     {event.name}
                   </div>
                   <div className="text-[#8b8f9b] text-xs mb-1">
-                    {new Date(event.timestamp).toLocaleDateString('ru-RU', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
+                    {DateTimeFormatter.formatDate(event.timestamp)}
                   </div>
                   <div className="text-[#8b8f9b] text-xs">
                     {event.description}
@@ -997,7 +1000,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
                   const matched = (stableAstronomicalEvents || []).find(ev => ev.name === tooltip.title);
                   const ts = matched?.timestamp;
                   return ts
-                    ? new Date(ts).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' })
+                    ? DateTimeFormatter.formatDate(ts)
                     : '';
                 })()}
               </div>

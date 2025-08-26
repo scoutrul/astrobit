@@ -1,5 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { Post } from '../../Domain/entities/Post';
+import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 
 export interface TelegramConfig {
   token: string;
@@ -48,7 +49,7 @@ export class TelegramBotService {
   private formatPostMessage(post: Post): string {
     const typeIcon = this.getTypeIcon(post.type);
     
-    return `${typeIcon} <b>${post.title}</b>\n\n${post.content}\n\n📅 ${new Date(post.scheduledAt).toLocaleDateString('ru-RU')}\n🏷️ ${post.metadata.tags.join(' #')}`;
+    return `${typeIcon} <b>${post.title}</b>\n\n${post.content}\n\n📅 ${DateTimeFormatter.formatDate(post.scheduledAt)}\n🏷️ ${post.metadata.tags.join(' #')}`;
   }
 
   private getTypeIcon(type: string): string {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { DateTimeFormatter } from '../../infrastructure/utils/DateTimeFormatter';
 
 interface AdminPanelProps {
   children: React.ReactNode;
@@ -88,8 +89,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ children, title = 'Па�
             <p>
               © 2025 AstroBit. Административная панель.
             </p>
-            <div className="flex items-center space-x-4">
-              <span>{new Date().toLocaleDateString('ru-RU')}</span>
+            <div className="flex items-center space-x-4 text-xs">
+              <span>{DateTimeFormatter.formatDate(new Date())}</span>
+              <span>Локаль: {DateTimeFormatter.getCurrentLocale()}</span>
+              <span>Часовой пояс: {DateTimeFormatter.getTimezoneInfo().offset}</span>
             </div>
           </div>
         </div>

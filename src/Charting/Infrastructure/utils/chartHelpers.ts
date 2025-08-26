@@ -78,40 +78,13 @@ export function calculateTimeRange(timeframe: string): { from: number; to: numbe
   };
 }
 
+import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
+
 /**
- * Format timestamp for display
+ * Format timestamp for display in local timezone
  */
 export function formatTimestamp(timestamp: number, timeframe: string): string {
-  const date = new Date(timestamp);
-  
-  switch (timeframe) {
-    case '1m':
-    case '5m':
-    case '15m':
-    case '30m':
-      return date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false
-      });
-    case '1h':
-    case '4h':
-      return date.toLocaleString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        hour12: false
-      });
-    case '1d':
-    case '1w':
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        year: 'numeric'
-      });
-    default:
-      return date.toLocaleDateString();
-  }
+  return DateTimeFormatter.formatChartTime(timestamp, timeframe);
 }
 
 /**

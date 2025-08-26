@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AstronomicalEvent } from '../../Infrastructure/services/astronomicalEvents';
 import { AstronomicalDataLoader } from '../../Infrastructure/services/astronomicalDataLoader';
+import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 
 interface UpcomingEventsProps {
   className?: string;
@@ -261,13 +262,7 @@ export const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className = '' }
                   {event.name}
                 </div>
                 <div className="text-[#8b8f9b] text-xs">
-                  {new Date(event.timestamp).toLocaleString('ru-RU', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+                  {DateTimeFormatter.formatDateTime(event.timestamp)}
                 </div>
                 {event.description && (
                   <div className="text-[#a3a8b5] text-xs mt-1 overflow-hidden text-ellipsis line-clamp-2">

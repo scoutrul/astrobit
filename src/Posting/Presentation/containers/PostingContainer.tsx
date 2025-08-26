@@ -4,6 +4,7 @@ import { PostCard } from '../components/PostCard';
 import { PostStats } from '../components/PostStats';
 import { LocalStoragePostRepository } from '../../Infrastructure/repositories/LocalStoragePostRepository';
 import { PostType } from '../../Domain/value-objects/PostType';
+import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 
 
 export const PostingContainer: React.FC = () => {
@@ -517,7 +518,7 @@ export const PostingContainer: React.FC = () => {
                 name="scheduledAt"
                 type="datetime-local"
                 className="border rounded-lg px-3 py-2"
-                defaultValue={editingPost.scheduledAt.toISOString().slice(0, 16)}
+                defaultValue={DateTimeFormatter.formatForDateTimeInput(editingPost.scheduledAt)}
                 required
               />
               <select name="priority" className="border rounded-lg px-3 py-2" defaultValue={editingPost.metadata.priority}>

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
+import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 
 interface LivePriceWidgetProps {
   symbol: string;
@@ -50,10 +51,7 @@ export const LivePriceWidget: React.FC<LivePriceWidgetProps> = ({
     );
   }
 
-  const formattedPrice = realTimeData.close.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+  const formattedPrice = DateTimeFormatter.formatNumber(realTimeData.close, 2);
 
   return (
     <div className={`absolute top-4 left-4 z-10 bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 border border-gray-600 shadow-lg ${className}`}>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GeneratePostFromEventUseCase, GeneratePostFromEventRequest } from '../../Application/use-cases/GeneratePostFromEventUseCase';
 import { LocalStoragePostRepository } from '../../Infrastructure/repositories/LocalStoragePostRepository';
+import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 
 interface AstronomicalEvent {
   id: string;
@@ -104,7 +105,7 @@ export const EventPostGenerator: React.FC<EventPostGeneratorProps> = ({ onPostGe
             <option value="">Выберите событие</option>
             {events.map(event => (
               <option key={event.id} value={event.id}>
-                {event.name} - {new Date(event.date).toLocaleDateString('ru-RU')}
+                {event.name} - {DateTimeFormatter.formatEventDate(event.date)}
               </option>
             ))}
           </select>
@@ -128,7 +129,7 @@ export const EventPostGenerator: React.FC<EventPostGeneratorProps> = ({ onPostGe
           <h4 className="font-medium text-gray-900 mb-2">{selectedEvent.name}</h4>
           <p className="text-gray-600 text-sm mb-2">{selectedEvent.description}</p>
           <div className="flex gap-4 text-xs text-gray-500">
-            <span>📅 {new Date(selectedEvent.date).toLocaleDateString('ru-RU')}</span>
+            <span>📅 {DateTimeFormatter.formatEventDate(selectedEvent.date)}</span>
             <span>⭐ {selectedEvent.significance}</span>
             <span>🏷️ {selectedEvent.type}</span>
           </div>
