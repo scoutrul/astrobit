@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AstroBit - Очистка Legacy Данных</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 { text-align: center; margin-bottom: 30px; }
+        button {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+        button:hover { background: #ff3838; transform: translateY(-2px); }
+        button.success { background: #5cb85c; }
+        button.success:hover { background: #4cae4c; }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success { background: rgba(92, 184, 92, 0.2); }
+        .info { background: rgba(91, 192, 222, 0.2); }
+        .list { margin: 15px 0; text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 AstroBit Legacy Data Cleaner</h1>
+        
+        <p>Эта утилита очистит все устаревшие mock данные из localStorage:</p>
+        
+        <div class="list">
+            <strong>Что будет удалено:</strong><br>
+            • 🗑️ astrobit_posts - старые mock посты<br>
+            • 🗑️ ai_cache_* - кэш AI запросов<br>
+            • 🗑️ Ключи с demo, phase4, mock, sample<br>
+            • 🗑️ Временные данные разработки
+        </div>
+
+        <div style="text-align: center;">
+            <button onclick="clearLegacyData()">🗑️ Очистить Legacy Данные</button>
+            <button onclick="showCurrentKeys()" class="success">📋 Показать Текущие Ключи</button>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function clearLegacyData() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                const keysToRemove = [
+                    'astrobit_posts',
+                    'astrobit_tags', 
+                    'astrobit_archives',
+                    'astrobit_settings'
+                ];
+
+                let removedCount = 0;
+                let removedKeys = [];
+
+                // Удаляем основные ключи
+                keysToRemove.forEach(key => {
+                    if (localStorage.getItem(key)) {
+                        localStorage.removeItem(key);
+                        removedCount++;
+                        removedKeys.push(key);
+                    }
+                });
+
+                // Удаляем ключи с демо данными и AI cache
+                for (let i = localStorage.length - 1; i >= 0; i--) {
+                    const key = localStorage.key(i);
+                    if (key && (
+                        key.startsWith('ai_cache_') ||
+                        key.includes('demo') ||
+                        key.includes('phase4') ||
+                        key.includes('mock') ||
+                        key.includes('sample') ||
+                        key.startsWith('posting_')
+                    )) {
+                        localStorage.removeItem(key);
+                        removedCount++;
+                        removedKeys.push(key);
+                    }
+                }
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `✅ Очистка завершена!
+
+Удалено ключей: ${removedCount}
+
+Удаленные ключи:
+${removedKeys.map(key => `• ${key}`).join('\n')}
+
+🔄 Перезагрузите основное приложение для применения изменений.`;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Ошибка при очистке: ${error.message}`;
+            }
+        }
+
+        function showCurrentKeys() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                const allKeys = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    allKeys.push(localStorage.key(i));
+                }
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = `📋 Текущие ключи в localStorage (${allKeys.length}):
+
+${allKeys.map(key => `• ${key}`).join('\n')}`;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Ошибка получения ключей: ${error.message}`;
+            }
+        }
+
+        // Автоматически показываем текущие ключи при загрузке
+        window.addEventListener('load', () => {
+            setTimeout(showCurrentKeys, 500);
+        });
+    </script>
+</body>
+</html>

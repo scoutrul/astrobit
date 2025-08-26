@@ -8,10 +8,11 @@ interface AdminGuardProps {
 }
 
 /**
- * Компонент для защиты админских страниц через Firebase
+ * Компонент защиты админских маршрутов
+ * Проверяет Firebase аутентификацию и права доступа
  */
 export const AdminGuard: React.FC<AdminGuardProps> = ({ children, fallback }) => {
-  const { isAdmin, loading } = useFirebaseAuth();
+  const { user, loading, isAdmin } = useFirebaseAuth();
 
   // Показываем загрузку пока проверяем авторизацию
   if (loading) {
@@ -19,11 +20,11 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children, fallback }) =>
   }
 
   // Если не авторизован как админ - показываем форму входа
-  if (!isAdmin) {
+  if (!user || !isAdmin) {
     return fallback || <FirebaseLoginForm />;
   }
 
-  // Если авторизован - показываем защищенный контент
+  // Если авторизован как админ - показываем защищенный контент
   return <>{children}</>;
 };
 
@@ -41,10 +42,10 @@ const AdminLoading: React.FC = () => {
         
         {/* Текст */}
         <h2 className="text-xl font-semibold text-white mb-2">
-          Проверка доступа
+          Вход в систему
         </h2>
         <p className="text-gray-300 text-sm">
-          Подождите, проверяем ваши права...
+          Подождите, проверяем авторизацию...
         </p>
       </div>
     </div>

@@ -1,7 +1,7 @@
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AppContainer } from './Shared/presentation/containers/AppContainer';
-import { PostingContainer } from './Posting/Presentation/containers/PostingContainer';
+import { EnhancedPostingContainer } from './Posting/Presentation/containers/EnhancedPostingContainer';
 import { AdminGuard } from './Shared/presentation/components/AdminGuard';
 import { AdminPanel } from './Shared/presentation/components/AdminPanel';
 
@@ -18,7 +18,7 @@ function App() {
             element={
               <AdminGuard>
                 <AdminPanel title="Система постинга">
-                  <PostingContainer />
+                  <EnhancedPostingContainer />
                 </AdminPanel>
               </AdminGuard>
             } 

@@ -8,14 +8,18 @@ interface AdminPanelProps {
 }
 
 /**
- * Обертка для админской панели с кнопкой выхода
+ * Обертка для админской панели с Firebase аутентификацией
  */
 export const AdminPanel: React.FC<AdminPanelProps> = ({ children, title = 'Панель администратора' }) => {
-  const { logout, user } = useFirebaseAuth();
+  const { user, logout } = useFirebaseAuth();
 
   const handleLogout = async () => {
-    await logout();
-    window.location.href = '/';
+    try {
+      await logout();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Ошибка выхода:', error);
+    }
   };
 
   return (

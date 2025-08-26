@@ -1,29 +1,76 @@
-export enum PostType {
-  ANNOUNCEMENT = 'announcement',
-  EVENT_ANALYSIS = 'event_analysis',
-  MARKET_ANALYSIS = 'market_analysis',
-  WEEKLY_REVIEW = 'weekly_review',
-  MONTHLY_REVIEW = 'monthly_review',
-  ASTRONOMICAL_UPDATE = 'astronomical_update',
-  TRADING_SIGNAL = 'trading_signal'
+import { ValueObject } from '../../../Shared/domain/ValueObject';
+
+export type PostTypeValue = 
+  | 'astronomical_announcement'
+  | 'market_retrospective' 
+  | 'analytical_post'
+  | 'general_post';
+
+export const POST_TYPE_LABELS: Record<PostTypeValue, string> = {
+  'astronomical_announcement': 'Анонс астрономического события',
+  'market_retrospective': 'Ретроспектива рынка',
+  'analytical_post': 'Аналитический пост',
+  'general_post': 'Обычный пост'
+};
+
+export interface PostTypeProps {
+  value: PostTypeValue;
 }
 
-export const POST_TYPE_ICONS: Record<PostType, string> = {
-  [PostType.ANNOUNCEMENT]: '📢',
-  [PostType.EVENT_ANALYSIS]: '🌟',
-  [PostType.MARKET_ANALYSIS]: '📈',
-  [PostType.WEEKLY_REVIEW]: '📅',
-  [PostType.MONTHLY_REVIEW]: '🗓️',
-  [PostType.ASTRONOMICAL_UPDATE]: '🌙',
-  [PostType.TRADING_SIGNAL]: '📊'
-};
+export class PostType extends ValueObject<PostType> {
+  protected readonly props: PostTypeProps;
 
-export const POST_TYPE_LABELS: Record<PostType, string> = {
-  [PostType.ANNOUNCEMENT]: '📢 Объявление',
-  [PostType.EVENT_ANALYSIS]: '🌟 Анализ события',
-  [PostType.MARKET_ANALYSIS]: '📈 Рыночный анализ',
-  [PostType.WEEKLY_REVIEW]: '📅 Недельный обзор',
-  [PostType.MONTHLY_REVIEW]: '🗓️ Месячный обзор',
-  [PostType.ASTRONOMICAL_UPDATE]: '🌙 Астрономические новости',
-  [PostType.TRADING_SIGNAL]: '📊 Торговый сигнал'
-};
+  private constructor(props: PostTypeProps) {
+    super();
+    this.props = props;
+  }
+
+  public static create(value: PostTypeValue): PostType {
+    return new PostType({ value });
+  }
+
+  public static astronomicalAnnouncement(): PostType {
+    return new PostType({ value: 'astronomical_announcement' });
+  }
+
+  public static marketRetrospective(): PostType {
+    return new PostType({ value: 'market_retrospective' });
+  }
+
+  public static analyticalPost(): PostType {
+    return new PostType({ value: 'analytical_post' });
+  }
+
+  public static generalPost(): PostType {
+    return new PostType({ value: 'general_post' });
+  }
+
+  get value(): PostTypeValue {
+    return this.props.value;
+  }
+
+  get displayName(): string {
+    return POST_TYPE_LABELS[this.props.value];
+  }
+
+  public requiresAI(): boolean {
+    return ['astronomical_announcement', 'market_retrospective', 'analytical_post'].includes(this.props.value);
+  }
+
+  public getGenerationComplexity(): 'simple' | 'medium' | 'complex' {
+    switch (this.props.value) {
+      case 'astronomical_announcement':
+        return 'medium';
+      case 'market_retrospective':
+        return 'complex';
+      case 'analytical_post':
+        return 'complex';
+      default:
+        return 'simple';
+    }
+  }
+
+  public clone(): PostType {
+    return new PostType({ value: this.props.value });
+  }
+}

@@ -1,10 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_BYBIT_API_KEY?: string
-  readonly VITE_BYBIT_API_SECRET?: string
-  readonly VITE_BYBIT_TESTNET?: string
-  readonly VITE_BYBIT_RECV_WINDOW?: string
+  // Динамические типы для всех VITE_ переменных окружения
+  readonly [key: `VITE_${string}`]: string | undefined
 }
 
 interface ImportMeta {
