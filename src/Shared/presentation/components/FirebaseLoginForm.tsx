@@ -78,15 +78,21 @@ export const FirebaseLoginForm: React.FC = () => {
               </button>
             </div>
           ) : (
-            <form onSubmit={handleResetPassword}>
+            <form onSubmit={handleResetPassword} autoComplete="on">
               <div className="mb-6">
+                <label htmlFor="reset-email" className="sr-only">Email для восстановления</label>
                 <input
+                  id="reset-email"
                   type="email"
+                  name="email"
+                  autoComplete="email"
+                  autoFocus
                   placeholder="Email администратора"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   className="w-full p-4 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
                   required
+                  spellCheck="false"
                 />
               </div>
 
@@ -137,22 +143,32 @@ export const FirebaseLoginForm: React.FC = () => {
         </div>
 
         {/* Форма входа */}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} autoComplete="on">
           <div className="space-y-4 mb-6">
             <div>
+              <label htmlFor="admin-email" className="sr-only">Email администратора</label>
               <input
+                id="admin-email"
                 type="email"
+                name="username"
+                autoComplete="username email"
+                autoFocus
                 placeholder="Email администратора"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full p-4 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
                 required
+                spellCheck="false"
               />
             </div>
             
             <div>
+              <label htmlFor="admin-password" className="sr-only">Пароль</label>
               <input
+                id="admin-password"
                 type="password"
+                name="password"
+                autoComplete="current-password"
                 placeholder="Пароль"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
