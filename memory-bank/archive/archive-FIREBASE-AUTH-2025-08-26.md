@@ -16,7 +16,7 @@
 
 ## Implementation
 - Код:
-  - `src/firebase/config.ts`: Инициализация через переменные окружения (`VITE_FIREBASE_*`), список админов из `VITE_ADMIN_EMAILS`.
+  - `src/firebase/config.ts`: Инициализация через переменные окружения (`VITE_FIREBASE_*`), список админов из `VITE_FIREBASE_ADMIN_EMAILS`.
   - `src/Shared/presentation/hooks/useFirebaseAuth.ts`: Хук для входа/выхода, статуса, сброса пароля, валидации админ-ролей.
   - `src/Shared/presentation/components/{AdminGuard,AdminPanel,FirebaseLoginForm}.tsx`: Защита маршрутов, форма входа, панель и выход без подтверждения.
   - Удалены старые артефакты клиентской аутентификации.

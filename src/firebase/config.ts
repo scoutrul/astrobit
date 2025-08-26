@@ -15,5 +15,5 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 // Получаем список админов из переменных окружения
-export const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS?.split(',') || [];
+export const ADMIN_EMAILS = import.meta.env.VITE_FIREBASE_ADMIN_EMAILS?.split(',') || [];
 

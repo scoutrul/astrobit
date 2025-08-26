@@ -3,7 +3,7 @@ import { Post } from '../../Domain/entities/Post';
 import { PostCard } from '../components/PostCard';
 import { PostStats } from '../components/PostStats';
 import { LocalStoragePostRepository } from '../../Infrastructure/repositories/LocalStoragePostRepository';
-import { PostType } from '../../Domain/value-objects/PostType';
+import { PostType, POST_TYPE_LABELS } from '../../Domain/value-objects/PostType';
 import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 
 
@@ -179,6 +179,32 @@ export const PostingContainer: React.FC = () => {
       if (result.isSuccess) {
         setShowCreateForm(false);
         await loadPosts();
+        
+        // Если выбрана автоматическая отправка в Telegram
+        if (postData.sendToTelegram) {
+          // Инициируем отправку в Telegram
+          // Используем TelegramBotService напрямую для создания поста
+          const { TelegramBotBrowserService } = await import('../../Infrastructure/services/TelegramBotBrowserService');
+          
+          try {
+            const telegramConfig = {
+              token: import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '',
+              chatId: import.meta.env.VITE_TELEGRAM_CHAT_ID || ''
+            };
+
+            if (telegramConfig.token && telegramConfig.chatId) {
+              const telegramService = new TelegramBotBrowserService(telegramConfig);
+              const telegramResult = await telegramService.sendPost(post);
+              
+              if (telegramResult.success && telegramResult.messageId) {
+                // Обновляем пост с messageId
+                await handleTelegramSent(post.id, telegramResult.messageId);
+              }
+            }
+          } catch (error) {
+            console.error('Ошибка автоматической отправки в Telegram:', error);
+          }
+        }
       } else {
         alert(`Ошибка создания: ${result.error}`);
       }
@@ -288,58 +314,7 @@ export const PostingContainer: React.FC = () => {
     }
   };
 
-  const handlePublish = async (id: string) => {
-    try {
-      const post = posts.find(p => p.id === id);
-      if (!post) {
-        return;
-      }
 
-      // Проверяем, что можно публиковать только черновики
-      if (post.status !== 'draft') {
-        alert(`Этот пост уже имеет статус "${post.status}". Можно публиковать только черновики.`);
-        return;
-      }
-
-      // Создаем новый объект поста с обновленным статусом
-      const updatedPost = new Post(
-        post.id,
-        post.title,
-        post.content,
-        'scheduled', // Новый статус
-        post.type,
-        new Date(), // Новое время планирования
-        post.metadata,
-        post.authorId,
-        undefined, // publishedAt пока undefined
-        post.images,
-        post.telegramMessageId
-      );
-
-      const result = await repository.save(updatedPost);
-
-      if (result.isSuccess) {
-        // Обновляем локальное состояние с новым объектом
-        const updatedPosts = posts.map(p => p.id === id ? updatedPost : p);
-        setPosts(updatedPosts);
-        
-        // Сначала помечаем пост для анимации исчезновения
-        setRemovingPostIds(new Set([id]));
-        
-        // Через 300ms применяем фильтр (пост исчезнет из списка)
-        setTimeout(() => {
-          applyFilter(updatedPosts, selectedFilter);
-          setRemovingPostIds(new Set());
-        }, 300);
-        
-        // Пост переведен в статус "scheduled"
-      } else {
-        alert(`Ошибка публикации: ${result.error}`);
-      }
-    } catch (error) {
-      alert(`Ошибка публикации: ${error}`);
-    }
-  };
 
   const handleCancelEdit = () => {
     setShowEditForm(false);
@@ -352,6 +327,39 @@ export const PostingContainer: React.FC = () => {
 
   const handleShowCreateForm = () => {
     setShowCreateForm(true);
+  };
+
+  const handleTelegramSent = async (postId: string, messageId: number) => {
+    try {
+      const postToUpdate = posts.find(p => p.id === postId);
+      if (!postToUpdate) return;
+
+      // Создаем обновленный пост с telegramMessageId и статусом "scheduled"
+      const updatedPost = new Post(
+        postToUpdate.id,
+        postToUpdate.title,
+        postToUpdate.content,
+        'scheduled', // Переводим в статус "scheduled" после отправки в Telegram
+        postToUpdate.type,
+        postToUpdate.scheduledAt,
+        postToUpdate.metadata,
+        postToUpdate.authorId,
+        postToUpdate.publishedAt,
+        postToUpdate.images,
+        messageId.toString()
+      );
+
+      const result = await repository.save(updatedPost);
+
+      if (result.isSuccess) {
+        // Обновляем локальное состояние
+        const updatedPosts = posts.map(p => p.id === postId ? updatedPost : p);
+        setPosts(updatedPosts);
+        applyFilter(updatedPosts, selectedFilter);
+      }
+    } catch (error) {
+      console.error('Ошибка сохранения messageId:', error);
+    }
   };
 
   const handleClearAllPosts = async () => {
@@ -410,8 +418,8 @@ export const PostingContainer: React.FC = () => {
       </div>
 
       {showCreateForm && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6 border">
-          <h2 className="text-xl font-semibold mb-4">Создать новый пост</h2>
+        <div className="bg-gray-800 rounded-lg shadow-md p-6 mb-6 border border-gray-700">
+          <h2 className="text-xl font-semibold mb-4 text-white">Создать новый пост</h2>
           <form onSubmit={(e) => {
             e.preventDefault();
             const formData = new FormData(e.target as HTMLFormElement);
@@ -420,27 +428,28 @@ export const PostingContainer: React.FC = () => {
               content: formData.get('content'),
               type: formData.get('type'),
               scheduledAt: formData.get('scheduledAt'),
-              priority: formData.get('priority')
+              priority: formData.get('priority'),
+              sendToTelegram: formData.get('sendToTelegram') === 'on'
             });
           }}>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <input
                 name="title"
                 placeholder="Заголовок поста"
-                className="border rounded-lg px-3 py-2"
+                className="border border-gray-600 rounded-lg px-3 py-2 bg-gray-100 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
-              <select name="type" className="border rounded-lg px-3 py-2" required>
+              <select name="type" className="border border-gray-600 rounded-lg px-3 py-2 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
                 <option value="">Тип поста</option>
                 {Object.values(PostType).map(type => (
-                  <option key={type} value={type}>{type}</option>
+                  <option key={type} value={type}>{POST_TYPE_LABELS[type as PostType]}</option>
                 ))}
               </select>
             </div>
             <textarea
               name="content"
               placeholder="Содержание поста"
-              className="w-full border rounded-lg px-3 py-2 mb-4"
+              className="w-full border border-gray-600 rounded-lg px-3 py-2 mb-4 bg-gray-100 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows={4}
               required
             />
@@ -448,14 +457,25 @@ export const PostingContainer: React.FC = () => {
               <input
                 name="scheduledAt"
                 type="datetime-local"
-                className="border rounded-lg px-3 py-2"
+                className="border border-gray-600 rounded-lg px-3 py-2 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                defaultValue={new Date().toISOString().slice(0, 16)}
                 required
               />
-              <select name="priority" className="border rounded-lg px-3 py-2">
+              <select name="priority" className="border border-gray-600 rounded-lg px-3 py-2 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="low">Низкий</option>
                 <option value="medium">Средний</option>
                 <option value="high">Высокий</option>
               </select>
+            </div>
+            <div className="mb-4">
+              <label className="flex items-center gap-2">
+                <input
+                  name="sendToTelegram"
+                  type="checkbox"
+                  className="rounded bg-gray-100 border-gray-600 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-300">📤 Сразу отправить в Telegram</span>
+              </label>
             </div>
             <div className="flex gap-2">
               <button
@@ -477,8 +497,8 @@ export const PostingContainer: React.FC = () => {
       )}
 
       {showEditForm && editingPost && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6 border">
-          <h2 className="text-xl font-semibold mb-4">Редактировать пост</h2>
+        <div className="bg-gray-800 rounded-lg shadow-md p-6 mb-6 border border-gray-700">
+          <h2 className="text-xl font-semibold mb-4 text-white">Редактировать пост</h2>
           <form onSubmit={(e) => {
             e.preventDefault();
             const formData = new FormData(e.target as HTMLFormElement);
@@ -494,21 +514,21 @@ export const PostingContainer: React.FC = () => {
               <input
                 name="title"
                 placeholder="Заголовок поста"
-                className="border rounded-lg px-3 py-2"
+                className="border border-gray-600 rounded-lg px-3 py-2 bg-gray-100 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 defaultValue={editingPost.title}
                 required
               />
-              <select name="type" className="border rounded-lg px-3 py-2" required defaultValue={editingPost.type}>
+              <select name="type" className="border border-gray-600 rounded-lg px-3 py-2 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent" required defaultValue={editingPost.type}>
                 <option value="">Тип поста</option>
                 {Object.values(PostType).map(type => (
-                  <option key={type} value={type}>{type}</option>
+                  <option key={type} value={type}>{POST_TYPE_LABELS[type as PostType]}</option>
                 ))}
               </select>
             </div>
             <textarea
               name="content"
               placeholder="Содержание поста"
-              className="w-full border rounded-lg px-3 py-2 mb-4"
+              className="w-full border border-gray-600 rounded-lg px-3 py-2 mb-4 bg-gray-100 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows={4}
               defaultValue={editingPost.content}
               required
@@ -517,11 +537,11 @@ export const PostingContainer: React.FC = () => {
               <input
                 name="scheduledAt"
                 type="datetime-local"
-                className="border rounded-lg px-3 py-2"
+                className="border border-gray-600 rounded-lg px-3 py-2 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 defaultValue={DateTimeFormatter.formatForDateTimeInput(editingPost.scheduledAt)}
                 required
               />
-              <select name="priority" className="border rounded-lg px-3 py-2" defaultValue={editingPost.metadata.priority}>
+              <select name="priority" className="border border-gray-600 rounded-lg px-3 py-2 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent" defaultValue={editingPost.metadata.priority}>
                 <option value="low">Низкий</option>
                 <option value="medium">Средний</option>
                 <option value="high">Высокий</option>
@@ -566,7 +586,7 @@ export const PostingContainer: React.FC = () => {
               post={post}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              onPublish={handlePublish}
+              onTelegramSent={handleTelegramSent}
             />
           </div>
         ))}

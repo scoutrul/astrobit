@@ -30,7 +30,7 @@ VITE_FIREBASE_PROJECT_ID=astrobit-admin
 VITE_FIREBASE_STORAGE_BUCKET=astrobit-admin.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
 VITE_FIREBASE_APP_ID=1:123456789:web:abc123
-VITE_ADMIN_EMAILS=admin@astrobit.online
+VITE_FIREBASE_ADMIN_EMAILS=admin@astrobit.online
 ```
 
 ### 6. Запустите и тестируйте

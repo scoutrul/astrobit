@@ -85,7 +85,7 @@ VITE_FIREBASE_PROJECT_ID=ваш_проект
 VITE_FIREBASE_STORAGE_BUCKET=ваш_bucket
 VITE_FIREBASE_MESSAGING_SENDER_ID=ваш_id
 VITE_FIREBASE_APP_ID=ваш_app_id
-VITE_ADMIN_EMAILS=admin@astrobit.online
+VITE_FIREBASE_ADMIN_EMAILS=admin@astrobit.online
 ```
 
 ### 3. Запуск

@@ -74,7 +74,7 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
 VITE_FIREBASE_APP_ID=1:123456789:web:abc123def456
 
 # Admin Emails (через запятую)
-VITE_ADMIN_EMAILS=admin@astrobit.online,another@example.com
+VITE_FIREBASE_ADMIN_EMAILS=admin@astrobit.online,another@example.com
 ```
 
 ### 4.2 Обновление .env.example
@@ -119,7 +119,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 // Получаем список админов из переменных окружения
-export const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS?.split(',') || ['admin@astrobit.online'];
+export const ADMIN_EMAILS = import.meta.env.VITE_FIREBASE_ADMIN_EMAILS?.split(',') || ['admin@astrobit.online'];
 ```
 
 ## 🧪 Шаг 7: Тестирование

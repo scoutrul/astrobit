@@ -17,3 +17,13 @@ export const POST_TYPE_ICONS: Record<PostType, string> = {
   [PostType.ASTRONOMICAL_UPDATE]: '🌙',
   [PostType.TRADING_SIGNAL]: '📊'
 };
+
+export const POST_TYPE_LABELS: Record<PostType, string> = {
+  [PostType.ANNOUNCEMENT]: '📢 Объявление',
+  [PostType.EVENT_ANALYSIS]: '🌟 Анализ события',
+  [PostType.MARKET_ANALYSIS]: '📈 Рыночный анализ',
+  [PostType.WEEKLY_REVIEW]: '📅 Недельный обзор',
+  [PostType.MONTHLY_REVIEW]: '🗓️ Месячный обзор',
+  [PostType.ASTRONOMICAL_UPDATE]: '🌙 Астрономические новости',
+  [PostType.TRADING_SIGNAL]: '📊 Торговый сигнал'
+};

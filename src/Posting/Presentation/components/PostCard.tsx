@@ -1,17 +1,30 @@
 import React from 'react';
 import { Post } from '../../Domain/entities/Post';
 import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
+import { useTelegramPost } from '../hooks/useTelegramPost';
+import { PostType, POST_TYPE_LABELS } from '../../Domain/value-objects/PostType';
 
 interface PostCardProps {
   post: Post;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
-  onPublish: (id: string) => void;
+  onTelegramSent?: (postId: string, messageId: number) => void;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onEdit, onDelete, onPublish }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onEdit, onDelete, onTelegramSent }) => {
+  const { state, sendToTelegram, retryLastSend } = useTelegramPost();
+  
   const handleDeleteClick = () => {
     onDelete(post.id);
+  };
+
+  const handleTelegramSend = async () => {
+    // Передаем callback прямо в sendToTelegram
+    await sendToTelegram(post, undefined, (messageId: number) => {
+      if (onTelegramSent) {
+        onTelegramSent(post.id, messageId);
+      }
+    });
   };
 
   return (
@@ -30,7 +43,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onEdit, onDelete, onPu
               {post.status}
             </span>
             <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700">
-              {post.type}
+              {POST_TYPE_LABELS[post.type as PostType] || post.type}
             </span>
           </div>
         </div>
@@ -41,7 +54,42 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onEdit, onDelete, onPu
         {post.publishedAt && (
           <p>Опубликовано: {DateTimeFormatter.formatDateTime(post.publishedAt)}</p>
         )}
+        {post.telegramMessageId && (
+          <p>Telegram ID: {post.telegramMessageId}</p>
+        )}
       </div>
+
+      {/* Индикатор статуса отправки в Telegram */}
+      {(state.loading || state.success || state.error) && (
+        <div className="mb-4 p-2 rounded-lg text-xs">
+          {state.loading && (
+            <div className="flex items-center gap-2 text-blue-600 bg-blue-50 p-2 rounded">
+              <span>⏳</span>
+              <span>Отправка в Telegram...</span>
+            </div>
+          )}
+          {state.success && (
+            <div className="flex items-center gap-2 text-green-600 bg-green-50 p-2 rounded">
+              <span>✅</span>
+              <span>Отправлено! ID: {state.messageId}</span>
+            </div>
+          )}
+          {state.error && (
+            <div className="flex items-center justify-between text-red-600 bg-red-50 p-2 rounded">
+              <div className="flex items-center gap-2">
+                <span>❌</span>
+                <span>{state.error}</span>
+              </div>
+              <button
+                onClick={retryLastSend}
+                className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+              >
+                🔄 Повторить
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-2">
         <button
@@ -58,10 +106,15 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onEdit, onDelete, onPu
         </button>
         {post.status === 'draft' && (
           <button
-            onClick={() => onPublish(post.id)}
-            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+            onClick={handleTelegramSend}
+            disabled={state.loading}
+            className={`px-3 py-1 rounded text-sm ${
+              state.loading
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
           >
-            📤 Опубликовать
+            {state.loading ? '⏳' : '📤'} Опубликовать в Telegram
           </button>
         )}
       </div>
