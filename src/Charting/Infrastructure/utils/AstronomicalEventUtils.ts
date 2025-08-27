@@ -11,6 +11,7 @@ export interface ChartMarker {
   color: string;
   text: string;
   size: number;
+  shape?: 'circle' | 'square' | 'arrowUp' | 'arrowDown';
   eventData?: AstronomicalEvent; // Добавляем данные события
 }
 
@@ -33,6 +34,7 @@ export class AstronomicalEventUtils {
           color: color,
           text: text,
           size: 2, // Увеличенный размер для лучшей видимости
+          shape: 'circle' as const,
           eventData: event // Сохраняем данные события для ToolTip
         };
       })
@@ -80,6 +82,7 @@ export class AstronomicalEventUtils {
           color: colorWithOpacity,
           text: text,
           size: 2,
+          shape: 'circle' as const,
           eventData: event
         };
       })

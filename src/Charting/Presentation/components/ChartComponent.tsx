@@ -67,6 +67,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   
   // Состояние для активных событий (события в текущем tooltip)
   const [activeEvents, setActiveEvents] = useState<Set<string>>(new Set());
+  
+  // Состояние для ширины контейнера графика
+  const [containerWidth, setContainerWidth] = useState(0);
 
   // Флаги и refs для управления зумом/скроллом без сбросов
   const hasUserInteractedRef = useRef(false);
@@ -87,9 +90,24 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
   // Состояние для принудительного пересоздания графика
   const [forceRecreateKey, setForceRecreateKey] = useState(0);
+
   
   // Ключ для принудительного пересоздания компонента при смене symbol/timeframe
   // Добавляем timestamp для принудительного пересоздания
+
+  // Функция для умного позиционирования tooltip
+  const getSmartTooltipPosition = useCallback((cursorX: number, containerWidth: number) => {
+    const centerX = containerWidth / 2;
+    const offset = 20; // Отступ от курсора
+    
+    if (cursorX < centerX) {
+      // Курсор в левой части - показываем справа
+      return cursorX + offset;
+    } else {
+      // Курсор в правой части - показываем слева
+      return cursorX - offset - 350; // 350px - примерная ширина tooltip
+    }
+  }, []);
   const chartKey = useMemo(() => {
     const baseKey = `${symbol}-${timeframe}-${forceRecreateKey}`;
     return baseKey;
@@ -191,7 +209,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         return diff <= 86400; // Показываем события за последние 24 часа
       });
       setTooltip({
-        x: param.point.x,
+        x: getSmartTooltipPosition(param.point.x, containerWidth),
         y: param.point.y - 60,
         events: eventsForTooltip,
         visible: true
@@ -200,6 +218,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       // Устанавливаем активные события для выделения
       const activeEventNames = new Set(eventsForTooltip.map(event => event.name));
       setActiveEvents(activeEventNames);
+      
       
       return;
     } else {
@@ -248,7 +267,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         // Одно событие
         const event = eventsNearTime[0];
         setTooltip({
-          x: param.point.x,
+          x: getSmartTooltipPosition(param.point.x, containerWidth),
           y: param.point.y - 60,
           title: event.name,
           description: event.description,
@@ -256,11 +275,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         });
         
         // Устанавливаем активные события для выделения
-        setActiveEvents(new Set([event.name]));
+        const activeEventNames = new Set([event.name]);
+        setActiveEvents(activeEventNames);
+        
       } else {
         // Несколько событий - стэк
         setTooltip({
-          x: param.point.x,
+          x: getSmartTooltipPosition(param.point.x, containerWidth),
           y: param.point.y - 60,
           events: eventsNearTime,
           visible: true
@@ -269,6 +290,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         // Устанавливаем активные события для выделения
         const activeEventNames = new Set(eventsNearTime.map(event => event.name));
         setActiveEvents(activeEventNames);
+        
       }
     } else {
       // Нет событий - скрываем ToolTip мгновенно
@@ -278,6 +300,22 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       setActiveEvents(new Set());
     }
   }, [timeframe, stableAstronomicalEvents, activeEventFilters, isChartFocused]);
+
+  // Отслеживание ширины контейнера для умного позиционирования tooltip
+  useEffect(() => {
+    const updateContainerWidth = () => {
+      if (chartContainerRef.current) {
+        setContainerWidth(chartContainerRef.current.offsetWidth);
+      }
+    };
+
+    updateContainerWidth();
+    window.addEventListener('resize', updateContainerWidth);
+    
+    return () => {
+      window.removeEventListener('resize', updateContainerWidth);
+    };
+  }, []);
 
   // Инициализация графика
   useEffect(() => {
@@ -713,11 +751,8 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         activeEventFilters
       );
 
-      // Конвертируем события в маркеры с поддержкой прозрачности
-      const markers = AstronomicalEventUtils.convertEventsToMarkersWithOpacity(
-        filteredEvents, 
-        activeEvents
-      );
+      // Конвертируем события в маркеры (без прозрачности, чтобы избежать рекурсии)
+      const markers = AstronomicalEventUtils.convertEventsToMarkers(filteredEvents);
 
       if (markers.length > 0) {
         try {
@@ -744,7 +779,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     } catch (err) {
       console.error('[ChartComponent] ❌ Error updating astronomical events:', err);
     }
-  }, [seriesInstance, stableAstronomicalEvents, activeEventFilters, activeEvents]);
+  }, [seriesInstance, stableAstronomicalEvents, activeEventFilters]);
+
+
 
   // Обновление real-time данных
   useEffect(() => {
@@ -990,7 +1027,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         <div 
           className="absolute z-10 bg-[#1e293b] border border-[#334155] rounded-lg px-3 py-2 shadow-lg pointer-events-none astro-tooltip transition-instant opacity-instant tooltip-instant gpu-off tooltip-visible instant-response"
           style={{ 
-            left: `${tooltip.x + 20}px`, 
+            left: `${tooltip.x}px`, 
             top: `${tooltip.y}px`,
             maxWidth: '350px'
           }}
