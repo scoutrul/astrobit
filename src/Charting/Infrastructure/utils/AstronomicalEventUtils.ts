@@ -43,6 +43,53 @@ export class AstronomicalEventUtils {
   }
 
   /**
+   * Конвертирует астрономические события в маркеры с поддержкой прозрачности
+   * @param events - все события
+   * @param activeEventNames - имена активных событий (полностью видимые)
+   * @returns маркеры с прозрачностью (неактивные события - 50% opacity)
+   */
+  static convertEventsToMarkersWithOpacity(
+    events: AstronomicalEvent[], 
+    activeEventNames: Set<string>
+  ): ChartMarker[] {
+    const markers = events
+      .map((event) => {
+        // Конвертируем timestamp в секунды
+        const timeInSeconds = Math.floor(event.timestamp / 1000);
+        
+        // Выбираем иконку и цвет
+        const { text, color } = this.getEventIconAndColor(event);
+        
+        // Определяем прозрачность: 
+        // - Если нет активных событий: все события 100% видимые
+        // - Если есть активные события: активные 100%, неактивные 50%
+        let opacity = 1; // По умолчанию все события полностью видимые
+        
+        if (activeEventNames.size > 0) {
+          // Есть активные события - применяем прозрачность
+          const isActive = activeEventNames.has(event.name);
+          opacity = isActive ? 1 : 0.5; // Активные 100%, неактивные 50%
+        }
+        
+        // Применяем прозрачность к цвету
+        const colorWithOpacity = this.applyOpacityToColor(color, opacity);
+        
+        return {
+          time: timeInSeconds as any,
+          position: 'aboveBar' as const,
+          color: colorWithOpacity,
+          text: text,
+          size: 2,
+          eventData: event
+        };
+      })
+      .filter(marker => marker.time > 0)
+      .sort((a, b) => a.time - b.time);
+
+    return markers;
+  }
+
+  /**
    * Получает иконку и цвет для астрономического события
    */
   static getEventIconAndColor(event: AstronomicalEvent): { text: string; color: string } {
@@ -397,5 +444,16 @@ export class AstronomicalEventUtils {
       events: events.sort((a, b) => a.name.localeCompare(b.name)), // Сортируем по алфавиту
       visible: true
     };
+  }
+
+  /**
+   * Применяет прозрачность к цвету
+   */
+  private static applyOpacityToColor(color: string, opacity: number): string {
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   }
 } 

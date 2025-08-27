@@ -64,6 +64,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     visible: false
   });
   const [isChartFocused, setIsChartFocused] = useState<boolean>(false);
+  
+  // Состояние для активных событий (события в текущем tooltip)
+  const [activeEvents, setActiveEvents] = useState<Set<string>>(new Set());
 
   // Флаги и refs для управления зумом/скроллом без сбросов
   const hasUserInteractedRef = useRef(false);
@@ -153,11 +156,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   const handleCrosshairMove = useCallback((param: any) => {
     if (!isChartFocused) {
       setTooltip(prev => ({ ...prev, visible: false }));
+      setActiveEvents(new Set()); // Сбрасываем активные события
       return;
     }
     // Проверяем наличие данных
     if (!param.point) {
       setTooltip(prev => ({ ...prev, visible: false }));
+      setActiveEvents(new Set()); // Сбрасываем активные события
       return;
     }
 
@@ -191,9 +196,15 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         events: eventsForTooltip,
         visible: true
       });
+      
+      // Устанавливаем активные события для выделения
+      const activeEventNames = new Set(eventsForTooltip.map(event => event.name));
+      setActiveEvents(activeEventNames);
+      
       return;
     } else {
       setTooltip(prev => ({ ...prev, visible: false }));
+      setActiveEvents(new Set()); // Сбрасываем активные события
       return;
     }
     
@@ -243,6 +254,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           description: event.description,
           visible: true
         });
+        
+        // Устанавливаем активные события для выделения
+        setActiveEvents(new Set([event.name]));
       } else {
         // Несколько событий - стэк
         setTooltip({
@@ -251,10 +265,17 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           events: eventsNearTime,
           visible: true
         });
+        
+        // Устанавливаем активные события для выделения
+        const activeEventNames = new Set(eventsNearTime.map(event => event.name));
+        setActiveEvents(activeEventNames);
       }
     } else {
       // Нет событий - скрываем ToolTip мгновенно
       setTooltip(prev => ({ ...prev, visible: false }));
+      
+      // Сбрасываем активные события
+      setActiveEvents(new Set());
     }
   }, [timeframe, stableAstronomicalEvents, activeEventFilters, isChartFocused]);
 
@@ -692,8 +713,11 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         activeEventFilters
       );
 
-      // Конвертируем события в маркеры
-      const markers = AstronomicalEventUtils.convertEventsToMarkers(filteredEvents);
+      // Конвертируем события в маркеры с поддержкой прозрачности
+      const markers = AstronomicalEventUtils.convertEventsToMarkersWithOpacity(
+        filteredEvents, 
+        activeEvents
+      );
 
       if (markers.length > 0) {
         try {
@@ -720,7 +744,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     } catch (err) {
       console.error('[ChartComponent] ❌ Error updating astronomical events:', err);
     }
-  }, [seriesInstance, stableAstronomicalEvents, activeEventFilters]);
+  }, [seriesInstance, stableAstronomicalEvents, activeEventFilters, activeEvents]);
 
   // Обновление real-time данных
   useEffect(() => {
@@ -966,7 +990,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         <div 
           className="absolute z-10 bg-[#1e293b] border border-[#334155] rounded-lg px-3 py-2 shadow-lg pointer-events-none astro-tooltip transition-instant opacity-instant tooltip-instant gpu-off tooltip-visible instant-response"
           style={{ 
-            left: `${tooltip.x}px`, 
+            left: `${tooltip.x + 20}px`, 
             top: `${tooltip.y}px`,
             maxWidth: '350px'
           }}
