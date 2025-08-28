@@ -1,4 +1,4 @@
-import { Result } from '../../../../Shared/domain/Result';
+
 
 export interface GenerationOptions {
   model?: string;

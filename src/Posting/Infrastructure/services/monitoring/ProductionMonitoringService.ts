@@ -1,4 +1,4 @@
-import { Result } from '../../../../Shared/domain/Result';
+
 
 /**
  * Метрики производительности
@@ -219,7 +219,7 @@ export class ProductionMonitoringService {
   public getPerformanceMetrics(): PerformanceMetrics {
     const totalRequests = this.metrics.get('aiRequests');
     const cacheHits = this.metrics.get('cacheHits');
-    const cacheMisses = this.metrics.get('cacheMisses');
+
     
     const cacheHitRate = totalRequests > 0 ? cacheHits / totalRequests : 0;
     const averageResponseTime = this.requestTimes.length > 0 

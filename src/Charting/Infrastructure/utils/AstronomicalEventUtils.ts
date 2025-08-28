@@ -13,6 +13,7 @@ export interface ChartMarker {
   size: number;
   shape?: 'circle' | 'square' | 'arrowUp' | 'arrowDown';
   eventData?: AstronomicalEvent; // Добавляем данные события
+
 }
 
 export class AstronomicalEventUtils {
@@ -34,7 +35,7 @@ export class AstronomicalEventUtils {
           color: color,
           text: text,
           size: 2, // Увеличенный размер для лучшей видимости
-          shape: 'circle' as const,
+          // shape: 'circle' as const, // УБИРАЕМ ЦВЕТНЫЕ КРУГИ
           eventData: event // Сохраняем данные события для ToolTip
         };
       })
@@ -82,7 +83,7 @@ export class AstronomicalEventUtils {
           color: colorWithOpacity,
           text: text,
           size: 2,
-          shape: 'circle' as const,
+          // shape: 'circle' as const, // УБИРАЕМ ЦВЕТНЫЕ КРУГИ
           eventData: event
         };
       })
@@ -458,5 +459,28 @@ export class AstronomicalEventUtils {
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+
+  /**
+   * Удаляет дублирующиеся астрономические события
+   * @param events - массив событий для дедупликации
+   * @returns массив уникальных событий
+   */
+  static removeDuplicateEvents(events: AstronomicalEvent[]): AstronomicalEvent[] {
+    const seen = new Map<string, AstronomicalEvent>();
+    
+    events.forEach(event => {
+      // Создаем ключ для уникальности: тип + имя + дата (округленная до дня)
+      const eventDate = new Date(event.timestamp);
+      const dayKey = `${eventDate.getFullYear()}-${eventDate.getMonth() + 1}-${eventDate.getDate()}`;
+      const uniqueKey = `${event.type}_${event.name}_${dayKey}`;
+      
+      // Если такого события еще не было, добавляем его
+      if (!seen.has(uniqueKey)) {
+        seen.set(uniqueKey, event);
+      }
+    });
+    
+    return Array.from(seen.values());
   }
 } 

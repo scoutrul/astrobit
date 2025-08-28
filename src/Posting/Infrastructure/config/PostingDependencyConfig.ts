@@ -3,7 +3,7 @@ import { RealDataContextService } from '../services/RealDataContextService';
 import { CachedAIService } from '../services/ai/CachedAIService';
 import { CircuitBreakerAIService } from '../services/ai/CircuitBreakerAIService';
 import { OpenRouterAIService } from '../services/ai/OpenRouterAIService';
-import { TagRepository } from '../services/TagRepository';
+// import { TagRepository } from '../services/TagRepository'; // Временно отключено
 import { ProductionMonitoringService } from '../services/monitoring/ProductionMonitoringService';
 import { RateLimitingService } from '../services/security/RateLimitingService';
 import { EndToEndTester } from '../testing/EndToEndTester';
@@ -22,7 +22,7 @@ export class PostingDependencyConfig {
   private _openRouterAIService?: OpenRouterAIService;
   private _circuitBreakerAIService?: CircuitBreakerAIService;
   private _cachedAIService?: CachedAIService;
-  private _tagRepository?: TagRepository;
+  private _tagRepository?: any; // Временно отключено
   private _realDataContextService?: RealDataContextService;
   
   // Use Cases
@@ -91,12 +91,10 @@ export class PostingDependencyConfig {
   /**
    * Инициализация Tag Repository
    */
-  public getTagRepository(): TagRepository {
-    if (!this._tagRepository) {
-      this._tagRepository = new TagRepository();
-      console.info('[PostingDependencyConfig] TagRepository инициализирован');
-    }
-    return this._tagRepository;
+  public getTagRepository(): any {
+    // Временно отключено
+    console.warn('[PostingDependencyConfig] TagRepository временно отключен');
+    return null;
   }
 
   /**

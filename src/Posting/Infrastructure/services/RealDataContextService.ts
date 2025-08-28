@@ -1,6 +1,6 @@
 import { Result } from '../../../Shared/domain/Result';
 import { GetAstronomicalEventsUseCase, GetAstronomicalEventsRequest } from '../../../Astronomical/Application/use-cases/GetAstronomicalEventsUseCase';
-import { GetCryptoDataUseCase, GetCryptoDataRequest } from '../../../CryptoData/Application/use-cases/GetCryptoDataUseCase';
+import { GetCryptoDataUseCase } from '../../../CryptoData/Application/use-cases/GetCryptoDataUseCase';
 import { PostType } from '../../Domain/value-objects/PostType';
 
 /**
@@ -170,10 +170,9 @@ export class RealDataContextService {
           id: event.id,
           name: event.name,
           type: event.type,
-          date: event.date,
+          timestamp: event.timestamp,
           significance: event.significance,
-          description: event.description,
-          visibility: event.visibility || undefined
+          description: event.description
         }));
       } else {
         console.warn('[RealDataContextService] Не удалось получить астрономические события:', eventsResult.error);
@@ -305,7 +304,7 @@ export class RealDataContextService {
   /**
    * Форматирует контекст данных для AI промпта
    */
-  formatContextForAI(context: RealDataContext, postType: PostType): string {
+  formatContextForAI(context: RealDataContext): string {
     const sections: string[] = [];
 
     // Астрономический контекст

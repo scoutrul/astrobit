@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { JsonDataManager } from '../../../Infrastructure/services/JsonDataManager';
 import { Post } from '../../../Domain/entities/Post';
-import { PostType } from '../../../Domain/value-objects/PostType';
-import { TagRepository } from '../../../Infrastructure/services/TagRepository';
+
+
 
 interface HistoricalPost {
   id: string;
@@ -74,8 +74,9 @@ export const HistoricalPostsSelector: React.FC<HistoricalPostsSelectorProps> = (
     relevanceScores: new Map()
   });
 
-  const dataManager = new JsonDataManager<HistoricalPost>();
-  const tagRepository = new TagRepository();
+  // Создаем адаптер для HistoricalPost, чтобы соответствовать требованиям JsonDataManager
+  const dataManager = new JsonDataManager<{ id: string; createdAt: Date; data: HistoricalPost }>();
+
 
   // Загрузка исторических постов
   const loadHistoricalPosts = useCallback(async () => {
@@ -92,7 +93,7 @@ export const HistoricalPostsSelector: React.FC<HistoricalPostsSelectorProps> = (
 
       // Добавляем опубликованные посты
       if (publishedResult.isSuccess) {
-        const publishedPosts = (publishedResult.value as Post[]).map(convertPostToHistorical);
+        const publishedPosts = (publishedResult.value as any[]).map(convertPostToHistorical);
         allPosts.push(...publishedPosts);
       }
 
@@ -150,7 +151,7 @@ export const HistoricalPostsSelector: React.FC<HistoricalPostsSelectorProps> = (
         try {
           const archiveResult = await dataManager.load(`src/Posting/Infrastructure/data/archives/${archive.filename}`);
           if (archiveResult.isSuccess) {
-            return (archiveResult.value as Post[]).map(convertPostToHistorical);
+            return (archiveResult.value as any[]).map(convertPostToHistorical);
           }
           return [];
         } catch {
@@ -169,13 +170,13 @@ export const HistoricalPostsSelector: React.FC<HistoricalPostsSelectorProps> = (
   const convertPostToHistorical = (post: Post): HistoricalPost => ({
     id: post.id,
     title: post.title,
-    type: post.type.value,
+    type: post.type,
     createdAt: post.createdAt.toISOString(),
-    tags: post.tags,
+    tags: post.metadata?.tags || [],
     content: post.content,
     metadata: {
       wordCount: post.content.split(/\s+/).length,
-      significance: post.significance.value,
+      significance: post.metadata?.priority === 'high' ? 100 : post.metadata?.priority === 'low' ? 25 : 50,
       popularity: Math.random() * 100 // Mock popularity - можно заменить реальными данными
     }
   });

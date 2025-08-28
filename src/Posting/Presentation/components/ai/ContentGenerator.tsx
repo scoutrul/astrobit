@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { PostType } from '../../../Domain/value-objects/PostType';
 import { GenerateContentRequest, GenerateContentResponse } from '../../../Application/use-cases/ai/GenerateContentUseCase';
 import { HistoricalPostsSelector } from '../history/HistoricalPostsSelector';
-import { TagRepository } from '../../../Infrastructure/services/TagRepository';
+// import { TagRepository } from '../../../Infrastructure/services/TagRepository'; // Временно отключено
 import { CachedAIService } from '../../../Infrastructure/services/ai/CachedAIService';
 import { CircuitBreakerAIService } from '../../../Infrastructure/services/ai/CircuitBreakerAIService';
 import { OpenRouterAIService } from '../../../Infrastructure/services/ai/OpenRouterAIService';
@@ -84,7 +84,7 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
     });
   });
 
-  const [tagRepository] = useState(() => new TagRepository());
+  // const [tagRepository] = useState(() => new TagRepository()); // Временно отключено
 
   const postTypes = [
     { value: 'astronomical_announcement', label: 'Анонс астрономического события', icon: '🌙', description: 'Информация о предстоящих астрономических событиях' },
@@ -168,10 +168,8 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
         );
 
         // Получаем предложения тегов
-        const tagSuggestions = await tagRepository.suggestTags(contentContext, 8);
-        const suggestedTags = tagSuggestions.isSuccess 
-          ? tagSuggestions.value.map(suggestion => suggestion.tag.name)
-          : [];
+        // const tagSuggestions = await tagRepository.suggestTags(contentContext, 8); // Временно отключено
+                const suggestedTags: string[] = []; // Временно отключено
 
         const selectedType = postTypes.find(t => t.value === state.selectedType);
         const mockContent = `${selectedType?.icon} ${selectedType?.label}
@@ -187,14 +185,14 @@ ${selectedType?.description}
 
 ${state.customPrompt ? `🎨 Специальные требования: ${state.customPrompt}` : ''}
 
-${suggestedTags.length > 0 ? `🏷️ Предложенные теги: ${suggestedTags.slice(0, 5).map(tag => `#${tag}`).join(' ')}` : ''}
+${suggestedTags.length > 0 ? `🏷️ Предложенные теги: ${suggestedTags.slice(0, 5).map((tag: any) => `#${tag}`).join(' ')}` : ''}
 
 #астрономия #криптовалюты #анализ #образование #astrobit`;
 
         result = {
           title: `${selectedType?.icon} ${selectedType?.label}`,
           content: mockContent,
-          suggestedTags,
+          suggestedTags: suggestedTags.map((tag: any) => ({ name: tag } as any)), // Временное решение
           metadata: {
             model: aiResult.metadata.model || 'gpt-3.5-turbo',
             tokens: aiResult.metadata.tokens || 200,
@@ -213,7 +211,7 @@ ${suggestedTags.length > 0 ? `🏷️ Предложенные теги: ${sugge
         ...prev,
         isGenerating: false,
         generatedContent: result.content,
-        suggestedTags: result.suggestedTags || [],
+        suggestedTags: result.suggestedTags ? result.suggestedTags.map(tag => tag.name) : [],
         lastGeneration: {
           content: result.content,
           metadata: result.metadata,
@@ -223,7 +221,7 @@ ${suggestedTags.length > 0 ? `🏷️ Предложенные теги: ${sugge
 
       // Записываем статистику использования тегов
       if (result.suggestedTags && result.suggestedTags.length > 0) {
-        tagRepository.recordTagUsage(result.suggestedTags, result.content);
+        // tagRepository.recordTagUsage(result.suggestedTags.map(tag => tag.name), result.content); // Временно отключено
       }
 
       onContentGenerated(result.content, result.metadata);
@@ -234,7 +232,7 @@ ${suggestedTags.length > 0 ? `🏷️ Предложенные теги: ${sugge
       console.error('[ContentGenerator] Ошибка:', error);
       onError(errorMessage);
     }
-  }, [state, disabled, onContentGenerated, onError, generateContentUseCase, postTypes, aiService, tagRepository]);
+  }, [state, disabled, onContentGenerated, onError, generateContentUseCase, postTypes, aiService]);
 
   const handleTypeChange = (type: string) => {
     setState(prev => ({ 
@@ -324,7 +322,7 @@ ${suggestedTags.length > 0 ? `🏷️ Предложенные теги: ${sugge
               </button>
               {state.cacheStats && (
                 <div className="text-xs text-gray-600">
-                  Cache размер: {state.cacheStats.cacheSize} записей
+                  Cache размер: {state.cacheStats.totalRequests} записей
                 </div>
               )}
             </div>

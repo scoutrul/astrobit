@@ -3,8 +3,7 @@ import { Result } from '../../../../Shared/domain/Result';
 import { IAIService } from '../../../Infrastructure/services/ai/IAIService';
 import { PostType } from '../../../Domain/value-objects/PostType';
 import { Tag } from '../../../Domain/value-objects/Tag';
-import { Post } from '../../../Domain/entities/Post';
-import { RealDataContextService, RealDataContext, GetRealDataContextRequest } from '../../../Infrastructure/services/RealDataContextService';
+import { RealDataContextService, GetRealDataContextRequest } from '../../../Infrastructure/services/RealDataContextService';
 
 export interface GenerateContentRequest {
   postType: PostType;
@@ -72,7 +71,7 @@ export class GenerateContentUseCase extends UseCase<GenerateContentRequest, Gene
 
       // 4. Парсим результат и создаем ответ
       const parsedContent = this.parseGeneratedContent(generationResult.content);
-      const suggestedTags = this.generateTags(request, parsedContent, context);
+              const suggestedTags = this.generateTags(request, parsedContent);
 
       const response: GenerateContentResponse = {
         title: parsedContent.title || this.generateDefaultTitle(request.postType),
@@ -180,7 +179,7 @@ export class GenerateContentUseCase extends UseCase<GenerateContentRequest, Gene
 
     // Добавляем реальный контекст данных в промпт
     if (context.realDataContext && this.realDataContextService) {
-      const realDataPrompt = this.realDataContextService.formatContextForAI(context.realDataContext, request.postType);
+      const realDataPrompt = this.realDataContextService.formatContextForAI(context.realDataContext);
       systemContext += `\n\nКОНТЕКСТ РЕАЛЬНЫХ ДАННЫХ:\n${realDataPrompt}\n`;
     }
 
@@ -190,13 +189,13 @@ export class GenerateContentUseCase extends UseCase<GenerateContentRequest, Gene
         systemContext += this.buildAstronomicalPrompt(request, context);
         break;
       case 'market_retrospective':
-        systemContext += this.buildMarketRetrospectivePrompt(request, context);
+        systemContext += this.buildMarketRetrospectivePrompt(request);
         break;
       case 'analytical_post':
-        systemContext += this.buildAnalyticalPrompt(request, context);
+        systemContext += this.buildAnalyticalPrompt(request);
         break;
       default:
-        systemContext += this.buildGeneralPrompt(request, context);
+        systemContext += this.buildGeneralPrompt(request);
     }
 
     // Добавляем пользовательские указания
@@ -234,7 +233,7 @@ export class GenerateContentUseCase extends UseCase<GenerateContentRequest, Gene
     return prompt;
   }
 
-  private buildMarketRetrospectivePrompt(request: GenerateContentRequest, context: any): string {
+  private buildMarketRetrospectivePrompt(request: GenerateContentRequest): string {
     return `Создай ретроспективный анализ рынка на русском языке.
 
 Аудитория: ${request.targetAudience || 'intermediate'}
@@ -251,7 +250,7 @@ export class GenerateContentUseCase extends UseCase<GenerateContentRequest, Gene
 Важно: НЕ давай финансовых советов, только аналитическую информацию.`;
   }
 
-  private buildAnalyticalPrompt(request: GenerateContentRequest, context: any): string {
+  private buildAnalyticalPrompt(request: GenerateContentRequest): string {
     return `Создай аналитический пост, связывающий астрономию и рынки на русском языке.
 
 Аудитория: ${request.targetAudience || 'intermediate'}
@@ -268,7 +267,7 @@ export class GenerateContentUseCase extends UseCase<GenerateContentRequest, Gene
 Тон: научно-популярный, без финансовых советов.`;
   }
 
-  private buildGeneralPrompt(request: GenerateContentRequest, context: any): string {
+  private buildGeneralPrompt(request: GenerateContentRequest): string {
     return `Создай информационный пост на русском языке.
 
 Аудитория: ${request.targetAudience || 'intermediate'}
@@ -317,7 +316,7 @@ export class GenerateContentUseCase extends UseCase<GenerateContentRequest, Gene
   }
 
   // Генерация тегов
-  private generateTags(request: GenerateContentRequest, content: any, context: any): Tag[] {
+  private generateTags(request: GenerateContentRequest, content: any): Tag[] {
     const tags: Tag[] = [];
 
     // Теги по типу поста

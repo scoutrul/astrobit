@@ -15,10 +15,11 @@ export class OpenRouterAIService implements IAIService {
   };
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    if (!this.apiKey) {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    if (!apiKey) {
       throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.');
     }
+    this.apiKey = apiKey;
   }
 
   async generate(prompt: string, options: GenerationOptions = {}): Promise<AIGenerationResult> {
@@ -87,7 +88,7 @@ export class OpenRouterAIService implements IAIService {
     } catch (error) {
       clearTimeout(timeoutId);
 
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('Request timeout');
       }
 

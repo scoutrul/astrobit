@@ -65,9 +65,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   });
   const [isChartFocused, setIsChartFocused] = useState<boolean>(false);
   
-  // Состояние для активных событий (события в текущем tooltip)
-  const [activeEvents, setActiveEvents] = useState<Set<string>>(new Set());
-  
   // Состояние для ширины контейнера графика
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -87,7 +84,12 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
   // Стабилизируем астрономические события, чтобы избежать лишних обновлений
   const stableAstronomicalEvents = useMemo(() => astronomicalEvents, [astronomicalEvents]);
+  
+  // Состояние для активных событий (подсветка)
+  const [activeEvents, setActiveEvents] = useState<Set<string>>(new Set());
 
+
+  
   // Состояние для принудительного пересоздания графика
   const [forceRecreateKey, setForceRecreateKey] = useState(0);
 
@@ -174,15 +176,15 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   const handleCrosshairMove = useCallback((param: any) => {
     if (!isChartFocused) {
       setTooltip(prev => ({ ...prev, visible: false }));
-      setActiveEvents(new Set()); // Сбрасываем активные события
       return;
     }
     // Проверяем наличие данных
     if (!param.point) {
       setTooltip(prev => ({ ...prev, visible: false }));
-      setActiveEvents(new Set()); // Сбрасываем активные события
       return;
     }
+    
+
 
     let timeInSeconds = 0;
     
@@ -197,7 +199,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       }
     } else if (param.point && param.point.x) {
       // Если нет времени, но есть позиция курсора, показываем тултип в позиции мыши
-      // Применяем фильтры типов событий + временное окно
+            // Применяем фильтры типов событий + временное окно
       const filteredByType = AstronomicalEventUtils.filterEventsByType(
         stableAstronomicalEvents,
         activeEventFilters
@@ -208,22 +210,28 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         const diff = Math.abs(eventTimeInSeconds - currentTime);
         return diff <= 86400; // Показываем события за последние 24 часа
       });
+      
+      // Убираем дублирующиеся события
+      const uniqueEventsForTooltip = AstronomicalEventUtils.removeDuplicateEvents(eventsForTooltip);
+      
+            // Устанавливаем активные события для подсветки
+      if (uniqueEventsForTooltip.length > 0) {
+        const activeEventNames = new Set(uniqueEventsForTooltip.map(event => event.name));
+        setActiveEvents(activeEventNames);
+      } else {
+        setActiveEvents(new Set());
+      }
+      
       setTooltip({
         x: getSmartTooltipPosition(param.point.x, containerWidth),
-        y: param.point.y - 60,
-        events: eventsForTooltip,
+        y: param.point.y + 20, // Сдвигаем ниже курсора
+        events: uniqueEventsForTooltip,
         visible: true
       });
-      
-      // Устанавливаем активные события для выделения
-      const activeEventNames = new Set(eventsForTooltip.map(event => event.name));
-      setActiveEvents(activeEventNames);
-      
       
       return;
     } else {
       setTooltip(prev => ({ ...prev, visible: false }));
-      setActiveEvents(new Set()); // Сбрасываем активные события
       return;
     }
     
@@ -254,46 +262,49 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       activeEventFilters
     );
 
-    // Поиск событий вблизи времени среди отфильтрованных
+        // Поиск событий вблизи времени среди отфильтрованных
     const eventsNearTime = filteredByType.filter(event => {
       const eventTimeInSeconds = Math.floor(event.timestamp / 1000);
       const diff = Math.abs(eventTimeInSeconds - timeInSeconds);
       return diff <= timeRange;
     });
     
-    if (eventsNearTime.length > 0) {
-      // Есть события - показываем ToolTip мгновенно
-      if (eventsNearTime.length === 1) {
-        // Одно событие
-        const event = eventsNearTime[0];
+    // Убираем дублирующиеся события
+    const uniqueEventsNearTime = AstronomicalEventUtils.removeDuplicateEvents(eventsNearTime);
+    
+    if (uniqueEventsNearTime.length > 0) {
+      // Устанавливаем активные события для подсветки
+      const activeEventNames = new Set(uniqueEventsNearTime.map(event => event.name));
+      setActiveEvents(activeEventNames);
+        
+        // Есть события - показываем ToolTip мгновенно
+              if (uniqueEventsNearTime.length === 1) {
+          // Одно событие
+          const event = uniqueEventsNearTime[0];
         setTooltip({
           x: getSmartTooltipPosition(param.point.x, containerWidth),
-          y: param.point.y - 60,
+          y: param.point.y + 20, // Сдвигаем ниже курсора
           title: event.name,
           description: event.description,
           visible: true
         });
         
-        // Устанавливаем активные события для выделения
-        const activeEventNames = new Set([event.name]);
-        setActiveEvents(activeEventNames);
+
         
       } else {
         // Несколько событий - стэк
         setTooltip({
           x: getSmartTooltipPosition(param.point.x, containerWidth),
-          y: param.point.y - 60,
-          events: eventsNearTime,
+          y: param.point.y + 20, // Сдвигаем ниже курсора
+          events: uniqueEventsNearTime,
           visible: true
         });
         
-        // Устанавливаем активные события для выделения
-        const activeEventNames = new Set(eventsNearTime.map(event => event.name));
-        setActiveEvents(activeEventNames);
+
         
       }
     } else {
-      // Нет событий - скрываем ToolTip мгновенно
+            // Нет событий - скрываем ToolTip мгновенно
       setTooltip(prev => ({ ...prev, visible: false }));
       
       // Сбрасываем активные события
@@ -751,29 +762,24 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         activeEventFilters
       );
 
-      // Конвертируем события в маркеры (без прозрачности, чтобы избежать рекурсии)
+      // Устанавливаем иконки событий (без цветных кругов под ними)
       const markers = AstronomicalEventUtils.convertEventsToMarkers(filteredEvents);
-
+      
       if (markers.length > 0) {
         try {
-          // Проверяем, что график все еще существует
           if (chartContainerRef.current && chartContainerRef.current.querySelector('.tv-lightweight-charts')) {
             seriesInstance.setMarkers(markers as any);
-            
-          } else {
-            
           }
         } catch (err) {
-          console.error(`[Chart] ❌ Ошибка при установке астрономических событий:`, err);
+          console.error(`[Chart] ❌ Ошибка при установке маркеров:`, err);
         }
       } else {
         try {
           if (chartContainerRef.current && chartContainerRef.current.querySelector('.tv-lightweight-charts')) {
             seriesInstance.setMarkers([]);
-            
           }
         } catch (err) {
-          console.error(`[Chart] ❌ Ошибка при очистке астрономических событий:`, err);
+          console.error(`[Chart] ❌ Ошибка при очистке маркеров:`, err);
         }
       }
     } catch (err) {

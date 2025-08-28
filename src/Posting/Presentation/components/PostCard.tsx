@@ -2,7 +2,7 @@ import React from 'react';
 import { Post } from '../../Domain/entities/Post';
 import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 import { useTelegramPost } from '../hooks/useTelegramPost';
-import { PostType, POST_TYPE_LABELS } from '../../Domain/value-objects/PostType';
+
 
 interface PostCardProps {
   post: Post;
@@ -43,7 +43,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onEdit, onDelete, onTe
               {post.status}
             </span>
             <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700">
-              {POST_TYPE_LABELS[post.type as PostType] || post.type}
+              {post.type}
             </span>
           </div>
         </div>

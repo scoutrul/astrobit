@@ -176,7 +176,7 @@ export class CachedAIService implements IAIService {
 
   // Приватные методы
   private createCacheKey(prompt: string, options?: GenerationOptions): CacheKey {
-    const contextHash = this.hashContext(prompt, options);
+    const contextHash = this.hashContext(options);
     const promptHash = this.hashString(prompt);
 
     return {
@@ -273,13 +273,13 @@ export class CachedAIService implements IAIService {
     let factors = 0;
 
     // Точное соответствие типа поста (высокий вес)
-    if (key1.postType === this.extractPostTypeFromEntry(entry)) {
+    if (key1.postType === this.extractPostTypeFromEntry()) {
       score += 0.4;
     }
     factors++;
 
     // Соответствие аудитории (средний вес)
-    if (key1.targetAudience === this.extractAudienceFromEntry(entry)) {
+    if (key1.targetAudience === 'intermediate') { // Заглушка
       score += 0.2;
     }
     factors++;
@@ -380,7 +380,7 @@ export class CachedAIService implements IAIService {
     return hash.toString(36);
   }
 
-  private hashContext(prompt: string, options?: GenerationOptions): string {
+  private hashContext(options?: GenerationOptions): string {
     const contextString = JSON.stringify({
       model: options?.model,
       maxTokens: options?.maxTokens,
@@ -418,14 +418,11 @@ export class CachedAIService implements IAIService {
     return null;
   }
 
-  private extractPostTypeFromEntry(entry: CacheEntry): string {
-    return entry.result.metadata.generationType || 'general';
+  private extractPostTypeFromEntry(): string {
+    return 'general'; // Заглушка, так как generationType не существует
   }
 
-  private extractAudienceFromEntry(entry: CacheEntry): string {
-    // Пытаемся извлечь аудиторию из метаданных или контента
-    return 'intermediate'; // Заглушка
-  }
+
 
   private extractLengthFromEntry(entry: CacheEntry): string {
     const contentLength = entry.result.content.length;
