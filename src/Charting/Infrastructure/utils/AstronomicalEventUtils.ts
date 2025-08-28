@@ -483,4 +483,49 @@ export class AstronomicalEventUtils {
     
     return Array.from(seen.values());
   }
+
+  /**
+   * Удаляет дублирующиеся астрономические события с учетом временной близости
+   * @param events - массив событий для дедупликации
+   * @param timeThreshold - порог времени в секундах для группировки (по умолчанию 1 час)
+   * @returns массив уникальных событий
+   */
+  static removeDuplicateEventsWithTimeThreshold(
+    events: AstronomicalEvent[], 
+    timeThreshold: number = 3600
+  ): AstronomicalEvent[] {
+    if (events.length <= 1) return events;
+    
+    // Сортируем события по времени
+    const sortedEvents = [...events].sort((a, b) => a.timestamp - b.timestamp);
+    const uniqueEvents: AstronomicalEvent[] = [];
+    
+    for (let i = 0; i < sortedEvents.length; i++) {
+      const currentEvent = sortedEvents[i];
+      let shouldAdd = true;
+      
+      // Проверяем все предыдущие события на дублирование
+      for (let j = 0; j < uniqueEvents.length; j++) {
+        const existingEvent = uniqueEvents[j];
+        
+        // Если события одинаковые по типу и имени
+        if (currentEvent.type === existingEvent.type && currentEvent.name === existingEvent.name) {
+          // Проверяем временную близость
+          const timeDiff = Math.abs(currentEvent.timestamp - existingEvent.timestamp);
+          
+          // Если события близки по времени (в пределах порога), считаем дубликатом
+          if (timeDiff <= timeThreshold) {
+            shouldAdd = false;
+            break;
+          }
+        }
+      }
+      
+      if (shouldAdd) {
+        uniqueEvents.push(currentEvent);
+      }
+    }
+    
+    return uniqueEvents;
+  }
 } 

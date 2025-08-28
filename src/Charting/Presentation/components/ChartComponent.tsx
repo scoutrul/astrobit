@@ -40,6 +40,7 @@ interface TooltipData {
   description?: string;
   events?: AstronomicalEvent[];
   visible: boolean;
+  candlePrice?: number; // Цена свечи при наведении
 }
 
 export const ChartComponent: React.FC<ChartComponentProps> = ({
@@ -85,8 +86,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   // Стабилизируем астрономические события, чтобы избежать лишних обновлений
   const stableAstronomicalEvents = useMemo(() => astronomicalEvents, [astronomicalEvents]);
   
-  // Состояние для активных событий (подсветка)
-  const [activeEvents, setActiveEvents] = useState<Set<string>>(new Set());
+
 
 
   
@@ -108,6 +108,24 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     } else {
       // Курсор в правой части - показываем слева
       return cursorX - offset - 350; // 350px - примерная ширина tooltip
+    }
+  }, []);
+
+  // Функция для определения порога времени дедупликации в зависимости от таймфрейма
+  const getTimeThresholdForTimeframe = useCallback((tf: string): number => {
+    switch (tf) {
+      case '1h':
+        return 1800; // 30 минут для часового
+      case '8h':
+        return 7200; // 2 часа для 8-часового
+      case '1d':
+        return 86400; // 24 часа для дневного
+      case '1w':
+        return 604800; // 1 неделя для недельного
+      case '1M':
+        return 2592000; // 1 месяц для месячного
+      default:
+        return 3600; // 1 час по умолчанию
     }
   }, []);
   const chartKey = useMemo(() => {
@@ -184,6 +202,21 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       return;
     }
     
+    // Получаем цену свечи при наведении
+    let candlePrice = null;
+    if (param.seriesData && param.seriesData.close !== undefined) {
+      candlePrice = param.seriesData.close;
+    } else if (param.seriesData && param.seriesData.price !== undefined) {
+      candlePrice = param.seriesData.price;
+    }
+    
+    // Отладка: выводим в консоль что получаем
+    console.log('[ChartComponent] Candle data:', {
+      seriesData: param.seriesData,
+      candlePrice: candlePrice,
+      point: param.point
+    });
+    
 
 
     let timeInSeconds = 0;
@@ -211,23 +244,19 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         return diff <= 86400; // Показываем события за последние 24 часа
       });
       
-      // Убираем дублирующиеся события
-      const uniqueEventsForTooltip = AstronomicalEventUtils.removeDuplicateEvents(eventsForTooltip);
+      // Убираем дублирующиеся события с учетом временной близости
+      const timeThreshold = getTimeThresholdForTimeframe(timeframe);
+      const uniqueEventsForTooltip = AstronomicalEventUtils.removeDuplicateEventsWithTimeThreshold(eventsForTooltip, timeThreshold);
       
-            // Устанавливаем активные события для подсветки
-      if (uniqueEventsForTooltip.length > 0) {
-        const activeEventNames = new Set(uniqueEventsForTooltip.map(event => event.name));
-        setActiveEvents(activeEventNames);
-      } else {
-        setActiveEvents(new Set());
-      }
+            
       
-      setTooltip({
-        x: getSmartTooltipPosition(param.point.x, containerWidth),
-        y: param.point.y + 20, // Сдвигаем ниже курсора
-        events: uniqueEventsForTooltip,
-        visible: true
-      });
+              setTooltip({
+          x: getSmartTooltipPosition(param.point.x, containerWidth),
+          y: param.point.y + 20, // Сдвигаем ниже курсора
+          events: uniqueEventsForTooltip,
+          visible: true,
+          candlePrice: candlePrice
+        });
       
       return;
     } else {
@@ -236,25 +265,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     }
     
     // Динамический диапазон поиска в зависимости от таймфрейма
-    let timeRange = 3600; // 1 час по умолчанию
     
-    switch (timeframe) {
-      case '1h':
-        timeRange = 1800; // 30 минут для часового
-        break;
-      case '8h':
-        timeRange = 14400; // 4 часа для 8-часового
-        break;
-      case '1d':
-        timeRange = 86400; // 24 часа для дневного
-        break;
-      case '1w':
-        timeRange = 604800; // 1 неделя для недельного
-        break;
-      case '1M':
-        timeRange = 2592000; // 1 месяц для месячного
-        break;
-    }
+    
+
     
     // Применяем фильтры типов событий
     const filteredByType = AstronomicalEventUtils.filterEventsByType(
@@ -262,20 +275,23 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       activeEventFilters
     );
 
-        // Поиск событий вблизи времени среди отфильтрованных
-    const eventsNearTime = filteredByType.filter(event => {
-      const eventTimeInSeconds = Math.floor(event.timestamp / 1000);
-      const diff = Math.abs(eventTimeInSeconds - timeInSeconds);
-      return diff <= timeRange;
-    });
-    
-    // Убираем дублирующиеся события
-    const uniqueEventsNearTime = AstronomicalEventUtils.removeDuplicateEvents(eventsNearTime);
+    // Точное сопоставление событий времени свечи с учетом таймфрейма
+    // Для дневного (и других тф) берём ровно те события, чья дата попадает в тот же "бакет" времени
+    const eventsNearTime = AstronomicalEventUtils.findEventsAtTime(
+      filteredByType,
+      timeInSeconds,
+      timeframe
+    );
+
+    // На всякий случай дополнительно уберём возможные дубликаты по имени в пределах того же дня/бакета
+    const timeThreshold = getTimeThresholdForTimeframe(timeframe);
+    const uniqueEventsNearTime = AstronomicalEventUtils.removeDuplicateEventsWithTimeThreshold(
+      eventsNearTime,
+      timeThreshold
+    );
     
     if (uniqueEventsNearTime.length > 0) {
-      // Устанавливаем активные события для подсветки
-      const activeEventNames = new Set(uniqueEventsNearTime.map(event => event.name));
-      setActiveEvents(activeEventNames);
+      
         
         // Есть события - показываем ToolTip мгновенно
               if (uniqueEventsNearTime.length === 1) {
@@ -284,9 +300,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         setTooltip({
           x: getSmartTooltipPosition(param.point.x, containerWidth),
           y: param.point.y + 20, // Сдвигаем ниже курсора
-          title: event.name,
-          description: event.description,
-          visible: true
+          events: [event], // передаем само событие, чтобы дата бралась из timestamp
+          visible: true,
+          candlePrice: candlePrice
         });
         
 
@@ -297,7 +313,8 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           x: getSmartTooltipPosition(param.point.x, containerWidth),
           y: param.point.y + 20, // Сдвигаем ниже курсора
           events: uniqueEventsNearTime,
-          visible: true
+          visible: true,
+          candlePrice: candlePrice
         });
         
 
@@ -307,8 +324,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             // Нет событий - скрываем ToolTip мгновенно
       setTooltip(prev => ({ ...prev, visible: false }));
       
-      // Сбрасываем активные события
-      setActiveEvents(new Set());
+      
     }
   }, [timeframe, stableAstronomicalEvents, activeEventFilters, isChartFocused]);
 
@@ -600,6 +616,22 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             // Устанавливаем новые данные
             seriesInstance.setData(processedData as any);
             setHasData(true);
+            
+            // Добавляем отступ от первой исторической свечи до края графика
+            if (chartInstance && processedData.length > 0) {
+              try {
+                const timeScale = chartInstance.timeScale();
+                const firstCandleTime = processedData[0].time as number;
+                const timeOffset = 20 * 60; // 20 минут в секундах для отступа
+                const adjustedTime = firstCandleTime - timeOffset;
+                timeScale.setVisibleRange({
+                  from: adjustedTime as any,
+                  to: timeScale.getVisibleRange()?.to || (processedData[processedData.length - 1].time as any)
+                });
+              } catch (err) {
+                // Игнорируем ошибки при установке отступа
+              }
+            }
           } else {
             
             return;
@@ -1041,8 +1073,23 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           {tooltip.events ? (
             // Стэк событий
             <div className="space-y-2">
-              <div className="text-[#e2e8f0] font-semibold text-sm mb-2 border-b border-[#334155] pb-1">
-                События ({tooltip.events.length})
+              <div className="text-[#e2e8f0] font-semibold text-sm mb-2 border-b border-[#334155] pb-1 flex justify-between items-center">
+                <span>События ({tooltip.events.length})</span>
+                <div className="text-right">
+                  {tooltip.candlePrice ? (
+                    <span className="text-[#f7931a] text-xs font-mono">
+                      ${tooltip.candlePrice.toFixed(2)}
+                    </span>
+                  ) : (
+                    <span className="text-[#6b7280] text-xs">
+                      Нет цены
+                    </span>
+                  )}
+                  {/* Отладка */}
+                  <div className="text-[#6b7280] text-xs">
+                    Debug: {JSON.stringify(tooltip.candlePrice)}
+                  </div>
+                </div>
               </div>
               {tooltip.events.map((event, index) => (
                 <div key={index} className="border-l-2 border-[#f7931a] pl-2">
