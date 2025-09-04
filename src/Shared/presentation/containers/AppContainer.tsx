@@ -1,15 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { LegacyChartAdapter } from '../../../Charting/Presentation/adapters/LegacyChartAdapter';
 import { CryptoDataContainer } from '../../../CryptoData/Presentation/containers/CryptoDataContainer';
 import { ChartingContainer } from '../../../Charting/Presentation/containers/ChartingContainer';
 import { AstronomicalContainer } from '../../../Astronomical/Presentation/containers/AstronomicalContainer';
 import { SharedContainer } from './SharedContainer';
+import { useMetrikaEvents } from '../hooks/useMetrikaEvents';
 
 interface AppContainerProps {
   className?: string;
 }
 
 export const AppContainer: React.FC<AppContainerProps> = ({ className = '' }) => {
+  // Яндекс.Метрика
+  const metrika = useMetrikaEvents(104028714);
+  
   // Состояние фильтров событий
   const [eventFilters, setEventFilters] = useState({
     lunar: true,
@@ -21,7 +25,24 @@ export const AppContainer: React.FC<AppContainerProps> = ({ className = '' }) =>
   // Обработчик изменения фильтров событий
   const handleEventFiltersChange = useCallback((newFilters: typeof eventFilters) => {
     setEventFilters(newFilters);
-  }, []);
+    
+    // Отслеживаем изменение фильтров
+    const activeFilters = Object.entries(newFilters)
+      .filter(([_, active]) => active)
+      .map(([key, _]) => key);
+    
+    metrika.trackFilter('astronomical_events', activeFilters.join(','), {
+      filter_count: activeFilters.length
+    });
+  }, [metrika]);
+
+  // Отслеживаем загрузку главной страницы
+  useEffect(() => {
+    metrika.trackPageView('main_page', {
+      page_type: 'dashboard',
+      filters_active: Object.values(eventFilters).filter(Boolean).length
+    });
+  }, [metrika, eventFilters]);
 
   return (
     <div className={`min-h-screen bg-slate-900 text-white flex flex-col ${className}`}>
