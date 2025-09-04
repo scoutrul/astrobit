@@ -2,6 +2,8 @@ import React from 'react';
 import { Post } from '../../Domain/entities/Post';
 import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 import { useTelegramPost } from '../hooks/useTelegramPost';
+import { PostStatus, POST_STATUS_LABELS } from '../../Domain/value-objects/PostStatus';
+import { POST_TYPE_LABELS } from '../../Domain/value-objects/PostType';
 
 
 interface PostCardProps {
@@ -40,10 +42,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onEdit, onDelete, onTe
               post.status === 'published' ? 'bg-green-100 text-green-700' :
               'bg-red-100 text-red-700'
             }`}>
-              {post.status}
+              {POST_STATUS_LABELS[post.status as PostStatus] || post.status}
             </span>
             <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700">
-              {post.type}
+              {POST_TYPE_LABELS[post.type as keyof typeof POST_TYPE_LABELS] || post.type}
             </span>
           </div>
         </div>

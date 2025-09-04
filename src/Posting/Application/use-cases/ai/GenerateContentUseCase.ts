@@ -351,15 +351,9 @@ export class GenerateContentUseCase extends UseCase<GenerateContentRequest, Gene
   }
 
   // Выбор модели AI
-  private selectModel(postType: PostType): string {
-    switch (postType.getGenerationComplexity()) {
-      case 'complex':
-        return 'openai/gpt-4-turbo-preview';
-      case 'medium':
-        return 'openai/gpt-3.5-turbo';
-      default:
-        return 'openai/gpt-3.5-turbo';
-    }
+  private selectModel(_postType: PostType): string {
+    // Используем модель из переменной окружения
+    return import.meta.env.VITE_CHAT_MODEL || 'claude-3-5-haiku-latest';
   }
 
   // Определение максимального количества токенов

@@ -5,7 +5,7 @@ import { HistoricalPostsSelector } from '../history/HistoricalPostsSelector';
 // import { TagRepository } from '../../../Infrastructure/services/TagRepository'; // Временно отключено
 import { CachedAIService } from '../../../Infrastructure/services/ai/CachedAIService';
 import { CircuitBreakerAIService } from '../../../Infrastructure/services/ai/CircuitBreakerAIService';
-import { OpenRouterAIService } from '../../../Infrastructure/services/ai/OpenRouterAIService';
+import { AnthropicAIService } from '../../../Infrastructure/services/ai/AnthropicAIService';
 
 interface ContentGeneratorProps {
   onContentGenerated: (content: string, metadata: any) => void;
@@ -70,7 +70,7 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
 
   // Инициализация сервисов с кэшированием и устойчивостью
   const [aiService] = useState(() => {
-    const baseService = new OpenRouterAIService();
+    const baseService = new AnthropicAIService();
     const circuitBreakerService = new CircuitBreakerAIService(baseService, {
       failureThreshold: 3,
       recoveryTimeout: 30000,
@@ -158,7 +158,7 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
         const aiResult = await aiService.generate(
           `Создай ${state.contentLength} пост типа "${state.selectedType}" для аудитории "${state.targetAudience}". ${state.customPrompt}`,
           {
-            model: 'gpt-3.5-turbo',
+            model: import.meta.env.VITE_CHAT_MODEL || 'claude-3-5-haiku-latest',
             maxTokens: state.contentLength === 'short' ? 200 : state.contentLength === 'medium' ? 400 : 800,
             temperature: 0.8,
             systemPrompt: `Ты эксперт по созданию контента для телеграм-канала AstroBit, который объединяет астрономию и криптовалюты. 
@@ -172,29 +172,28 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
                 const suggestedTags: string[] = []; // Временно отключено
 
         const selectedType = postTypes.find(t => t.value === state.selectedType);
-        const mockContent = `${selectedType?.icon} ${selectedType?.label}
-
-🚀 Это улучшенный AI-генерированный контент с:
-- ⚡ Intelligent кэшированием (экономия токенов)
-- 🏷️ Smart предложениями тегов
-- 📚 Контекстом из ${state.selectedHistoricalPosts.length} исторических постов
-- 🎯 Настройкой под аудиторию: ${state.targetAudience}
-- 📏 Оптимальной длиной: ${state.contentLength}
-
-${selectedType?.description}
-
-${state.customPrompt ? `🎨 Специальные требования: ${state.customPrompt}` : ''}
-
-${suggestedTags.length > 0 ? `🏷️ Предложенные теги: ${suggestedTags.slice(0, 5).map((tag: any) => `#${tag}`).join(' ')}` : ''}
-
-#астрономия #криптовалюты #анализ #образование #astrobit`;
+        
+        // Используем реальный контент из AI
+        const realContent = aiResult.content;
+        
+        // Извлекаем заголовок из контента (первая строка с эмодзи)
+        const extractTitle = (content: string): string => {
+          const lines = content.split('\n');
+          const firstLine = lines[0]?.trim();
+          if (firstLine && /[🌙📈📊📝🚀⚡🏷️📚🎯📏🎨🌠🌌🌘🔭🌟✨]/.test(firstLine)) {
+            return firstLine;
+          }
+          return `${selectedType?.icon} ${selectedType?.label}`;
+        };
+        
+        const extractedTitle = extractTitle(realContent);
 
         result = {
-          title: `${selectedType?.icon} ${selectedType?.label}`,
-          content: mockContent,
+          title: extractedTitle,
+          content: realContent,
           suggestedTags: suggestedTags.map((tag: any) => ({ name: tag } as any)), // Временное решение
           metadata: {
-            model: aiResult.metadata.model || 'gpt-3.5-turbo',
+            model: aiResult.metadata.model || import.meta.env.VITE_CHAT_MODEL || 'claude-3-5-haiku-latest',
             tokens: aiResult.metadata.tokens || 200,
             confidence: aiResult.metadata.confidence || 0.9,
             generationType: state.selectedType,

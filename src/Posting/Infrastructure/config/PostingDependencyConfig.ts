@@ -2,7 +2,7 @@ import { GenerateContentUseCase } from '../../Application/use-cases/ai/GenerateC
 import { RealDataContextService } from '../services/RealDataContextService';
 import { CachedAIService } from '../services/ai/CachedAIService';
 import { CircuitBreakerAIService } from '../services/ai/CircuitBreakerAIService';
-import { OpenRouterAIService } from '../services/ai/OpenRouterAIService';
+import { AnthropicAIService } from '../services/ai/AnthropicAIService';
 // import { TagRepository } from '../services/TagRepository'; // Временно отключено
 import { ProductionMonitoringService } from '../services/monitoring/ProductionMonitoringService';
 import { RateLimitingService } from '../services/security/RateLimitingService';
@@ -19,7 +19,7 @@ export class PostingDependencyConfig {
   private static instance: PostingDependencyConfig;
   
   // Сервисы
-  private _openRouterAIService?: OpenRouterAIService;
+  private _anthropicAIService?: AnthropicAIService;
   private _circuitBreakerAIService?: CircuitBreakerAIService;
   private _cachedAIService?: CachedAIService;
   private _tagRepository?: any; // Временно отключено
@@ -45,14 +45,14 @@ export class PostingDependencyConfig {
   }
 
   /**
-   * Инициализация OpenRouter AI Service
+   * Инициализация Anthropic AI Service
    */
-  public getOpenRouterAIService(): OpenRouterAIService {
-    if (!this._openRouterAIService) {
-      this._openRouterAIService = new OpenRouterAIService();
-      console.info('[PostingDependencyConfig] OpenRouterAIService инициализирован');
+  public getAnthropicAIService(): AnthropicAIService {
+    if (!this._anthropicAIService) {
+      this._anthropicAIService = new AnthropicAIService();
+      console.info('[PostingDependencyConfig] AnthropicAIService инициализирован');
     }
-    return this._openRouterAIService;
+    return this._anthropicAIService;
   }
 
   /**
@@ -60,7 +60,7 @@ export class PostingDependencyConfig {
    */
   public getCircuitBreakerAIService(): CircuitBreakerAIService {
     if (!this._circuitBreakerAIService) {
-      const baseService = this.getOpenRouterAIService();
+      const baseService = this.getAnthropicAIService();
       this._circuitBreakerAIService = new CircuitBreakerAIService(baseService, {
         failureThreshold: 3,
         recoveryTimeout: 30000,
@@ -265,7 +265,7 @@ export class PostingDependencyConfig {
    * Очищает все инстансы (для тестирования)
    */
   public reset(): void {
-    this._openRouterAIService = undefined;
+    this._anthropicAIService = undefined;
     this._circuitBreakerAIService = undefined;
     this._cachedAIService = undefined;
     this._tagRepository = undefined;

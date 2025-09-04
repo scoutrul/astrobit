@@ -210,14 +210,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       candlePrice = param.seriesData.price;
     }
     
-    // Отладка: выводим в консоль что получаем
-    console.log('[ChartComponent] Candle data:', {
-      seriesData: param.seriesData,
-      candlePrice: candlePrice,
-      point: param.point
-    });
-    
-
 
     let timeInSeconds = 0;
     

@@ -29,6 +29,16 @@ export const useFirebaseAuth = () => {
 
   // Слушаем изменения состояния авторизации
   useEffect(() => {
+    if (!auth) {
+      setAuthState({
+        user: null,
+        isAdmin: false,
+        loading: false,
+        error: 'Firebase не настроен'
+      });
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       const isAdmin = user ? ADMIN_EMAILS.includes(user.email || '') : false;
       
@@ -53,6 +63,15 @@ export const useFirebaseAuth = () => {
    * Вход в систему
    */
   const login = async (email: string, password: string): Promise<boolean> => {
+    if (!auth) {
+      setAuthState(prev => ({ 
+        ...prev, 
+        error: 'Firebase не настроен',
+        loading: false 
+      }));
+      return false;
+    }
+
     try {
       setAuthState(prev => ({ ...prev, error: null, loading: true }));
       
@@ -86,6 +105,8 @@ export const useFirebaseAuth = () => {
    * Выход из системы
    */
   const logout = async (): Promise<void> => {
+    if (!auth) return;
+    
     try {
       await signOut(auth);
       // Администратор вышел из системы
@@ -98,6 +119,11 @@ export const useFirebaseAuth = () => {
    * Сброс пароля
    */
   const resetPassword = async (email: string): Promise<boolean> => {
+    if (!auth) {
+      setAuthState(prev => ({ ...prev, error: 'Firebase не настроен' }));
+      return false;
+    }
+
     try {
       await sendPasswordResetEmail(auth, email);
       // Отправлен запрос на сброс пароля

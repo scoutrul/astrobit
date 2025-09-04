@@ -382,14 +382,14 @@ export class AstronomicalEventUtils {
     
     switch (timeframe) {
       case '1h':
-        // Группируем по часам
-        date.setMinutes(0, 0, 0);
+        // Группируем по дням для 1-часового таймфрейма
+        // Это позволит показывать события при наведении на любую свечу за день
+        date.setHours(0, 0, 0, 0);
         break;
       case '8h':
-        // Группируем по 8-часовым блокам
-        const hour = date.getHours();
-        const blockHour = Math.floor(hour / 8) * 8;
-        date.setHours(blockHour, 0, 0, 0);
+        // Группируем по дням для 8-часового таймфрейма
+        // Это позволит показывать события при наведении на любую из 3 свечей за день
+        date.setHours(0, 0, 0, 0);
         break;
       case '1d':
         // Группируем по дням
