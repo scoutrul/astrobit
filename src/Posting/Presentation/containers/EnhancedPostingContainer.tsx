@@ -101,10 +101,33 @@ export const EnhancedPostingContainer: React.FC = () => {
 
   const handleAIContentGenerated = async (content: string, metadata: any) => {
     try {
+      // Извлекаем заголовок из первых строк контента
+      const extractTitle = (content: string): string => {
+        // Сначала пробуем разделить по \n\n (двойной перенос строки)
+        const sections = content.split('\n\n');
+        if (sections.length > 0) {
+          const firstSection = sections[0]?.trim();
+          if (firstSection && /[🌙📈📊📝🚀⚡🏷️📚🎯📏🎨🌠🌌🌘🔭🌟✨]/.test(firstSection)) {
+            return firstSection;
+          }
+        }
+        
+        // Если не сработало, пробуем по одиночному \n
+        const lines = content.split('\n');
+        const firstLine = lines[0]?.trim();
+        if (firstLine && /[🌙📈📊📝🚀⚡🏷️📚🎯📏🎨🌠🌌🌘🔭🌟✨]/.test(firstLine)) {
+          return firstLine;
+        }
+        
+        return 'AI Generated Post';
+      };
+      
+      const extractedTitle = extractTitle(content);
+      
       // Создаем новый пост из AI-генерированного контента
       const aiPost = new Post(
         crypto.randomUUID(),
-        metadata.title || 'AI Generated Post',
+        extractedTitle,
         content,
         'draft',
         metadata.generationType || 'general_post',
@@ -398,7 +421,7 @@ export const EnhancedPostingContainer: React.FC = () => {
             {/* Create Form */}
             {state.showCreateForm && (
               <div className="bg-white rounded-lg shadow-md p-6 mb-6 border">
-                <h2 className="text-xl font-semibold mb-4 text-gray-900">Создать новый пост</h2>
+                <h2 className="text-xl font-semibold mb-4 text-gray-800">Создать новый пост</h2>
                 <form onSubmit={(e) => {
                   e.preventDefault();
                   const formData = new FormData(e.target as HTMLFormElement);
@@ -415,12 +438,12 @@ export const EnhancedPostingContainer: React.FC = () => {
                     <input
                       name="title"
                       placeholder="Заголовок поста"
-                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-900 placeholder-gray-600"
+                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-800 placeholder-gray-600"
                       required
                     />
                     <select 
                       name="type" 
-                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-900" 
+                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-800" 
                       required
                     >
                       <option value="">Тип поста</option>
@@ -432,7 +455,7 @@ export const EnhancedPostingContainer: React.FC = () => {
                   <textarea
                     name="content"
                     placeholder="Содержание поста"
-                    className="w-full border-2 border-gray-500 rounded-lg px-3 py-2 mb-4 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-900 placeholder-gray-600"
+                    className="w-full border-2 border-gray-500 rounded-lg px-3 py-2 mb-4 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-800 placeholder-gray-600"
                     rows={4}
                     required
                   />
@@ -440,13 +463,13 @@ export const EnhancedPostingContainer: React.FC = () => {
                     <input
                       name="scheduledAt"
                       type="datetime-local"
-                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-900"
+                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-800"
                       defaultValue={new Date().toISOString().slice(0, 16)}
                       required
                     />
                     <select 
                       name="priority" 
-                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-900"
+                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-800"
                     >
                       <option value="low">Низкий</option>
                       <option value="medium">Средний</option>
@@ -460,7 +483,7 @@ export const EnhancedPostingContainer: React.FC = () => {
                         type="checkbox"
                         className="rounded border-2 border-gray-500 text-blue-600 focus:ring-blue-500 focus:border-blue-500"
                       />
-                      <span className="text-sm text-gray-900">📤 Отправить в Telegram</span>
+                      <span className="text-sm text-gray-800">📤 Отправить в Telegram</span>
                     </label>
                   </div>
                   <div className="flex gap-2">
@@ -485,7 +508,7 @@ export const EnhancedPostingContainer: React.FC = () => {
             {/* Edit Form */}
             {state.showEditForm && state.editingPost && (
               <div className="bg-white rounded-lg shadow-md p-6 mb-6 border">
-                <h2 className="text-xl font-semibold mb-4 text-gray-900">Редактировать пост</h2>
+                <h2 className="text-xl font-semibold mb-4 text-gray-800">Редактировать пост</h2>
                 <form onSubmit={(e) => {
                   e.preventDefault();
                   const formData = new FormData(e.target as HTMLFormElement);
@@ -501,13 +524,13 @@ export const EnhancedPostingContainer: React.FC = () => {
                     <input
                       name="title"
                       placeholder="Заголовок поста"
-                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-900 placeholder-gray-600"
+                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-800 placeholder-gray-600"
                       defaultValue={state.editingPost.title}
                       required
                     />
                     <select 
                       name="type" 
-                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-900" 
+                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-800" 
                       required 
                       defaultValue={state.editingPost.type}
                     >
@@ -520,7 +543,7 @@ export const EnhancedPostingContainer: React.FC = () => {
                   <textarea
                     name="content"
                     placeholder="Содержание поста"
-                    className="w-full border-2 border-gray-500 rounded-lg px-3 py-2 mb-4 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-900 placeholder-gray-600"
+                    className="w-full border-2 border-gray-500 rounded-lg px-3 py-2 mb-4 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-800 placeholder-gray-600"
                     rows={4}
                     defaultValue={state.editingPost.content}
                     required
@@ -529,13 +552,13 @@ export const EnhancedPostingContainer: React.FC = () => {
                     <input
                       name="scheduledAt"
                       type="datetime-local"
-                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-900"
+                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-800"
                       defaultValue={DateTimeFormatter.formatForDateTimeInput(state.editingPost.scheduledAt)}
                       required
                     />
                     <select 
                       name="priority" 
-                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-900" 
+                      className="border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white text-gray-800" 
                       defaultValue={state.editingPost.metadata.priority}
                     >
                       <option value="low">Низкий</option>

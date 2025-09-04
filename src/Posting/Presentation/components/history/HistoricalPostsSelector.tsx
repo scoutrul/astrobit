@@ -47,6 +47,7 @@ interface HistoricalPostsSelectorState {
   isLoading: boolean;
   filters: FilterState;
   relevanceScores: Map<string, number>;
+  isDataLoaded: boolean; // Флаг для предотвращения повторных загрузок
 }
 
 export const HistoricalPostsSelector: React.FC<HistoricalPostsSelectorProps> = ({
@@ -71,15 +72,63 @@ export const HistoricalPostsSelector: React.FC<HistoricalPostsSelectorProps> = (
       sortBy: 'date',
       sortOrder: 'desc'
     },
-    relevanceScores: new Map()
+    relevanceScores: new Map(),
+    isDataLoaded: false
   });
 
   // Создаем адаптер для HistoricalPost, чтобы соответствовать требованиям JsonDataManager
   const dataManager = new JsonDataManager<{ id: string; createdAt: Date; data: HistoricalPost }>();
+  
+  // Кэш для архивных данных
+  const [archivedPostsCache, setArchivedPostsCache] = useState<HistoricalPost[] | null>(null);
 
+  // Загрузка архивных постов с кэшированием
+  const loadArchivedPosts = useCallback(async (): Promise<HistoricalPost[]> => {
+    // Возвращаем кэшированные данные если они есть
+    if (archivedPostsCache) {
+      console.info('[HistoricalPostsSelector] Используем кэшированные архивные данные');
+      return archivedPostsCache;
+    }
+
+    try {
+      console.info('[HistoricalPostsSelector] Загружаем архивные данные...');
+      const indexResult = await dataManager.load('src/Posting/Infrastructure/data/archives/archive-index.json');
+      if (!indexResult.isSuccess) return [];
+
+      const indexData = indexResult.value as any;
+      const archivePromises = (indexData.archives || []).map(async (archive: any) => {
+        try {
+          const archiveResult = await dataManager.load(`src/Posting/Infrastructure/data/archives/${archive.filename}`);
+          if (archiveResult.isSuccess) {
+            return (archiveResult.value as any[]).map(convertPostToHistorical);
+          }
+          return [];
+        } catch {
+          return [];
+        }
+      });
+
+      const archiveResults = await Promise.all(archivePromises);
+      const allArchivedPosts = archiveResults.flat();
+      
+      // Кэшируем результат
+      setArchivedPostsCache(allArchivedPosts);
+      console.info('[HistoricalPostsSelector] Архивные данные закэшированы');
+      
+      return allArchivedPosts;
+    } catch {
+      return [];
+    }
+  }, [archivedPostsCache, dataManager]);
 
   // Загрузка исторических постов
   const loadHistoricalPosts = useCallback(async () => {
+    // Предотвращаем повторную загрузку если данные уже загружены
+    if (state.isDataLoaded) {
+      console.info('[HistoricalPostsSelector] Данные уже загружены, пропускаем загрузку');
+      return;
+    }
+
     setState(prev => ({ ...prev, isLoading: true }));
     
     try {
@@ -125,7 +174,8 @@ export const HistoricalPostsSelector: React.FC<HistoricalPostsSelectorProps> = (
         filteredPosts: allPosts,
         availableTags: allTags,
         relevanceScores,
-        isLoading: false
+        isLoading: false,
+        isDataLoaded: true // Отмечаем что данные загружены
       }));
 
       // Автоматический выбор релевантных постов
@@ -138,33 +188,8 @@ export const HistoricalPostsSelector: React.FC<HistoricalPostsSelectorProps> = (
       console.error('[HistoricalPostsSelector] Ошибка загрузки:', error);
       setState(prev => ({ ...prev, isLoading: false }));
     }
-  }, [contentContext, postType, autoSelectRelevant, dataManager]);
+  }, [contentContext, postType, autoSelectRelevant, dataManager, state.isDataLoaded, loadArchivedPosts]);
 
-  // Загрузка архивных постов
-  const loadArchivedPosts = async (): Promise<HistoricalPost[]> => {
-    try {
-      const indexResult = await dataManager.load('src/Posting/Infrastructure/data/archives/archive-index.json');
-      if (!indexResult.isSuccess) return [];
-
-      const indexData = indexResult.value as any;
-      const archivePromises = (indexData.archives || []).map(async (archive: any) => {
-        try {
-          const archiveResult = await dataManager.load(`src/Posting/Infrastructure/data/archives/${archive.filename}`);
-          if (archiveResult.isSuccess) {
-            return (archiveResult.value as any[]).map(convertPostToHistorical);
-          }
-          return [];
-        } catch {
-          return [];
-        }
-      });
-
-      const archiveResults = await Promise.all(archivePromises);
-      return archiveResults.flat();
-    } catch {
-      return [];
-    }
-  };
 
   // Конвертация Post в HistoricalPost
   const convertPostToHistorical = (post: Post): HistoricalPost => ({

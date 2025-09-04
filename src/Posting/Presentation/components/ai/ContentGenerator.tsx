@@ -294,6 +294,7 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
               </div>
             )}
             <button
+              type="button"
               onClick={toggleAdvancedOptions}
               className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
             >
@@ -308,12 +309,14 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
             <h3 className="text-sm font-medium text-gray-700 mb-3">🔧 Дополнительные настройки</h3>
             <div className="flex items-center space-x-4">
               <button
+                type="button"
                 onClick={clearCache}
                 className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
               >
                 🗑️ Очистить кэш
               </button>
               <button
+                type="button"
                 onClick={() => aiService.refreshCache()}
                 className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
               >
@@ -337,6 +340,7 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
             {postTypes.map((type) => (
               <button
                 key={type.value}
+                type="button"
                 onClick={() => handleTypeChange(type.value)}
                 className={`p-4 text-left rounded-lg border transition-colors ${
                   state.selectedType === type.value
@@ -359,13 +363,14 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {/* Целевая аудитория */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="targetAudience" className="block text-sm font-medium text-gray-700 mb-2">
               Целевая аудитория
             </label>
             <select
+              id="targetAudience"
               value={state.targetAudience}
               onChange={(e) => handleAudienceChange(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
               disabled={disabled}
             >
               <option value="beginner">Начинающие</option>
@@ -376,13 +381,14 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
 
           {/* Длина контента */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="contentLength" className="block text-sm font-medium text-gray-700 mb-2">
               Длина контента
             </label>
             <select
+              id="contentLength"
               value={state.contentLength}
               onChange={(e) => handleLengthChange(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
               disabled={disabled}
             >
               <option value="short">Короткий (200-400 символов)</option>
@@ -399,6 +405,7 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
               Исторический контекст
             </label>
             <button
+              type="button"
               onClick={toggleHistoricalSelector}
               className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
             >
@@ -442,10 +449,11 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
 
         {/* Дополнительные указания */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="customPrompt" className="block text-sm font-medium text-gray-700 mb-2">
             Дополнительные указания (опционально)
           </label>
           <textarea
+            id="customPrompt"
             value={state.customPrompt}
             onChange={(e) => handlePromptChange(e.target.value)}
             placeholder="Опишите особые требования к контенту, стиль изложения, акценты..."
@@ -458,6 +466,7 @@ export const ContentGenerator: React.FC<ContentGeneratorProps> = ({
         {/* Кнопка генерации */}
         <div className="flex items-center justify-between">
           <button
+            type="button"
             onClick={handleGenerate}
             disabled={state.isGenerating || disabled}
             className={`px-6 py-3 rounded-md font-medium transition-colors ${
