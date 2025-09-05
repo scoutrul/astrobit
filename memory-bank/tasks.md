@@ -1,5 +1,115 @@
 # Задачи AstroBit
 
+## Текущая задача: FIRESTORE-POSTS-001 — Миграция управления постами на Firebase Firestore (DDD/SOLID)
+**Статус:** Planning
+**Тип:** Complex System (замена слоя данных и интеграция бэкенда как сервиса)
+**Уровень сложности:** Level 4
+**Дата начала:** 27.08.2025
+
+### Описание
+Полная замена текущего управления постами (localStorage + JSON файлы) на Firestore CRUD со строгим следованием DDD/SOLID. Удаляем/отключаем весь код, связанный с хранением постов в браузере/JSON, и вводим репозитории на Firestore с мапперами и use cases. Без изменения внешнего поведения UI.
+
+### Требования
+- Функциональные:
+  - Создание, чтение, обновление, удаление постов.
+  - Фильтрация/пагинация/поиск по тегам и дате (серверная/квази-серверная на Firestore).
+  - Архивирование/статусы: draft, scheduled, published, archived.
+  - Теги и статистика тегов (минимум счётчики использования).
+  - Миграция: корректная очистка устаревших путей хранения; обратная совместимость API use cases.
+- Нефункциональные:
+  - Надёжность: транзакционная согласованность важных операций (batched writes).
+  - Безопасность: Firestore Security Rules с ролевой моделью (admin only для изменения, read для auth admin).
+  - Масштабируемость: запросы с индексами, ограничения на размер документов.
+  - Наблюдаемость: логирование через `Shared/infrastructure/Logger`.
+
+### Компоненты (DDD)
+- Domain:
+  - `Post` entity (id, title, content, tags[], status, createdAt, updatedAt, scheduledAt, metadata).
+  - Value Objects: `PostStatus`, `Tag`, `PostId`.
+  - Репозитории (интерфейсы): `IPostRepository`, `ITagStatsRepository`.
+- Application:
+  - Use Cases: `CreatePost`, `GetPostById`, `ListPosts` (filters), `UpdatePost`, `DeletePost`, `ArchivePost`, `UpdateTagStats`.
+- Infrastructure:
+  - Firestore реализации: `FirestorePostRepository`, `FirestoreTagStatsRepository`.
+  - Мапперы: Domain <-> Firestore DTO.
+  - Конфиг: интеграция `src/firebase/config.ts` и DI.
+- Presentation:
+  - Интеграция контейнеров/компонентов постинга без изменения внешнего UI.
+
+### Архитектурные соображения
+- SOLID: зависимость UI и Use Cases только от абстракций (интерфейсов репозиториев).
+- Чистая архитектура: слой Infrastructure подключается в DI (`DependencyContainer`/`PostingDependencyConfig`).
+- Firestore коллекции и индексы:
+  - `posts` (docId = uuid): поля: status, tags[], createdAt (Timestamp), updatedAt, scheduledAt, title, content, meta.
+  - `tagStats` (docId = tag): count, lastUsedAt.
+  - Индексы: (status desc, createdAt desc), (tags array_contains, createdAt desc), (scheduledAt asc, status==scheduled).
+- Безопасность (черновик):
+  - Только авторизованный админ может писать/удалять.
+  - Чтение — только авторизованный пользователь панели.
+
+### План реализации (фазы)
+1) Технологическая валидация (Hello World Firestore)
+   - Проверка `firebase/config.ts`, ключей и инициализации.
+   - Минимальный запрос к Firestore (dev-коллекция `__health`).
+2) Доменные контракты
+   - Уточнить/зафиксировать интерфейсы `IPostRepository`, `ITagStatsRepository` в `Posting/Domain`.
+   - Обновить/создать value objects (`PostStatus`, `Tag`).
+3) Инфраструктура Firestore
+   - Реализации репозиториев с батчами, пагинацией, фильтрами.
+   - Мапперы DTO<->Domain, валидаторы.
+   - Индексы (описать в README и настроить через консоль/конфиги).
+4) Application Use Cases
+   - CRUD + архивирование + обновление статистики тегов.
+   - Обновить существующий pipeline так, чтобы использовать новые репозитории.
+5) DI/Конфигурация
+   - Обновить `PostingDependencyConfig` и/или общий контейнер, подключить Firestore реализации.
+6) Presentation интеграция
+   - Подключить use cases в текущие контейнеры, сохранить поведение UI.
+   - Убрать обращения к localStorage/JSON.
+7) Миграция и очистка
+   - Удалить/изолировать `JsonDataManager`, JSON файлы в `src/Posting/Infrastructure/data/*` из production-пути.
+   - Очистить обращения к localStorage.
+8) Тестирование и наблюдаемость
+   - Интеграционные тесты use cases (при возможности, в dev-режиме).
+   - Логи и метрики в Logger, проверка ошибок/ретраев.
+
+### Зависимости
+- Firebase проект и права.
+- `src/firebase/config.ts` корректно настроен.
+- Доступ к Firestore indexes (консоль/CLI).
+
+### Риски и митигации
+- Индексы не созданы → заранее описать и создать требуемые индексы.
+- Правила безопасности блокируют операции → пошаговая валидация и тестовый пользователь-админ.
+- Лимиты размера документа → строгие поля, вынесение больших полей в подколлекции при необходимости.
+- Регрессии UI → фича-флаги/переключение провайдеров репозитория на этапе интеграции.
+
+### Чеклист Technology Validation
+- [ ] Firebase SDK инициализируется в проекте
+- [ ] Firestore доступен из dev-сборки
+- [ ] Минимальная запись/чтение из `__health`
+- [ ] Конфиги окружения присутствуют (VITE_FIREBASE_*)
+- [ ] Test build/serve проходит
+
+### Quality Gates
+- [ ] Репозитории покрывают все сценарии (CRUD + фильтры + архив)
+- [ ] Use cases не зависят от инфраструктуры (только интерфейсы)
+- [ ] UI не изменён визуально/поведенчески
+- [ ] Логи через `Shared/infrastructure/Logger`
+- [ ] Security Rules задокументированы
+
+### Creative Phases Required
+- [x] Data Model & Индексы Firestore — проектирование
+- [x] Security Rules (RBAC для админки)
+
+### Статус
+- [x] Initialization complete
+- [x] Planning complete
+- [ ] Technology validation complete
+- [ ] Implementation — Phase 1-8
+
+---
+
 ## Текущая задача: AI-SERVICE-MIGRATION-001
 **Статус:** ✅ ЗАВЕРШЕНА! 
 **Тип:** Миграция AI сервиса с OpenRouter на Anthropic API

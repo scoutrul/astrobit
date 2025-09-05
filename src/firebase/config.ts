@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 // Проверяем наличие обязательных переменных окружения
 const requiredEnvVars = [
@@ -20,6 +21,7 @@ if (missingVars.length > 0) {
 
 let app: any = null;
 let auth: any = null;
+let db: any = null;
 
 // Инициализируем Firebase только если все переменные окружения присутствуют
 if (missingVars.length === 0) {
@@ -36,6 +38,7 @@ if (missingVars.length === 0) {
   try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
+    db = getFirestore(app);
     console.info('[Firebase] Успешно инициализирован');
   } catch (error) {
     console.error('[Firebase] Ошибка инициализации:', error);
@@ -44,7 +47,7 @@ if (missingVars.length === 0) {
   console.warn('[Firebase] Firebase не инициализирован из-за отсутствующих переменных окружения');
 }
 
-export { auth };
+export { auth, db };
 
 // Получаем список админов из переменных окружения
 export const ADMIN_EMAILS = import.meta.env.VITE_FIREBASE_ADMIN_EMAILS?.split(',') || [];

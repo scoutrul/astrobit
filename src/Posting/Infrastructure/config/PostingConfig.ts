@@ -1,4 +1,4 @@
-import { LocalStoragePostRepository } from '../repositories/LocalStoragePostRepository';
+import { FirestorePostRepository } from '../repositories/FirestorePostRepository';
 import { MockTelegramBotService } from '../services/MockTelegramBotService';
 import { MockSchedulerService } from '../services/MockSchedulerService';
 import { DependencyContainer } from '../../../Shared/infrastructure/DependencyContainer';
@@ -12,7 +12,7 @@ export class PostingConfig {
       // Настройка Posting модуля...
 
       // Создаем репозиторий
-      const postRepository = new LocalStoragePostRepository();
+      const postRepository = new FirestorePostRepository();
               // Репозиторий постов создан
 
       // Создаем сервисы

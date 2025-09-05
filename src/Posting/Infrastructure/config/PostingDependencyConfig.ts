@@ -11,6 +11,8 @@ import { EndToEndTester } from '../testing/EndToEndTester';
 // Импорты других модулей
 import { GetAstronomicalEventsUseCase } from '../../../Astronomical/Application/use-cases/GetAstronomicalEventsUseCase';
 import { GetCryptoDataUseCase } from '../../../CryptoData/Application/use-cases/GetCryptoDataUseCase';
+import { IPostRepository } from '../../Domain/repositories/IPostRepository';
+import { FirestorePostRepository } from '../repositories/FirestorePostRepository';
 
 /**
  * Конфигурация зависимостей для модуля Posting
@@ -35,6 +37,9 @@ export class PostingDependencyConfig {
   private _rateLimitingService?: RateLimitingService;
   private _endToEndTester?: EndToEndTester;
 
+  // Repositories
+  private _postRepository?: IPostRepository;
+
   private constructor() {}
 
   public static getInstance(): PostingDependencyConfig {
@@ -42,6 +47,17 @@ export class PostingDependencyConfig {
       PostingDependencyConfig.instance = new PostingDependencyConfig();
     }
     return PostingDependencyConfig.instance;
+  }
+
+  /**
+   * Репозиторий постов (Firestore)
+   */
+  public getPostRepository(): IPostRepository {
+    if (!this._postRepository) {
+      this._postRepository = new FirestorePostRepository();
+      console.info('[PostingDependencyConfig] FirestorePostRepository инициализирован');
+    }
+    return this._postRepository;
   }
 
   /**
@@ -273,6 +289,7 @@ export class PostingDependencyConfig {
     this._generateContentUseCase = undefined;
     this._astronomicalEventsUseCase = undefined;
     this._cryptoDataUseCase = undefined;
+    this._postRepository = undefined;
     
     console.info('[PostingDependencyConfig] Все зависимости сброшены');
   }
