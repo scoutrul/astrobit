@@ -6,7 +6,7 @@ export type { CreatePostRequest } from './Application/use-cases/CreatePostUseCas
 export { CreatePostUseCase } from './Application/use-cases/CreatePostUseCase';
 export type { GeneratePostFromEventRequest } from './Application/use-cases/GeneratePostFromEventUseCase';
 export { GeneratePostFromEventUseCase } from './Application/use-cases/GeneratePostFromEventUseCase';
-export { LocalStoragePostRepository } from './Infrastructure/repositories/LocalStoragePostRepository';
+export { InMemoryPostRepository } from './Infrastructure/repositories/InMemoryPostRepository';
 export { MockTelegramBotService } from './Infrastructure/services/MockTelegramBotService';
 export { MockSchedulerService } from './Infrastructure/services/MockSchedulerService';
 export { PostingConfig } from './Infrastructure/config/PostingConfig';

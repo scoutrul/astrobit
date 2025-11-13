@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GeneratePostFromEventUseCase, GeneratePostFromEventRequest } from '../../Application/use-cases/GeneratePostFromEventUseCase';
-import { LocalStoragePostRepository } from '../../Infrastructure/repositories/LocalStoragePostRepository';
+import { InMemoryPostRepository } from '../../Infrastructure/repositories/InMemoryPostRepository';
 import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 
 interface AstronomicalEvent {
@@ -22,7 +22,7 @@ export const EventPostGenerator: React.FC<EventPostGeneratorProps> = ({ onPostGe
   const [scheduledDate, setScheduledDate] = useState('');
   const [generating, setGenerating] = useState(false);
 
-  const repository = new LocalStoragePostRepository();
+  const repository = new InMemoryPostRepository();
   const generateUseCase = new GeneratePostFromEventUseCase(repository);
 
   useEffect(() => {

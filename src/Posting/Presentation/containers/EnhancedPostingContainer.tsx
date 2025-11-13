@@ -232,7 +232,7 @@ export const EnhancedPostingContainer: React.FC = () => {
     }
   };
 
-  const handleTelegramSent = async (postId: string, messageId: number) => {
+  const handleTelegramSent = async (postId: string, _messageId: number) => {
     try {
       const postToUpdate = state.posts.find(p => p.id === postId);
       if (!postToUpdate) return;
