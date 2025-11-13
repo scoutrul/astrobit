@@ -2,7 +2,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AppContainer } from './Shared/presentation/containers/AppContainer';
 import { EnhancedPostingContainer } from './Posting/Presentation/containers/EnhancedPostingContainer';
-import { AdminGuard } from './Shared/presentation/components/AdminGuard';
 import { AdminPanel } from './Shared/presentation/components/AdminPanel';
 import { YandexMetrika } from './Shared/presentation/components/YandexMetrika';
 
@@ -40,11 +39,9 @@ function App() {
           <Route 
             path="/admin" 
             element={
-              <AdminGuard>
-                <AdminPanel title="Система постинга">
-                  <EnhancedPostingContainer />
-                </AdminPanel>
-              </AdminGuard>
+              <AdminPanel title="Система постинга">
+                <EnhancedPostingContainer />
+              </AdminPanel>
             } 
           />
         </Routes>

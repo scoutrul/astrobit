@@ -1,4 +1,4 @@
-import { FirestorePostRepository } from '../repositories/FirestorePostRepository';
+import { InMemoryPostRepository } from '../repositories/InMemoryPostRepository';
 import { MockTelegramBotService } from '../services/MockTelegramBotService';
 import { MockSchedulerService } from '../services/MockSchedulerService';
 import { DependencyContainer } from '../../../Shared/infrastructure/DependencyContainer';
@@ -11,8 +11,8 @@ export class PostingConfig {
     try {
       // Настройка Posting модуля...
 
-      // Создаем репозиторий
-      const postRepository = new FirestorePostRepository();
+      // Создаем репозиторий (in-memory для чистого фронтенда)
+      const postRepository = new InMemoryPostRepository();
               // Репозиторий постов создан
 
       // Создаем сервисы

@@ -12,7 +12,7 @@ import { EndToEndTester } from '../testing/EndToEndTester';
 import { GetAstronomicalEventsUseCase } from '../../../Astronomical/Application/use-cases/GetAstronomicalEventsUseCase';
 import { GetCryptoDataUseCase } from '../../../CryptoData/Application/use-cases/GetCryptoDataUseCase';
 import { IPostRepository } from '../../Domain/repositories/IPostRepository';
-import { FirestorePostRepository } from '../repositories/FirestorePostRepository';
+import { InMemoryPostRepository } from '../repositories/InMemoryPostRepository';
 
 /**
  * Конфигурация зависимостей для модуля Posting
@@ -50,12 +50,12 @@ export class PostingDependencyConfig {
   }
 
   /**
-   * Репозиторий постов (Firestore)
+   * Репозиторий постов (In-Memory для чистого фронтенда)
    */
   public getPostRepository(): IPostRepository {
     if (!this._postRepository) {
-      this._postRepository = new FirestorePostRepository();
-      console.info('[PostingDependencyConfig] FirestorePostRepository инициализирован');
+      this._postRepository = new InMemoryPostRepository();
+      console.info('[PostingDependencyConfig] InMemoryPostRepository инициализирован');
     }
     return this._postRepository;
   }

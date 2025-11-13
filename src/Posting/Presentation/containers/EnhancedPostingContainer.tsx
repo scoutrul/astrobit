@@ -4,7 +4,7 @@ import { PostCard } from '../components/PostCard';
 import { PostStats } from '../components/PostStats';
 import { ContentGenerator } from '../components/ai/ContentGenerator';
 import { ArchiveManager } from '../components/archive/ArchiveManager';
-import { FirestorePostRepository } from '../../Infrastructure/repositories/FirestorePostRepository';
+import { InMemoryPostRepository } from '../../Infrastructure/repositories/InMemoryPostRepository';
 import { PostTypeValue, POST_TYPE_LABELS } from '../../Domain/value-objects/PostType';
 import { DateTimeFormatter } from '../../../Shared/infrastructure/utils/DateTimeFormatter';
 import { PostingDependencyConfig } from '../../Infrastructure/config/PostingDependencyConfig';
@@ -41,7 +41,7 @@ export const EnhancedPostingContainer: React.FC = () => {
   });
 
   // Инициализация сервисов через DI конфигурацию
-  const [repository] = useState(() => new FirestorePostRepository());
+  const [repository] = useState(() => new InMemoryPostRepository());
   const [dependencyConfig] = useState(() => PostingDependencyConfig.getInstance());
     const [generateContentUseCase] = useState(() => dependencyConfig.getGenerateContentUseCase());
 

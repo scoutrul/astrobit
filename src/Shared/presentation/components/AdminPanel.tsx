@@ -1,5 +1,4 @@
 import React from 'react';
-import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { DateTimeFormatter } from '../../infrastructure/utils/DateTimeFormatter';
 
 interface AdminPanelProps {
@@ -8,19 +7,9 @@ interface AdminPanelProps {
 }
 
 /**
- * Обертка для админской панели с Firebase аутентификацией
+ * Обертка для админской панели (без авторизации для чистого фронтенда)
  */
 export const AdminPanel: React.FC<AdminPanelProps> = ({ children, title = 'Панель администратора' }) => {
-  const { user, logout } = useFirebaseAuth();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Ошибка выхода:', error);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -62,20 +51,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ children, title = 'Па�
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                 <span className="text-white/80 text-sm">
-                  {user?.email || 'Админ активен'}
+                  Локальный режим
                 </span>
               </div>
-
-              {/* Кнопка выхода */}
-              <button
-                onClick={handleLogout}
-                className="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center space-x-1.5 text-sm font-medium"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span>Выход</span>
-              </button>
             </div>
           </div>
         </div>
