@@ -1,8 +1,5 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AppContainer } from './Shared/presentation/containers/AppContainer';
-import { EnhancedPostingContainer } from './Posting/Presentation/containers/EnhancedPostingContainer';
-import { AdminPanel } from './Shared/presentation/components/AdminPanel';
 import { YandexMetrika } from './Shared/presentation/components/YandexMetrika';
 
 import './Shared/presentation/styles/global.css';
@@ -36,14 +33,6 @@ function App() {
         
         <Routes>
           <Route path="/" element={<AppContainer />} />
-          <Route 
-            path="/admin" 
-            element={
-              <AdminPanel title="Система постинга">
-                <EnhancedPostingContainer />
-              </AdminPanel>
-            } 
-          />
         </Routes>
       </Router>
     );
