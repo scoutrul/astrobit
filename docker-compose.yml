@@ -8,7 +8,7 @@ services:
     volumes:
       - ./dist:/app/dist
     ports:
-      - "${FRONTEND_PORT:-3001}:3000"
+      - "${FRONTEND_PORT}:3000"
     command: >
       sh -c "
         npm install -g serve &&
@@ -33,7 +33,7 @@ services:
       - .:/app
       - /app/node_modules
     ports:
-      - "${FRONTEND_DEV_PORT:-5173}:5173"
+      - "${FRONTEND_DEV_PORT}:5173"
     command: >
       sh -c "
         npm install --legacy-peer-deps &&
@@ -48,17 +48,17 @@ services:
     image: n8nio/n8n:latest
     container_name: astrobit-n8n
     ports:
-      - "${N8N_PORT:-5679}:5678"
+      - "${N8N_PORT}:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-changeme}
-      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_BASIC_AUTH_USER=${N8N_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      - N8N_HOST=${N8N_HOST}
       - N8N_PORT=5678
-      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
-      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
-      - GENERIC_TIMEZONE=${TZ:-Europe/Moscow}
-      - TZ=${TZ:-Europe/Moscow}
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - GENERIC_TIMEZONE=${TZ}
+      - TZ=${TZ}
     volumes:
       - n8n_data:/home/node/.n8n
     restart: unless-stopped
@@ -71,6 +71,46 @@ services:
       retries: 3
       start_period: 40s
 
+  postgres:
+    image: postgres:15
+    container_name: astrobit-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    networks:
+      - astrobit-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: astrobit-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "${PGADMIN_PORT}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - astrobit-network
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 networks:
   astrobit-network:
     driver: bridge
@@ -78,4 +118,7 @@ networks:
 volumes:
   n8n_data:
     driver: local
-
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
