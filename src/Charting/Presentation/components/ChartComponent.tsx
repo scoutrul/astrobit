@@ -7,7 +7,8 @@ import {
   UTCTimestamp,
   CandlestickData,
   MouseEventParams,
-  Range
+  Range,
+  SeriesMarker
 } from 'lightweight-charts';
 import { TimeframeUtils } from '../../Infrastructure/utils/TimeframeUtils';
 import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
@@ -868,7 +869,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       if (markers.length > 0) {
         try {
           if (chartContainerRef.current && chartContainerRef.current.querySelector('.tv-lightweight-charts')) {
-            seriesInstance.setMarkers(markers);
+            seriesInstance.setMarkers(markers as SeriesMarker<Time>[]);
           }
         } catch (err) {
           console.error(`[Chart] ❌ Ошибка при установке маркеров:`, err);

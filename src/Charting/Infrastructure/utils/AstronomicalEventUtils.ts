@@ -1,4 +1,4 @@
-import { SeriesMarker, Time, UTCTimestamp } from 'lightweight-charts';
+import { SeriesMarker, SeriesMarkerShape, Time, UTCTimestamp } from 'lightweight-charts';
 
 export interface AstronomicalEvent {
   timestamp: number;
@@ -7,7 +7,13 @@ export interface AstronomicalEvent {
   type: string;
 }
 
-export type ChartMarker = SeriesMarker<Time> & {
+export type ChartMarker = {
+  time: UTCTimestamp;
+  position: SeriesMarker<Time>['position'];
+  color: string;
+  text: string;
+  size: number;
+  shape?: SeriesMarkerShape;
   eventData?: AstronomicalEvent; // Добавляем данные события
 };
 
@@ -30,7 +36,6 @@ export class AstronomicalEventUtils {
           color: color,
           text: text,
           size: 2, // Увеличенный размер для лучшей видимости
-          shape: 'circle' as const,
           eventData: event // Сохраняем данные события для ToolTip
         };
       })
@@ -78,7 +83,6 @@ export class AstronomicalEventUtils {
           color: colorWithOpacity,
           text: text,
           size: 2,
-          shape: 'circle' as const,
           eventData: event
         };
       })
