@@ -68,6 +68,23 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   
   // Состояние для ширины контейнера графика
   const [containerWidth, setContainerWidth] = useState(0);
+  const getCandlePriceAtTime = useCallback((timeInSeconds: number): number | null => {
+    if (!seriesInstance || !timeInSeconds) return null;
+    const data = (seriesInstance as any).data?.();
+    if (!data || !Array.isArray(data)) return null;
+    let best: any = null;
+    let bestDiff = Number.POSITIVE_INFINITY;
+    for (const bar of data) {
+      if (!bar || typeof bar.time !== 'number') continue;
+      const diff = Math.abs(bar.time - timeInSeconds);
+      if (diff < bestDiff) {
+        best = bar;
+        bestDiff = diff;
+        if (diff === 0) break;
+      }
+    }
+    return best?.close ?? null;
+  }, [seriesInstance]);
 
   // Флаги и refs для управления зумом/скроллом без сбросов
   const hasUserInteractedRef = useRef(false);
@@ -191,8 +208,8 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   }, [symbol, timeframe]); // Убрал chartInstance из зависимостей
 
   // Обработчик движения курсора для ToolTip
-  const handleCrosshairMove = useCallback((param: any) => {
-    if (!isChartFocused) {
+  const handleCrosshairMove = useCallback((param: any, forceFocus = false) => {
+    if (!isChartFocused && !forceFocus) {
       setTooltip(prev => ({ ...prev, visible: false }));
       return;
     }
@@ -202,15 +219,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       return;
     }
     
-    // Получаем цену свечи при наведении
-    let candlePrice = null;
-    if (param.seriesData && param.seriesData.close !== undefined) {
-      candlePrice = param.seriesData.close;
-    } else if (param.seriesData && param.seriesData.price !== undefined) {
-      candlePrice = param.seriesData.price;
-    }
-    
-
     let timeInSeconds = 0;
     
     // Получаем время из разных источников
@@ -247,7 +255,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           y: param.point.y + 20, // Сдвигаем ниже курсора
           events: uniqueEventsForTooltip,
           visible: true,
-          candlePrice: candlePrice
+          candlePrice: undefined
         });
       
       return;
@@ -289,6 +297,19 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
               if (uniqueEventsNearTime.length === 1) {
           // Одно событие
           const event = uniqueEventsNearTime[0];
+        // Получаем цену свечи в момент события
+        let candlePrice = null;
+        if (param.seriesData && param.seriesData.close !== undefined) {
+          candlePrice = param.seriesData.close;
+        } else if (param.seriesData && param.seriesData.price !== undefined) {
+          candlePrice = param.seriesData.price;
+        }
+        if (candlePrice === null) {
+          const priceFromSeries = getCandlePriceAtTime(timeInSeconds);
+          if (priceFromSeries !== null) {
+            candlePrice = priceFromSeries;
+          }
+        }
         setTooltip({
           x: getSmartTooltipPosition(param.point.x, containerWidth),
           y: param.point.y + 20, // Сдвигаем ниже курсора
@@ -301,6 +322,18 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         
       } else {
         // Несколько событий - стэк
+        let candlePrice = null;
+        if (param.seriesData && param.seriesData.close !== undefined) {
+          candlePrice = param.seriesData.close;
+        } else if (param.seriesData && param.seriesData.price !== undefined) {
+          candlePrice = param.seriesData.price;
+        }
+        if (candlePrice === null) {
+          const priceFromSeries = getCandlePriceAtTime(timeInSeconds);
+          if (priceFromSeries !== null) {
+            candlePrice = priceFromSeries;
+          }
+        }
         setTooltip({
           x: getSmartTooltipPosition(param.point.x, containerWidth),
           y: param.point.y + 20, // Сдвигаем ниже курсора
@@ -946,6 +979,40 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       handleCrosshairMove(param);
     };
 
+    const handleClickMove = (param: any) => {
+      setIsChartFocused(true);
+      handleCrosshairMove(param, true);
+    };
+
+    const handleTapOrClick = (event?: Event) => {
+      setIsChartFocused(true);
+      if (!chartInstance || !chartContainerRef.current) return;
+
+      const rect = chartContainerRef.current.getBoundingClientRect();
+      const touch = (event as TouchEvent)?.touches?.[0];
+      const clientX = touch?.clientX ?? (event as MouseEvent)?.clientX;
+      const clientY = touch?.clientY ?? (event as MouseEvent)?.clientY;
+      if (clientX === undefined || clientY === undefined) return;
+
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const time = chartInstance.timeScale().coordinateToTime(x);
+      const price = seriesInstance?.coordinateToPrice(y);
+      const hasPrice = price !== null && price !== undefined;
+
+      if (time !== null && seriesInstance) {
+        if (hasPrice) {
+          chartInstance.setCrosshairPosition(price as number, time as Time, seriesInstance);
+        }
+        const param: any = { point: { x, y }, time };
+        if (hasPrice) param.seriesData = { close: price };
+        handleCrosshairMove(param, true);
+      } else {
+        const param: any = { point: { x, y } };
+        handleCrosshairMove(param, true);
+      }
+    };
+
     // Обработчик движения мыши для показа кроссшеира
     const handleMouseMoveOnChart = (event: MouseEvent) => {
       if (chartInstance && chartContainerRef.current) {
@@ -966,6 +1033,14 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
     // Подписываемся на движение курсора для тултипов
     chartInstance.subscribeCrosshairMove(handleMouseMove);
+    chartInstance.subscribeClick(handleClickMove);
+
+    const chartDom = chartContainerRef.current?.querySelector('.tv-lightweight-charts') as HTMLElement | null;
+    if (chartDom) {
+      chartDom.addEventListener('touchstart', handleTapOrClick, { passive: true });
+      chartDom.addEventListener('pointerdown', handleTapOrClick);
+      chartDom.addEventListener('click', handleTapOrClick);
+    }
 
     // Включаем кроссшеир при наведении мыши
     const handleMouseEnter = () => {
@@ -1001,10 +1076,16 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
     return () => {
       chartInstance.unsubscribeCrosshairMove(handleMouseMove);
+      chartInstance.unsubscribeClick(handleClickMove);
       if (chartContainerRef.current) {
         chartContainerRef.current.removeEventListener('mouseenter', handleMouseEnter);
         chartContainerRef.current.removeEventListener('mouseleave', handleMouseLeave);
         chartContainerRef.current.removeEventListener('mousemove', handleMouseMoveOnChart);
+      }
+      if (chartDom) {
+        chartDom.removeEventListener('touchstart', handleTapOrClick);
+        chartDom.removeEventListener('pointerdown', handleTapOrClick);
+        chartDom.removeEventListener('click', handleTapOrClick);
       }
     };
   }, [chartInstance, handleCrosshairMove]);
@@ -1068,7 +1149,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
               <div className="text-[#e2e8f0] font-semibold text-sm mb-2 border-b border-[#334155] pb-1 flex justify-between items-center">
                 <span>События ({tooltip.events.length})</span>
                 <div className="text-right">
-                  {tooltip.candlePrice ? (
+                  {tooltip.candlePrice !== null && tooltip.candlePrice !== undefined ? (
                     <span className="text-[#f7931a] text-xs font-mono">
                       ${tooltip.candlePrice.toFixed(2)}
                     </span>
@@ -1077,10 +1158,6 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
                       Нет цены
                     </span>
                   )}
-                  {/* Отладка */}
-                  <div className="text-[#6b7280] text-xs">
-                    Debug: {JSON.stringify(tooltip.candlePrice)}
-                  </div>
                 </div>
               </div>
               {tooltip.events.map((event, index) => (
