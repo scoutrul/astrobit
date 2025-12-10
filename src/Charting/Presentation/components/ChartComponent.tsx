@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { createChart, IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts';
+import { 
+  createChart, 
+  IChartApi, 
+  ISeriesApi, 
+  Time, 
+  UTCTimestamp,
+  CandlestickData,
+  MouseEventParams,
+  Range
+} from 'lightweight-charts';
 import { TimeframeUtils } from '../../Infrastructure/utils/TimeframeUtils';
 import { AstronomicalEventUtils, AstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { BinanceKlineWebSocketData } from '../../../CryptoData/Infrastructure/external-services/BinanceWebSocketService';
@@ -43,6 +52,27 @@ interface TooltipData {
   candlePrice?: number; // Цена свечи при наведении
 }
 
+type CrosshairPayload = {
+  point?: { x: number; y: number };
+  time?: Time;
+  seriesData?: {
+    close?: number;
+    price?: number;
+    time?: Time;
+  };
+};
+
+type ChartTimeRange = Range<Time>;
+
+type CandleWithMeta = Omit<CandlestickData, 'time'> & {
+  time: UTCTimestamp;
+  volume?: number;
+  color?: string;
+  borderColor?: string;
+  wickColor?: string;
+  visible?: boolean;
+};
+
 export const ChartComponent: React.FC<ChartComponentProps> = ({
   symbol,
   timeframe,
@@ -68,11 +98,12 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   
   // Состояние для ширины контейнера графика
   const [containerWidth, setContainerWidth] = useState(0);
+  const candlesRef = useRef<CandleWithMeta[]>([]);
   const getCandlePriceAtTime = useCallback((timeInSeconds: number): number | null => {
-    if (!seriesInstance || !timeInSeconds) return null;
-    const data = (seriesInstance as any).data?.();
+    if (!timeInSeconds) return null;
+    const data = candlesRef.current;
     if (!data || !Array.isArray(data)) return null;
-    let best: any = null;
+    let best: CandleWithMeta | null = null;
     let bestDiff = Number.POSITIVE_INFINITY;
     for (const bar of data) {
       if (!bar || typeof bar.time !== 'number') continue;
@@ -84,13 +115,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       }
     }
     return best?.close ?? null;
-  }, [seriesInstance]);
+  }, []);
 
   // Флаги и refs для управления зумом/скроллом без сбросов
   const hasUserInteractedRef = useRef(false);
   const isProgrammaticRangeChangeRef = useRef(false);
   const initialRangeAppliedRef = useRef(false);
-  const lastManualRangeRef = useRef<any>(null);
+  const lastManualRangeRef = useRef<ChartTimeRange | null>(null);
 
   // Стабилизируем фильтры событий, чтобы избежать лишних обновлений
   const activeEventFilters = useMemo(() => eventFilters, [
@@ -208,7 +239,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   }, [symbol, timeframe]); // Убрал chartInstance из зависимостей
 
   // Обработчик движения курсора для ToolTip
-  const handleCrosshairMove = useCallback((param: any, forceFocus = false) => {
+  const handleCrosshairMove = useCallback((param: CrosshairPayload, forceFocus = false) => {
     if (!isChartFocused && !forceFocus) {
       setTooltip(prev => ({ ...prev, visible: false }));
       return;
@@ -222,8 +253,11 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     let timeInSeconds = 0;
     
     // Получаем время из разных источников
-    if (param.seriesData && param.seriesData.time) {
-      timeInSeconds = param.seriesData.time;
+    if (param.seriesData && param.seriesData.time !== undefined) {
+      const seriesTime = param.seriesData.time;
+      timeInSeconds = typeof seriesTime === 'number'
+        ? seriesTime
+        : TimeframeUtils.convertTimestampToSeconds(seriesTime as any);
     } else if (param.time && typeof param.time === 'number') {
       if (param.time > 1000000000) {
         timeInSeconds = param.time; // Уже в секундах
@@ -298,13 +332,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           // Одно событие
           const event = uniqueEventsNearTime[0];
         // Получаем цену свечи в момент события
-        let candlePrice = null;
+        let candlePrice: number | undefined;
         if (param.seriesData && param.seriesData.close !== undefined) {
           candlePrice = param.seriesData.close;
         } else if (param.seriesData && param.seriesData.price !== undefined) {
           candlePrice = param.seriesData.price;
         }
-        if (candlePrice === null) {
+        if (candlePrice === undefined) {
           const priceFromSeries = getCandlePriceAtTime(timeInSeconds);
           if (priceFromSeries !== null) {
             candlePrice = priceFromSeries;
@@ -322,13 +356,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         
       } else {
         // Несколько событий - стэк
-        let candlePrice = null;
+        let candlePrice: number | undefined;
         if (param.seriesData && param.seriesData.close !== undefined) {
           candlePrice = param.seriesData.close;
         } else if (param.seriesData && param.seriesData.price !== undefined) {
           candlePrice = param.seriesData.price;
         }
-        if (candlePrice === null) {
+        if (candlePrice === undefined) {
           const priceFromSeries = getCandlePriceAtTime(timeInSeconds);
           if (priceFromSeries !== null) {
             candlePrice = priceFromSeries;
@@ -466,9 +500,12 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
           fixRightEdge: true
         },
         localization: {
-          timeFormatter: (time: any) => {
-            // Используем централизованную утилиту для форматирования времени
-            return DateTimeFormatter.formatForChart(time);
+          timeFormatter: (time: Time) => {
+            const numericTime =
+              typeof time === 'number'
+                ? time
+                : TimeframeUtils.convertTimestampToSeconds(time as any);
+            return DateTimeFormatter.formatForChart(numericTime);
           }
         }
       });
@@ -501,7 +538,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
       // Подписка на изменение видимого диапазона для отслеживания пользовательского зума/скролла
       const timeScale = chart.timeScale();
-      const handleVisibleRangeChange = (range: any) => {
+      const handleVisibleRangeChange = (range: Range<Time> | null) => {
         // До первичного позиционирования игнорируем любые события
         if (!initialRangeAppliedRef.current) {
           return;
@@ -514,7 +551,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         }
         hasUserInteractedRef.current = true;
         if (range && typeof range.from === 'number' && typeof range.to === 'number') {
-          lastManualRangeRef.current = { from: range.from, to: range.to };
+          lastManualRangeRef.current = { from: range.from as UTCTimestamp, to: range.to as UTCTimestamp };
         }
       };
 
@@ -577,7 +614,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
     try {
       // Сохраняем текущий диапазон перед обновлением данных
-      let savedRange = null;
+      let savedRange: ChartTimeRange | null = null;
       if (chartInstance && hasUserInteractedRef.current && lastManualRangeRef.current) {
         try {
           // Используем последний сохраненный диапазон пользователя
@@ -589,7 +626,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       }
       
       // Берем данные для текущего символа, если поле symbol присутствует; иначе используем весь массив
-      const sourceDataAll = (cryptoData as any[]) || [];
+      const sourceDataAll = cryptoData || [];
       const hasSymbolField = sourceDataAll.some((d) => d && typeof d.symbol !== 'undefined');
       let sourceData = sourceDataAll;
       if (hasSymbolField) {
@@ -601,12 +638,12 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         }
       }
       // Конвертируем данные в формат Lightweight Charts, включая невидимые свечи как прозрачные
-      const chartData = sourceData.map((item: any) => {
+      const chartData: CandleWithMeta[] = sourceData.map((item) => {
         const timeInSeconds = TimeframeUtils.convertTimestampToSeconds(item.time);
         const isVisible = item.visible !== false;
         
         return {
-          time: timeInSeconds as any,
+          time: timeInSeconds as UTCTimestamp,
           open: item.open,
           high: item.high,
           low: item.low,
@@ -620,7 +657,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       });
 
       // Фильтруем и сортируем данные
-      const processedData = TimeframeUtils.processChartData(chartData);
+      const processedData = TimeframeUtils.processChartData<CandleWithMeta>(chartData);
       
       if (processedData.length > 0) {
         
@@ -639,7 +676,8 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             // Принудительно очищаем старые данные перед установкой новых
             seriesInstance.setData([]);
             // Устанавливаем новые данные
-            seriesInstance.setData(processedData as any);
+            seriesInstance.setData(processedData);
+            candlesRef.current = processedData;
             setHasData(true);
             
             // Добавляем отступ от первой исторической свечи до края графика
@@ -649,9 +687,14 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
                 const firstCandleTime = processedData[0].time as number;
                 const timeOffset = 20 * 60; // 20 минут в секундах для отступа
                 const adjustedTime = firstCandleTime - timeOffset;
+                const rawRange = timeScale.getVisibleRange();
+                const existingRange =
+                  rawRange && typeof rawRange.from === 'number' && typeof rawRange.to === 'number'
+                    ? { from: rawRange.from as Time, to: rawRange.to as Time }
+                    : null;
                 timeScale.setVisibleRange({
-                  from: adjustedTime as any,
-                  to: timeScale.getVisibleRange()?.to || (processedData[processedData.length - 1].time as any)
+                  from: adjustedTime as Time,
+                  to: existingRange?.to ?? (processedData[processedData.length - 1].time as Time)
                 });
               } catch (err) {
                 // Игнорируем ошибки при установке отступа
@@ -693,7 +736,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             if (savedRange && hasUserInteractedRef.current) {
               try {
                 isProgrammaticRangeChangeRef.current = true;
-                chartInstance.timeScale().setVisibleRange(savedRange as any);
+                chartInstance.timeScale().setVisibleRange(savedRange);
               } catch (err) {
                 isProgrammaticRangeChangeRef.current = true;
                 chartInstance.timeScale().fitContent();
@@ -707,7 +750,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
                 const firstTimeAll = processedData[0].time as number;
                 const lastTimeAll = processedData[processedData.length - 1].time as number;
                 const range = { from: firstTimeAll as Time, to: lastTimeAll as Time };
-                chartInstance.timeScale().setVisibleRange(range as any);
+                chartInstance.timeScale().setVisibleRange(range);
               }
               initialRangeAppliedRef.current = true;
             }
@@ -738,7 +781,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             
             // Ищем последнюю реальную свечу, которая не старше максимального возраста
             for (let i = processedData.length - 1; i >= 0; i--) {
-              const candle = processedData[i] as any;
+              const candle = processedData[i];
               const candleTime = candle.time as number;
               const candleAge = currentTime - candleTime;
               
@@ -767,14 +810,14 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             if (savedRange && hasUserInteractedRef.current) {
               try {
                 isProgrammaticRangeChangeRef.current = true;
-                chartInstance.timeScale().setVisibleRange(savedRange as any);
+                chartInstance.timeScale().setVisibleRange(savedRange);
               } catch (err) {
                 isProgrammaticRangeChangeRef.current = true;
-                chartInstance.timeScale().setVisibleLogicalRange({ from: startIndex, to: endIndex } as any);
+                chartInstance.timeScale().setVisibleLogicalRange({ from: startIndex, to: endIndex });
               }
             } else if (!initialRangeAppliedRef.current) {
               isProgrammaticRangeChangeRef.current = true;
-              chartInstance.timeScale().setVisibleLogicalRange({ from: startIndex, to: endIndex } as any);
+              chartInstance.timeScale().setVisibleLogicalRange({ from: startIndex, to: endIndex });
               initialRangeAppliedRef.current = true;
             }
           }
@@ -825,7 +868,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       if (markers.length > 0) {
         try {
           if (chartContainerRef.current && chartContainerRef.current.querySelector('.tv-lightweight-charts')) {
-            seriesInstance.setMarkers(markers as any);
+            seriesInstance.setMarkers(markers);
           }
         } catch (err) {
           console.error(`[Chart] ❌ Ошибка при установке маркеров:`, err);
@@ -886,7 +929,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       
       // Проверяем, что real-time данные не старше последней свечи
       const realTimeSeconds = Math.floor(realTimeData.timestamp / 1000);
-      const lastCandleTime = lastCandle.time as number;
+      const lastCandleTime = typeof lastCandle.time === 'number'
+        ? lastCandle.time
+        : TimeframeUtils.convertTimestampToSeconds(lastCandle.time as any);
       
       // Добавляем небольшой запас времени (5 минут) для real-time данных
       const timeTolerance = 5 * 60; // 5 минут в секундах
@@ -908,8 +953,8 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         // Сохраняем текущую позицию перед обновлением
         try {
           const currentRange = chartInstance.timeScale().getVisibleRange();
-          if (currentRange) {
-            lastManualRangeRef.current = currentRange;
+          if (currentRange && typeof currentRange.from === 'number' && typeof currentRange.to === 'number') {
+            lastManualRangeRef.current = { from: currentRange.from as Time, to: currentRange.to as Time };
             
           }
         } catch (err) {
@@ -939,7 +984,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
       }
 
       // Создаем обновленную свечу с правильным форматом времени
-      const updatedCandle = {
+      const updatedCandle: CandleWithMeta = {
         time: timeInSeconds as UTCTimestamp, // Правильный тип для LightweightCharts
         open: realTimeData.open,
         high: realTimeData.high,
@@ -951,6 +996,15 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
 
       // Простое обновление - LightweightCharts сам разберется
       seriesInstance.update(updatedCandle);
+      // Сохраняем локальный кэш свечей для тултипов
+      const nextCandles: CandleWithMeta[] = [...candlesRef.current];
+      const idx = nextCandles.findIndex(c => c.time === updatedCandle.time);
+      if (idx >= 0) {
+        nextCandles[idx] = { ...nextCandles[idx], ...updatedCandle };
+      } else {
+        nextCandles.push(updatedCandle);
+      }
+      candlesRef.current = nextCandles;
       
 
       // НЕ автоматически скроллим при real-time обновлениях
@@ -965,6 +1019,28 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   useEffect(() => {
     if (!chartInstance) return;
 
+    const normalizeParam = (param: MouseEventParams<Time>): CrosshairPayload => {
+      let seriesDataPayload: CrosshairPayload['seriesData'];
+      if (param.seriesData) {
+        const raw = param.seriesData instanceof Map
+          ? param.seriesData.get(seriesInstance as ISeriesApi<'Candlestick'>)
+          : (param.seriesData as unknown);
+        if (raw && typeof raw === 'object') {
+          const rawAny = raw as { close?: number; price?: number; time?: Time };
+          seriesDataPayload = {
+            close: rawAny.close,
+            price: rawAny.price,
+            time: rawAny.time
+          };
+        }
+      }
+      return {
+        point: param.point ? { x: param.point.x, y: param.point.y } : undefined,
+        time: param.time as Time,
+        seriesData: seriesDataPayload
+      };
+    };
+
     // Проверяем, что в контейнере только один график
     if (chartContainerRef.current) {
       const charts = chartContainerRef.current.querySelectorAll('.tv-lightweight-charts');
@@ -975,13 +1051,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     }
 
     // Мгновенный обработчик мыши для hover (без debounce)
-    const handleMouseMove = (param: any) => {
-      handleCrosshairMove(param);
+    const handleMouseMove = (param: MouseEventParams<Time>) => {
+      handleCrosshairMove(normalizeParam(param));
     };
 
-    const handleClickMove = (param: any) => {
+    const handleClickMove = (param: MouseEventParams<Time>) => {
       setIsChartFocused(true);
-      handleCrosshairMove(param, true);
+      handleCrosshairMove(normalizeParam(param), true);
     };
 
     const handleTapOrClick = (event?: Event) => {
@@ -1004,11 +1080,11 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         if (hasPrice) {
           chartInstance.setCrosshairPosition(price as number, time as Time, seriesInstance);
         }
-        const param: any = { point: { x, y }, time };
+        const param: CrosshairPayload = { point: { x, y }, time };
         if (hasPrice) param.seriesData = { close: price };
         handleCrosshairMove(param, true);
       } else {
-        const param: any = { point: { x, y } };
+        const param: CrosshairPayload = { point: { x, y } };
         handleCrosshairMove(param, true);
       }
     };
@@ -1088,7 +1164,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         chartDom.removeEventListener('click', handleTapOrClick);
       }
     };
-  }, [chartInstance, handleCrosshairMove]);
+  }, [chartInstance, handleCrosshairMove, seriesInstance]);
 
   return (
     <div className={`relative ${className}`}>
