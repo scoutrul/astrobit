@@ -1,9 +1,11 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { useCryptoData } from '../../../CryptoData/Presentation/hooks/useCryptoData';
+import { useMultiCryptoData } from '../../../CryptoData/Presentation/hooks/useMultiCryptoData';
 import { useAstronomicalEvents } from '../../../Astronomical/Presentation/hooks/useAstronomicalEvents';
 import { useRealTimeCryptoData } from '../../../CryptoData/Presentation/hooks/useRealTimeCryptoData';
 import { useStore } from '../../../Shared/presentation/store';
 import { ChartComponent } from '../components/ChartComponent';
+import { MultiChartOverlay } from '../components/MultiChartOverlay';
 import { AstronomicalEvent as NewAstronomicalEvent } from '../../Infrastructure/utils/AstronomicalEventUtils';
 import { AstronomicalEvent as OldAstronomicalEvent } from '../../../Astronomical/Infrastructure/services/astronomicalEvents';
 import { combineHistoricalAndFutureCandles, clearFutureCandlesCache } from '../../../CryptoData/Infrastructure/utils/futureCandlesGenerator';
@@ -30,6 +32,9 @@ interface LegacyChartAdapterProps {
   };
   symbol?: string;
   timeframe?: string;
+  // Новые props для множественных графиков
+  selectedSymbols?: string[];
+  symbolColors?: Map<string, string>;
 }
 
 // Функция для конвертации старых астрономических событий в новый формат
@@ -49,7 +54,9 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   astronomicalEvents: propAstronomicalEvents,
   eventFilters = { lunar: true, solar: true, planetary: true, meteor: true },
   symbol: propSymbol,
-  timeframe: propTimeframe
+  timeframe: propTimeframe,
+  selectedSymbols,
+  symbolColors
 }) => {
   // Получаем данные из store
   const { symbol: storeSymbol, timeframe: storeTimeframe } = useStore();
@@ -57,6 +64,17 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
   // Используем пропсы или данные из store
   const symbol = propSymbol || storeSymbol;
   const timeframe = propTimeframe || storeTimeframe;
+  
+  // Определяем режим: множественные графики или одиночный
+  // Основной символ всегда базовая, selectedSymbols наслаиваются поверх
+  const isMultiMode = selectedSymbols && selectedSymbols.length > 0;
+  
+  // Объединяем основной символ с выбранными для наслоения
+  const allSymbolsForOverlay = useMemo(() => {
+    if (!isMultiMode) return [];
+    // Основной символ - первый (базовый), затем выбранные
+    return [symbol, ...selectedSymbols];
+  }, [symbol, selectedSymbols, isMultiMode]);
   
   // Очищаем кэш при смене таймфрейма для применения новых ограничений
   useEffect(() => {
@@ -82,8 +100,12 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
     };
   }, []); // Пустой массив зависимостей - даты не должны меняться
 
-  // Получаем криптоданные через хук
+  // Получаем криптоданные через хук (одиночный или множественный режим)
   const { data: hookCryptoData, loading: cryptoLoading } = useCryptoData(symbol, timeframe);
+  const { data: multiCryptoData, loading: multiCryptoLoading } = useMultiCryptoData(
+    isMultiMode && allSymbolsForOverlay.length > 0 ? allSymbolsForOverlay : [],
+    timeframe
+  );
 
   // Получаем астрономические события с стабилизированными датами
   const { events: hookAstronomicalEvents, loading: astroLoading } = useAstronomicalEvents(
@@ -109,8 +131,12 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
     }));
   }, [astronomicalEvents.length]); // Используем только length вместо всего массива
 
-  // Генерируем адаптивные будущие свечи с учетом событий
+  // Генерируем адаптивные будущие свечи с учетом событий (для одиночного режима)
   const enhancedCryptoData = useMemo(() => {
+    if (isMultiMode) {
+      return []; // В режиме множественных графиков не используем этот массив
+    }
+    
     const historicalData = propCryptoData || hookCryptoData || [];
     
     if (historicalData.length === 0) {
@@ -167,6 +193,70 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
     symbol,
     lastUpdate?.close,
     lastUpdate?.symbol,
+    lastUpdate?.interval,
+    isMultiMode
+  ]);
+
+  // Подготовка данных для множественных графиков
+  const enhancedMultiCryptoData = useMemo(() => {
+    if (!isMultiMode || !multiCryptoData || multiCryptoData.length === 0) {
+      return [];
+    }
+
+    return multiCryptoData.map(dataset => {
+      const historicalData = dataset.data || [];
+      
+      if (historicalData.length === 0) {
+        return { symbol: dataset.symbol, data: [] };
+      }
+
+      // Добавляем флаг visible: true для исторических данных
+      const historicalDataWithVisibility = historicalData.map(item => ({
+        ...item,
+        visible: true
+      }));
+
+      // Объединяем исторические данные с адаптивными будущими свечами
+      let combinedData = combineHistoricalAndFutureCandles(
+        historicalDataWithVisibility,
+        timeframe,
+        eventsForGenerator
+      );
+
+      // Если есть real-time данные для этого символа, обновляем будущие свечи
+      const rtMatches = !!lastUpdate &&
+        lastUpdate.symbol.toLowerCase() === dataset.symbol.toLowerCase() &&
+        lastUpdate.interval === timeframe;
+
+      if (rtMatches && combinedData.length > 0) {
+        const lastHistoricalIndex = historicalDataWithVisibility.length - 1;
+        const currentPrice = lastUpdate.close;
+        
+        combinedData = combinedData.map((candle, index) => {
+          if (index > lastHistoricalIndex) {
+            return {
+              ...candle,
+              open: currentPrice,
+              high: currentPrice,
+              low: currentPrice,
+              close: currentPrice,
+              visible: false,
+              volume: 0
+            };
+          }
+          return candle;
+        });
+      }
+
+      return { symbol: dataset.symbol, data: combinedData };
+    });
+  }, [
+    isMultiMode,
+    multiCryptoData,
+    timeframe,
+    eventsForGenerator.length,
+    lastUpdate?.close,
+    lastUpdate?.symbol,
     lastUpdate?.interval
   ]);
 
@@ -204,6 +294,24 @@ export const LegacyChartAdapter: React.FC<LegacyChartAdapterProps> = ({
     };
   }, [unsubscribe]);
 
+  // Если режим множественных графиков - используем MultiChartOverlay
+  if (isMultiMode && enhancedMultiCryptoData.length > 0) {
+    return (
+      <MultiChartOverlay
+        symbols={allSymbolsForOverlay}
+        timeframe={timeframe}
+        multiSymbolData={enhancedMultiCryptoData}
+        symbolColors={symbolColors || new Map()}
+        astronomicalEvents={astronomicalEvents}
+        eventFilters={eventFilters}
+        height={height}
+        realTimeData={lastUpdate}
+        isLoading={cryptoLoading || multiCryptoLoading || astroLoading}
+      />
+    );
+  }
+
+  // Одиночный график - используем ChartComponent
   return (
     <ChartComponent
       symbol={symbol}

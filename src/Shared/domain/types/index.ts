@@ -8,6 +8,11 @@ export interface StoreState {
   isLoading: boolean;
   error: string | null;
   
+  // Multi-symbol state (optional, for overlay charts)
+  selectedSymbols: string[];
+  normalizeMode: boolean;
+  symbolColors: Map<string, string>;
+  
   // Astronomical data state
   astroEvents: any[]; // Will be properly typed when importing from Astronomical
   visibleEvents: any[]; // Will be properly typed when importing from Astronomical
@@ -27,4 +32,11 @@ export interface StoreState {
   setChartRange: (range: { from: number; to: number }) => void;
   setError: (error: string | null) => void;
   setLoading: (loading: boolean) => void;
+  
+  // Multi-symbol actions
+  setSelectedSymbols: (symbols: string[]) => void;
+  addSymbol: (symbol: string) => void;
+  removeSymbol: (symbol: string) => void;
+  setNormalizeMode: (enabled: boolean) => void;
+  setSymbolColor: (symbol: string, color: string) => void;
 } 

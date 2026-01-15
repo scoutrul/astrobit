@@ -213,10 +213,8 @@ export class BinanceWebSocketService extends ExternalService {
       // Очищаем подписки старого потока
       this.subscriptions.clear();
       
-      
-      this.ws.close();
-      this.ws = null;
-      this.isConnected = false;
+      // Правильно закрываем соединение
+      await this.disconnect();
     }
 
     // Очищаем таймаут переподключения
@@ -242,16 +240,39 @@ export class BinanceWebSocketService extends ExternalService {
 
     return new Promise((resolve, reject) => {
       try {
+        // Закрываем предыдущее соединение, если оно существует
+        if (this.ws) {
+          const oldWs = this.ws;
+          oldWs.onopen = null;
+          oldWs.onmessage = null;
+          oldWs.onerror = null;
+          oldWs.onclose = null;
+          if (oldWs.readyState === WebSocket.OPEN || oldWs.readyState === WebSocket.CONNECTING) {
+            try {
+              oldWs.close(1000, 'Switching stream');
+            } catch (e) {
+              // Игнорируем ошибки
+            }
+          }
+          this.ws = null;
+        }
+
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
-          this.isConnected = true;
-          this.reconnectAttempts = 0;
-          
-          resolve();
+          // Проверяем, что соединение все еще актуально
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.isConnected = true;
+            this.reconnectAttempts = 0;
+            resolve();
+          }
         };
 
         this.ws.onmessage = (event) => {
+          // Проверяем, что соединение все еще активно
+          if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            return;
+          }
           try {
             const message = JSON.parse(event.data);
             this.handleMessage(message);
@@ -262,15 +283,26 @@ export class BinanceWebSocketService extends ExternalService {
 
         this.ws.onerror = (error) => {
           
-          reject(error);
+          // Не отклоняем промис при ошибке, так как onclose тоже вызовется
+          if (this.ws && this.ws.readyState === WebSocket.CLOSED) {
+            reject(error);
+          }
         };
 
-        this.ws.onclose = () => {
+        this.ws.onclose = (event) => {
           this.isConnected = false;
           
+          // Очищаем ссылку на WebSocket
+          if (this.ws) {
+            this.ws.onopen = null;
+            this.ws.onmessage = null;
+            this.ws.onerror = null;
+            this.ws.onclose = null;
+            this.ws = null;
+          }
           
-          // Переподключаемся только если есть активные подписки
-          if (this.subscriptions.size > 0) {
+          // Переподключаемся только если есть активные подписки и это не было нормальное закрытие
+          if (this.subscriptions.size > 0 && event.code !== 1000) {
             this.handleReconnection();
           }
         };
@@ -292,7 +324,20 @@ export class BinanceWebSocketService extends ExternalService {
     }
 
     if (this.ws) {
-      this.ws.close();
+      // Удаляем все обработчики событий перед закрытием
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onerror = null;
+      this.ws.onclose = null;
+      
+      // Проверяем состояние перед закрытием
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        try {
+          this.ws.close(1000, 'Normal closure');
+        } catch (error) {
+          // Игнорируем ошибки при закрытии
+        }
+      }
       this.ws = null;
     }
 
@@ -419,12 +464,16 @@ export class BinanceWebSocketService extends ExternalService {
     
 
     this.reconnectTimeout = setTimeout(async () => {
-      if (this.activeStream && this.subscriptions.size > 0) {
+      // Проверяем, что соединение еще не установлено и есть подписки
+      if (this.activeStream && this.subscriptions.size > 0 && !this.isConnected) {
         try {
           await this.connect();
         } catch (error) {
           
-          this.handleReconnection();
+          // Продолжаем переподключение только если есть подписки
+          if (this.subscriptions.size > 0) {
+            this.handleReconnection();
+          }
         }
       }
     }, delay);

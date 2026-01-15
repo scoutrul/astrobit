@@ -9,6 +9,11 @@ export const useStore = create<StoreState>((set, get) => ({
   isLoading: false,
   error: null,
   
+  // Multi-symbol state
+  selectedSymbols: ['BTCUSDT'],
+  normalizeMode: false,
+  symbolColors: new Map<string, string>(),
+  
   // Astronomical data state
   astroEvents: [],
   visibleEvents: [],
@@ -28,7 +33,14 @@ export const useStore = create<StoreState>((set, get) => ({
   // Actions
   setTimeframe: (timeframe: string) => set({ timeframe }),
   
-  setSymbol: (symbol: string) => set({ symbol }),
+  setSymbol: (symbol: string) => {
+    set({ symbol });
+    // Обновляем selectedSymbols, если текущий символ не в списке
+    const { selectedSymbols } = get();
+    if (!selectedSymbols.includes(symbol)) {
+      set({ selectedSymbols: [symbol, ...selectedSymbols.slice(0, 9)] }); // Максимум 10 символов
+    }
+  },
   
   setCryptoData: (data) => set({ cryptoData: data }),
   
@@ -54,5 +66,40 @@ export const useStore = create<StoreState>((set, get) => ({
   
   setError: (error) => set({ error }),
   
-  setLoading: (loading) => set({ isLoading: loading })
+  setLoading: (loading) => set({ isLoading: loading }),
+  
+  // Multi-symbol actions
+  setSelectedSymbols: (symbols: string[]) => {
+    set({ selectedSymbols: symbols });
+    // Обновляем основной symbol, если список не пустой
+    if (symbols.length > 0) {
+      set({ symbol: symbols[0] });
+    }
+  },
+  
+  addSymbol: (symbol: string) => {
+    const { selectedSymbols } = get();
+    if (!selectedSymbols.includes(symbol) && selectedSymbols.length < 10) {
+      set({ selectedSymbols: [...selectedSymbols, symbol] });
+    }
+  },
+  
+  removeSymbol: (symbol: string) => {
+    const { selectedSymbols } = get();
+    const filtered = selectedSymbols.filter(s => s !== symbol);
+    set({ selectedSymbols: filtered });
+    // Если удалили текущий символ, обновляем основной
+    if (filtered.length > 0 && get().symbol === symbol) {
+      set({ symbol: filtered[0] });
+    }
+  },
+  
+  setNormalizeMode: (enabled: boolean) => set({ normalizeMode: enabled }),
+  
+  setSymbolColor: (symbol: string, color: string) => {
+    const { symbolColors } = get();
+    const newColors = new Map(symbolColors);
+    newColors.set(symbol, color);
+    set({ symbolColors: newColors });
+  }
 })); 

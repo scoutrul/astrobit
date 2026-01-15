@@ -32,6 +32,22 @@ interface ChartComponentProps {
     volume: number;
     visible?: boolean;
   }>;
+  // Новые props для множественных графиков
+  multiSymbolData?: Array<{
+    symbol: string;
+    data: Array<{
+      symbol: string;
+      time: string;
+      open: number;
+      high: number;
+      low: number;
+      close: number;
+      volume: number;
+      visible?: boolean;
+    }>;
+  }>;
+  normalizeMode?: boolean; // Deprecated: больше не используется
+  symbolColors?: Map<string, string>; // Deprecated: больше не используется
   astronomicalEvents?: AstronomicalEvent[];
   eventFilters?: {
     lunar?: boolean;
@@ -51,6 +67,13 @@ interface TooltipData {
   events?: AstronomicalEvent[];
   visible: boolean;
   candlePrice?: number; // Цена свечи при наведении
+  multiSeriesData?: Array<{ // Данные для множественных серий
+    symbol: string;
+    value: number;
+    originalValue?: number;
+    changePercent?: number;
+    color: string;
+  }>;
 }
 
 type CrosshairPayload = {
@@ -520,9 +543,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         wickDownColor: '#ef4444',
         wickUpColor: '#10b981'
       });
+      setSeriesInstance(candlestickSeries);
 
       setChartInstance(chart);
-      setSeriesInstance(candlestickSeries);
       
       
 
@@ -827,7 +850,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     } catch (err) {
       console.error('[ChartComponent] ❌ Error updating crypto data:', err);
     }
-  }, [cryptoData, chartInstance, symbol, timeframe]); // Убрал seriesInstance из зависимостей
+  }, [cryptoData, chartInstance, symbol, timeframe]);
 
   // Обновление астрономических событий
   useEffect(() => {
@@ -1165,7 +1188,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         chartDom.removeEventListener('click', handleTapOrClick);
       }
     };
-  }, [chartInstance, handleCrosshairMove, seriesInstance]);
+  }, [chartInstance, handleCrosshairMove, seriesInstance, containerWidth]);
 
   return (
     <div className={`relative ${className}`}>
@@ -1210,7 +1233,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         </div>
       )}
 
-      {/* Тултип для астрономических событий */}
+      {/* Тултип для астрономических событий или множественных серий */}
       {tooltip.visible && isChartFocused && (
         <div 
           className="absolute z-10 bg-[#1e293b] border border-[#334155] rounded-lg px-3 py-2 shadow-lg pointer-events-none astro-tooltip transition-instant opacity-instant tooltip-instant gpu-off tooltip-visible instant-response"
