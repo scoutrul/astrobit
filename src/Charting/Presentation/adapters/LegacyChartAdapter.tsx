@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef, useState } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { useCryptoData } from '../../../CryptoData/Presentation/hooks/useCryptoData';
 import { useMultiCryptoData } from '../../../CryptoData/Presentation/hooks/useMultiCryptoData';
 import { useAstronomicalEvents } from '../../../Astronomical/Presentation/hooks/useAstronomicalEvents';

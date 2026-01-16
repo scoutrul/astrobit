@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { LegacyChartAdapter } from '../../../Charting/Presentation/adapters/LegacyChartAdapter';
 import { CryptoDataContainer } from '../../../CryptoData/Presentation/containers/CryptoDataContainer';
 import { ChartingContainer } from '../../../Charting/Presentation/containers/ChartingContainer';

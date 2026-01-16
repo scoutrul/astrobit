@@ -58,7 +58,7 @@ export const MultiSymbolSelector: React.FC<MultiSymbolSelectorProps> = ({
   selectedSymbols,
   onSymbolsChange,
   symbolColors,
-  onColorChange,
+  onColorChange: _onColorChange,
   primarySymbol,
   onPrimarySymbolChange
 }) => {
