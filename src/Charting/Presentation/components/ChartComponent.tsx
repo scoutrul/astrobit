@@ -1248,17 +1248,31 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
             <div className="space-y-2">
               <div className="text-[#e2e8f0] font-semibold text-sm mb-2 border-b border-[#334155] pb-1 flex justify-between items-center">
                 <span>События ({tooltip.events.length})</span>
-                <div className="text-right">
-                  {tooltip.candlePrice !== null && tooltip.candlePrice !== undefined ? (
-                    <span className="text-[#f7931a] text-xs font-mono">
-                      ${tooltip.candlePrice.toFixed(2)}
-                    </span>
-                  ) : (
-                    <span className="text-[#6b7280] text-xs">
-                      Нет цены
-                    </span>
-                  )}
-                </div>
+                {(() => {
+                  // Проверяем, есть ли хотя бы одно будущее событие
+                  const now = Date.now();
+                  const hasFutureEvent = tooltip.events.some(event => event.timestamp > now);
+                  
+                  // Если все события будущие, не показываем цену
+                  if (hasFutureEvent) {
+                    return null;
+                  }
+                  
+                  // Для прошлых событий показываем цену
+                  return (
+                    <div className="text-right">
+                      {tooltip.candlePrice !== null && tooltip.candlePrice !== undefined ? (
+                        <span className="text-[#f7931a] text-xs font-mono">
+                          ${tooltip.candlePrice.toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-[#6b7280] text-xs">
+                          Нет цены
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               {tooltip.events.map((event, index) => (
                 <div key={index} className="border-l-2 border-[#f7931a] pl-2">
